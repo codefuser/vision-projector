@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProjectionControl } from "@/features/projection/ProjectionControl";
+import { ProjectionWindow } from "@/features/projection/ProjectionWindow";
 
 export const Route = createFileRoute("/project")({
   head: () => ({
@@ -13,18 +15,16 @@ export const Route = createFileRoute("/project")({
 });
 
 function ProjectRoute() {
-  // When opened in popup, render the bare projection window (no AppShell).
-  if (typeof window !== "undefined" && window.opener && window.name === "church-projector") {
-    return <ProjectionWindowLazy />;
-  }
+  const [mode, setMode] = useState<"loading" | "popup" | "control">("loading");
+  useEffect(() => {
+    const isPopup = typeof window !== "undefined" && window.opener && window.name === "church-projector";
+    setMode(isPopup ? "popup" : "control");
+  }, []);
+  if (mode === "loading") return <div className="h-screen bg-black" />;
+  if (mode === "popup") return <ProjectionWindow />;
   return (
     <AppShell>
       <ProjectionControl />
     </AppShell>
   );
-}
-
-import { ProjectionWindow } from "@/features/projection/ProjectionWindow";
-function ProjectionWindowLazy() {
-  return <ProjectionWindow />;
 }
