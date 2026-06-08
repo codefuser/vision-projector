@@ -67,7 +67,7 @@ export async function importBackup(file: Blob, opts: { mode: "merge" | "replace"
   const manifest = JSON.parse(strFromU8(manifestRaw)) as Manifest;
   if (manifest.version > BACKUP_VERSION) throw new Error(`Backup version ${manifest.version} is newer than supported (${BACKUP_VERSION})`);
 
-  await db().transaction("rw", db().folders, db().media, db().blobs, db().playlists, db().settings, async () => {
+  await db().transaction("rw", [db().folders, db().media, db().blobs, db().playlists, db().settings], async () => {
     if (opts.mode === "replace") {
       await db().folders.clear();
       await db().media.clear();
