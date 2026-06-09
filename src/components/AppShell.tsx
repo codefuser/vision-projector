@@ -3,6 +3,7 @@ import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun
 import { type ReactNode, useEffect } from "react";
 import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
+import { projectionEngine } from "@/projection";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -19,6 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     init();
+    projectionEngine.bootstrap();
     if (!loaded) void load();
   }, [init, load, loaded]);
 
