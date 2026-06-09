@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { ProjectionControl } from "@/features/projection/ProjectionControl";
+import { ProjectionWorkspace } from "@/features/workspace/ProjectionWorkspace";
 import { ProjectionWindow } from "@/features/projection/ProjectionWindow";
 
 export const Route = createFileRoute("/project")({
@@ -24,7 +24,8 @@ function ProjectRoute() {
   if (mode === "popup") return <ProjectionWindow />;
   return (
     <AppShell>
-      <ProjectionControl />
+      <ProjectionWorkspace />
     </AppShell>
   );
 }
+

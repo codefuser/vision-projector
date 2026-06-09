@@ -1,0 +1,90 @@
+import { Image as ImageIcon, BookOpen, Music, Type } from "lucide-react";
+import { useWorkspace, type WorkspaceTab } from "./workspace.store";
+import { LibraryPage } from "@/features/library/LibraryPage";
+import { useFocusZone, type FocusZone } from "./focus-manager";
+import { cn } from "@/lib/utils";
+
+const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null> }[] = [
+  { id: "media", label: "Media", icon: ImageIcon, focus: "media" },
+  { id: "bible", label: "Bible", icon: BookOpen, focus: "bible" },
+  { id: "songs", label: "Songs", icon: Music, focus: "songs" },
+  { id: "text", label: "Text", icon: Type, focus: "text" },
+];
+
+export function WorkspaceTabsPanel() {
+  const { activeTab, setActiveTab } = useWorkspace();
+  const active = TABS.find((t) => t.id === activeTab) ?? TABS[0];
+  const focus = useFocusZone(active.focus);
+
+  return (
+    <div
+      className={cn("flex h-full min-h-0 flex-col bg-card", focus.isActive && "ring-1 ring-primary/40")}
+      onFocus={focus.onFocus}
+      onMouseDown={focus.onFocus}
+      tabIndex={focus.tabIndex}
+    >
+      <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border bg-muted/30 px-1">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const isActive = t.id === activeTab;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+                isActive
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+              {t.id !== "media" && (
+                <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
+                  Soon
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {activeTab === "media" && (
+          <div className="h-full overflow-hidden">
+            <LibraryPage />
+          </div>
+        )}
+        {activeTab === "bible" && <ComingSoon icon={BookOpen} title="Bible" description="Reference projection coming soon." />}
+        {activeTab === "songs" && <ComingSoon icon={Music} title="Songs" description="Song lyric projection coming soon." />}
+        {activeTab === "text" && <ComingSoon icon={Type} title="Text" description="Free-form text projection coming soon." />}
+      </div>
+    </div>
+  );
+}
+
+function ComingSoon({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center overflow-y-auto p-8">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="text-base font-semibold">{title}</div>
+        <div className="mt-1 text-sm text-muted-foreground">{description}</div>
+        <div className="mt-4 inline-block rounded-full border border-dashed border-border px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+          Module reserved
+        </div>
+      </div>
+    </div>
+  );
+}
