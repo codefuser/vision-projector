@@ -49,12 +49,12 @@ export function LivePreviewPanel() {
       const rec = await db().blobs.get(media.blobId);
       if (!rec || cancelled) return;
       activeKey = media.blobId;
-      const u = acquireBlobUrl(activeKey, rec.blob);
+      const u = acquireUrl(activeKey, rec.blob);
       setUrl(u);
     })();
     return () => {
       cancelled = true;
-      if (activeKey) releaseBlobUrl(activeKey);
+      if (activeKey) releaseUrl(activeKey);
     };
   }, [media]);
 
