@@ -4,7 +4,7 @@ import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
 import { db } from "@/db/schema";
 import type { MediaRecord } from "@/db/schema";
-import { acquireBlobUrl, releaseBlobUrl } from "@/lib/blob-url";
+import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
 import { cn } from "@/lib/utils";
 
