@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import { ChevronDown, ChevronUp, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
+import { ChevronUp, ChevronDown, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
 import { LivePreviewPanel } from "./LivePreviewPanel";
 import { TextFormattingPanel } from "./TextFormattingPanel";
 import { WorkspaceTabsPanel } from "./WorkspaceTabsPanel";
@@ -12,19 +12,39 @@ import { cn } from "@/lib/utils";
 /**
  * Dockable, resizable workspace for the Project page.
  *
- * Layout
- * ──────
- * ┌────────────────────────┬───────────────────────┐
- * │  Live Preview          │                       │
- * ├────────────────────────┤   Workspace Tabs      │
- * │  Text Formatting       │   (Media / Bible /    │
- * │  (UI only)             │    Songs / Text)      │
- * └────────────────────────┴───────────────────────┘
+ *   ┌──────────────────────┬──────────────────────┐
+ *   │  Live Preview        │                      │
+ *   ├──────────────────────┤   Workspace Tabs     │
+ *   │  Text Formatting     │   (Media / Bible /   │
+ *   │  (UI only)           │    Songs / Text)     │
+ *   └──────────────────────┴──────────────────────┘
  *
- * Panel sizes are persisted automatically by react-resizable-panels via the
- * `autoSaveId` prop (localStorage). Panel visibility / active tab persist
- * via the workspace store (zustand + persist middleware).
+ * Layout (panel sizes) persists via localStorage on every drag commit.
+ * Panel visibility and active tab persist via the workspace zustand store.
  */
+const LAYOUT_KEYS = {
+  outer: "church-media-ws-outer-v1",
+  left: "church-media-ws-left-v1",
+};
+
+function readLayout(key: string): Layout | undefined {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed ? (parsed as Layout) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function writeLayout(key: string, layout: Layout) {
+  try {
+    localStorage.setItem(key, JSON.stringify(layout));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 export function ProjectionWorkspace() {
   const { visible, togglePanel, showPanel } = useWorkspace();
   const init = useProjection((s) => s.init);
@@ -32,38 +52,26 @@ export function ProjectionWorkspace() {
 
   useEffect(() => {
     init();
-    // Ask the projector to broadcast its current state so the preview syncs immediately.
     send({ type: "PING" });
   }, [init, send]);
 
+  const savedOuter = useMemo(() => readLayout(LAYOUT_KEYS.outer), []);
+  const savedLeft = useMemo(() => readLayout(LAYOUT_KEYS.left), []);
+
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
+  const leftVisible = visible.preview || visible.textFormat;
 
   return (
     <FocusManagerProvider>
       <div className="flex h-full min-h-0 flex-col bg-background">
-        {/* Workspace toolbar — collapse / restore controls */}
+        {/* Workspace toolbar */}
         <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-2">
           <div className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Workspace
           </div>
-          <DockButton
-            label="Preview"
-            icon={MonitorPlay}
-            active={visible.preview}
-            onClick={() => togglePanel("preview")}
-          />
-          <DockButton
-            label="Text"
-            icon={TypeIcon}
-            active={visible.textFormat}
-            onClick={() => togglePanel("textFormat")}
-          />
-          <DockButton
-            label="Tabs"
-            icon={LayoutGrid}
-            active={visible.tabs}
-            onClick={() => togglePanel("tabs")}
-          />
+          <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
+          <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
+          <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
           <div className="ml-auto text-[10px] text-muted-foreground">
             Drag dividers to resize · Click chips to dock / undock
           </div>
@@ -73,105 +81,45 @@ export function ProjectionWorkspace() {
           {allHidden ? (
             <EmptyDock onShow={showPanel} visible={visible} />
           ) : (
-            <PanelGroup
-              direction="horizontal"
-              autoSaveId="church-media-workspace-h"
+            <Group
+              orientation="horizontal"
               className="h-full"
+              defaultLayout={savedOuter}
+              onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.outer, l)}
             >
-              {/* LEFT COLUMN: Preview (top) + Text Formatting (bottom) */}
-              {(visible.preview || visible.textFormat) && (
-                <>
-                  <Panel
-                    id="left"
-                    order={1}
-                    defaultSize={50}
-                    minSize={20}
-                    className="min-h-0"
+              {leftVisible && (
+                <Panel id="left" defaultSize={50} minSize={20} className="min-h-0 min-w-0">
+                  <Group
+                    orientation="vertical"
+                    className="h-full"
+                    defaultLayout={savedLeft}
+                    onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.left, l)}
                   >
-                    <PanelGroup
-                      direction="vertical"
-                      autoSaveId="church-media-workspace-left-v"
-                      className="h-full"
-                    >
-                      {visible.preview && (
-                        <>
-                          <Panel id="preview" order={1} defaultSize={60} minSize={15} className="min-h-0">
-                            <CollapsibleShell
-                              title="Preview"
-                              icon={MonitorPlay}
-                              onCollapse={() => togglePanel("preview")}
-                            >
-                              <LivePreviewPanel />
-                            </CollapsibleShell>
-                          </Panel>
-                          {visible.textFormat && <VHandle />}
-                        </>
-                      )}
-                      {visible.textFormat && (
-                        <Panel id="text-format" order={2} defaultSize={40} minSize={15} className="min-h-0">
-                          <CollapsibleShell
-                            title="Text Formatting"
-                            icon={TypeIcon}
-                            onCollapse={() => togglePanel("textFormat")}
-                          >
-                            <TextFormattingPanel />
-                          </CollapsibleShell>
-                        </Panel>
-                      )}
-                    </PanelGroup>
-                  </Panel>
-                  {visible.tabs && <HHandle />}
-                </>
-              )}
-
-              {/* RIGHT COLUMN: Tabs */}
-              {visible.tabs && (
-                <Panel id="right" order={2} defaultSize={50} minSize={25} className="min-h-0">
-                  <CollapsibleShell
-                    title="Workspace"
-                    icon={LayoutGrid}
-                    onCollapse={() => togglePanel("tabs")}
-                  >
-                    <WorkspaceTabsPanel />
-                  </CollapsibleShell>
+                    {visible.preview && (
+                      <Panel id="preview" defaultSize={60} minSize={15} className="min-h-0">
+                        <LivePreviewPanel />
+                      </Panel>
+                    )}
+                    {visible.preview && visible.textFormat && <VHandle />}
+                    {visible.textFormat && (
+                      <Panel id="text-format" defaultSize={40} minSize={15} className="min-h-0">
+                        <TextFormattingPanel />
+                      </Panel>
+                    )}
+                  </Group>
                 </Panel>
               )}
-            </PanelGroup>
+              {leftVisible && visible.tabs && <HHandle />}
+              {visible.tabs && (
+                <Panel id="right" defaultSize={50} minSize={25} className="min-h-0 min-w-0">
+                  <WorkspaceTabsPanel />
+                </Panel>
+              )}
+            </Group>
           )}
         </div>
       </div>
     </FocusManagerProvider>
-  );
-}
-
-function CollapsibleShell({
-  title,
-  icon: Icon,
-  onCollapse,
-  children,
-}: {
-  title: string;
-  icon: React.ComponentType<{ className?: string }>;
-  onCollapse: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-sm border border-border/60 bg-card">
-      <button
-        onClick={onCollapse}
-        className="absolute right-1 top-1 z-20 inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition hover:bg-accent hover:text-foreground group-hover:opacity-100"
-        title={`Collapse ${title}`}
-        aria-label={`Collapse ${title}`}
-        style={{ opacity: 1 }}
-      >
-        <ChevronUp className="h-3.5 w-3.5" />
-      </button>
-      <div className="flex h-full min-h-0 flex-col">
-        {/* sr-only icon ref to satisfy unused warnings if any */}
-        <Icon className="hidden" />
-        {children}
-      </div>
-    </div>
   );
 }
 
@@ -206,16 +154,16 @@ function DockButton({
 
 function HHandle() {
   return (
-    <PanelResizeHandle className="group relative w-1.5 bg-transparent transition hover:bg-primary/40 data-[resize-handle-state=drag]:bg-primary/60">
-      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-    </PanelResizeHandle>
+    <Separator className="relative w-1.5 bg-transparent transition data-[separator-state=hover]:bg-primary/40 data-[separator-state=drag]:bg-primary/60 hover:bg-primary/40">
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+    </Separator>
   );
 }
 function VHandle() {
   return (
-    <PanelResizeHandle className="group relative h-1.5 bg-transparent transition hover:bg-primary/40 data-[resize-handle-state=drag]:bg-primary/60">
-      <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
-    </PanelResizeHandle>
+    <Separator className="relative h-1.5 bg-transparent transition data-[separator-state=hover]:bg-primary/40 data-[separator-state=drag]:bg-primary/60 hover:bg-primary/40">
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
+    </Separator>
   );
 }
 
@@ -224,17 +172,17 @@ function EmptyDock({ onShow, visible }: { onShow: (k: keyof PanelVisibility) => 
     <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
       <div>All panels are collapsed.</div>
       <div className="flex flex-wrap justify-center gap-2">
-        {(!visible.preview) && (
+        {!visible.preview && (
           <button onClick={() => onShow("preview")} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
             Show Preview
           </button>
         )}
-        {(!visible.textFormat) && (
+        {!visible.textFormat && (
           <button onClick={() => onShow("textFormat")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Text Formatting
           </button>
         )}
-        {(!visible.tabs) && (
+        {!visible.tabs && (
           <button onClick={() => onShow("tabs")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Workspace Tabs
           </button>
