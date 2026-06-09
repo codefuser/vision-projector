@@ -4,12 +4,12 @@ import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
-import { useProjection } from "@/stores/projection.store";
-import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia, touchMedia } from "@/db/repo";
+import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
@@ -36,7 +36,6 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
-  const { send, openProjector, projectorOpen } = useProjection();
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
@@ -48,10 +47,12 @@ export function LibraryPage() {
   const visible = useMemo(() => filterMedia(media, search, filter), [media, search, filter]);
   const selectedIds = useMemo(() => Array.from(selection), [selection]);
 
+  // Selection = Projection: a single click routes through the Projection
+  // Engine via the media adapter. The legacy preview modal is reachable
+  // via double-click so the Rename / Project-from-preview affordances
+  // remain available.
   const projectOne = async (m: MediaRecord) => {
-    await touchMedia(m.id);
-    if (!projectorOpen) openProjector();
-    setTimeout(() => send({ type: "LOAD", mediaId: m.id }), projectorOpen ? 0 : 400);
+    await MediaAdapter.projectMedia(m);
   };
 
   const onRename = async (m: MediaRecord) => {
@@ -186,9 +187,14 @@ export function LibraryPage() {
                         if (e.shiftKey || e.ctrlKey || e.metaKey) {
                           toggleSelect(m.id, true);
                         } else {
-                          setPreview(m);
+                          void projectOne(m);
                         }
                       }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setPreview(m);
+                      }}
+                      title="Click to project · Double-click to preview"
                       className={cn(
                         "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
                         selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
