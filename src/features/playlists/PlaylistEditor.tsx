@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { getPlaylist, updatePlaylistItems, listAllMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "@/db/schema";
 import { Thumb } from "@/components/Thumb";
-import { useProjection } from "@/stores/projection.store";
+import { MediaAdapter } from "@/projection";
 import { toast } from "sonner";
 import { formatDuration } from "@/lib/files";
 
@@ -28,7 +28,6 @@ const TRANSITIONS: TransitionType[] = ["fade", "crossfade", "zoom", "dissolve", 
 export function PlaylistEditor({ id }: { id: string }) {
   const [playlist, setPlaylist] = useState<PlaylistRecord | null>(null);
   const [mediaMap, setMediaMap] = useState<Map<string, MediaRecord>>(new Map());
-  const { send, openProjector, projectorOpen } = useProjection();
 
   const refresh = async () => {
     const p = await getPlaylist(id);
@@ -69,8 +68,7 @@ export function PlaylistEditor({ id }: { id: string }) {
 
   const project = (startIndex = 0) => {
     if (!playlist?.items.length) return toast.error("Playlist is empty");
-    if (!projectorOpen) openProjector();
-    setTimeout(() => send({ type: "LOAD_PLAYLIST", playlistId: playlist.id, startIndex }), projectorOpen ? 0 : 400);
+    void MediaAdapter.projectPlaylist(playlist, startIndex);
   };
 
   if (!playlist) {

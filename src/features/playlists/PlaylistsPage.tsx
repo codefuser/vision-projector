@@ -3,12 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { Plus, ListVideo, Copy, Trash2, Pencil, Play } from "lucide-react";
 import { createPlaylist, deletePlaylist, duplicatePlaylist, listPlaylists, renamePlaylist } from "@/db/repo";
 import type { PlaylistRecord } from "@/db/schema";
-import { useProjection } from "@/stores/projection.store";
+import { MediaAdapter } from "@/projection";
 import { toast } from "sonner";
 
 export function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
-  const { send, openProjector, projectorOpen } = useProjection();
 
   const refresh = async () => setPlaylists(await listPlaylists());
 
@@ -23,10 +22,9 @@ export function PlaylistsPage() {
     await refresh();
   };
 
-  const projectPlaylist = (p: PlaylistRecord) => {
+  const projectPlaylist = async (p: PlaylistRecord) => {
     if (!p.items.length) return toast.error("Playlist is empty");
-    if (!projectorOpen) openProjector();
-    setTimeout(() => send({ type: "LOAD_PLAYLIST", playlistId: p.id, startIndex: 0 }), projectorOpen ? 0 : 400);
+    await MediaAdapter.projectPlaylist(p, 0);
   };
 
   return (
