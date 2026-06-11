@@ -258,19 +258,29 @@ export function LibraryPage() {
                 <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                   <div>
                     {visible.length} item{visible.length !== 1 ? "s" : ""}
-                    {projectorOpen && (
+                    {!selectionMode && (
                       <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
                         Click to project
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => selectAll(visible.map((m) => m.id))}
-                    className="cursor-pointer hover:text-foreground"
-                  >
-                    Select all
-                  </button>
+                  {!selectionMode ? (
+                    <button
+                      onClick={() => setSelectionMode(true)}
+                      className="cursor-pointer hover:text-foreground"
+                    >
+                      Select
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => selectAll(visible.map((m) => m.id))}
+                      className="cursor-pointer hover:text-foreground"
+                    >
+                      Select all
+                    </button>
+                  )}
                 </div>
+
                 <div
                   ref={gridRef}
                   className="grid gap-3"
