@@ -13,6 +13,7 @@ import {
   MonitorOff,
   Rewind,
   FastForward,
+  RotateCcw,
 } from "lucide-react";
 import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
@@ -21,6 +22,7 @@ import type { MediaRecord } from "@/db/schema";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
 import { cn } from "@/lib/utils";
+
 
 /**
  * Live preview / operator console. Mirrors the projector output and exposes
