@@ -52,7 +52,7 @@ export async function deleteFolderDeep(id: string) {
     for (const f of all) if (f.parentId === fid) collect(f.id);
   };
   collect(id);
-  await db().transaction("rw", db().folders, db().media, async () => {
+  await db().transaction("rw", db().folders, db().media, db().blobs, db().playlists, async () => {
     for (const fid of toDelete) {
       const items = await db().media.where("folderId").equals(fid).toArray();
       for (const m of items) await deleteMediaInternal(m);
@@ -60,6 +60,31 @@ export async function deleteFolderDeep(id: string) {
     }
   });
 }
+
+/**
+ * Delete a folder but keep its files. Any media inside this folder (or its
+ * descendants) is moved back to "All Media" (folderId = null). Child folders
+ * are also removed, but their files are preserved likewise.
+ */
+export async function deleteFolderOnly(id: string) {
+  const all = await listFolders();
+  const toDelete = new Set<string>();
+  const collect = (fid: string) => {
+    toDelete.add(fid);
+    for (const f of all) if (f.parentId === fid) collect(f.id);
+  };
+  collect(id);
+  await db().transaction("rw", db().folders, db().media, async () => {
+    for (const fid of toDelete) {
+      const items = await db().media.where("folderId").equals(fid).toArray();
+      for (const m of items) {
+        await db().media.update(m.id, { folderId: null, updatedAt: Date.now() });
+      }
+      await db().folders.delete(fid);
+    }
+  });
+}
+
 
 // ---------- Media ----------
 export async function listMediaInFolder(folderId: string | null): Promise<MediaRecord[]> {
