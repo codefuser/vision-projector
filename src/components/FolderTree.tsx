@@ -90,13 +90,7 @@ export function FolderTree() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`Delete folder "${n.folder.name}" and all its contents?`)) {
-                  deleteFolderDeep(n.folder.id).then(() => {
-                    if (currentFolderId === n.folder.id) setFolder(null);
-                    refreshFolders();
-                    refreshMedia();
-                  });
-                }
+                setDeleteTarget(n.folder);
               }}
               className="cursor-pointer rounded p-0.5 hover:bg-background"
               aria-label="Delete folder"
@@ -104,6 +98,7 @@ export function FolderTree() {
             >
               <Trash2 className="h-3 w-3" />
             </button>
+
           </div>
         </div>
         {n.children.map((c) => renderNode(c, depth + 1))}
