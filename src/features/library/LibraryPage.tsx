@@ -148,7 +148,16 @@ export function LibraryPage() {
               </button>
             ))}
           </div>
-        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {foldersOpen && (
+          <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-card/30">
+            <FolderTree />
+          </aside>
+        )}
+        <div className="flex flex-1 flex-col overflow-hidden">
+
 
         {selectedIds.length > 0 && (
           <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
