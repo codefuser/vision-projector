@@ -197,9 +197,14 @@ export function LibraryPage() {
 
 
         <div className="flex flex-1 flex-col overflow-hidden">
-          {selectedIds.length > 0 && (
+          {(selectionMode || selectedIds.length > 0) && (
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
-              <span className="font-medium">{selectedIds.length} selected</span>
+              <span className="font-medium">
+                {selectedIds.length} selected
+                <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                  Selection mode
+                </span>
+              </span>
               <button onClick={onAddToPlaylist} className="ml-3 inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <ListPlus className="h-3.5 w-3.5" /> Add to playlist
               </button>
@@ -223,11 +228,18 @@ export function LibraryPage() {
               <button onClick={onDelete} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
-              <button onClick={clearSelection} className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                Clear
+              <button
+                onClick={() => {
+                  clearSelection();
+                  setSelectionMode(false);
+                }}
+                className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+              >
+                Exit selection
               </button>
             </div>
           )}
+
 
           <div
             className="flex-1 overflow-y-auto p-4"
