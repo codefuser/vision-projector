@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
@@ -71,10 +71,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen bg-background text-foreground">
       <aside
-        className={cn(
-          "flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar transition-[width] duration-300 ease-in-out",
-          collapsed ? "w-14" : "w-56",
-        )}
+        style={{ width: collapsed ? 56 : 224, willChange: "width" }}
+        className="flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar transition-[width] duration-200 ease-out"
       >
         {/* Brand / toggle header */}
         <div
@@ -83,12 +81,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             collapsed ? "justify-center px-2" : "gap-2 px-3",
           )}
         >
+          {/* Logo — also acts as Expand trigger when sidebar is collapsed. */}
           <button
             type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-primary text-primary-foreground transition-transform hover:scale-105"
+            onClick={collapsed ? () => setCollapsed(false) : undefined}
+            aria-label={collapsed ? "Expand sidebar" : "Church Media"}
+            title={collapsed ? "Expand sidebar" : "Church Media"}
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-transform",
+              collapsed ? "cursor-pointer hover:scale-105" : "cursor-default",
+            )}
           >
             <MonitorPlay className="h-4 w-4" />
           </button>
@@ -118,47 +120,35 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className={cn("border-t border-sidebar-border", collapsed ? "p-1.5" : "p-2")}>
           {renderNavItem(SETTINGS_NAV)}
           {!collapsed && <div className="px-2 pt-2 text-[10px] text-muted-foreground">Offline-first · Local only</div>}
-          {collapsed && (
-            <button
-              type="button"
-              onClick={() => setCollapsed(false)}
-              title="Expand sidebar"
-              aria-label="Expand sidebar"
-              className="mx-auto mt-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </aside>
 
-      <div className="relative flex flex-1 flex-col overflow-hidden">
-        {/* Floating compact projector + theme controls — top-right overlay */}
-        <div className="pointer-events-none absolute right-3 top-2 z-30 flex items-center gap-1">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-background/85 px-1 py-1 shadow-sm backdrop-blur">
-            <button
-              onClick={projectorOpen ? closeProjector : openProjector}
-              title={projectorOpen ? "Close Projector" : "Open Projector"}
-              aria-label={projectorOpen ? "Close Projector" : "Open Projector"}
-              className={cn(
-                "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition",
-                projectorOpen
-                  ? "bg-destructive text-destructive-foreground hover:opacity-90"
-                  : "bg-primary text-primary-foreground hover:opacity-90",
-              )}
-            >
-              <MonitorPlay className="h-4 w-4" />
-            </button>
-            <button
-              onClick={cycleTheme}
-              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Toggle theme"
-              title={`Theme: ${settings.theme}`}
-            >
-              {settings.theme === "dark" ? <Moon className="h-4 w-4" /> : settings.theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
-            </button>
-          </div>
-        </div>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Integrated top bar — projector + theme controls. Compact, anchored, not floating. */}
+        <header className="flex h-10 shrink-0 items-center justify-end gap-1 border-b border-border bg-background px-3">
+          <button
+            onClick={projectorOpen ? closeProjector : openProjector}
+            title={projectorOpen ? "Close Projector" : "Open Projector"}
+            aria-label={projectorOpen ? "Close Projector" : "Open Projector"}
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-xs font-medium transition",
+              projectorOpen
+                ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+                : "bg-primary text-primary-foreground hover:opacity-90",
+            )}
+          >
+            <MonitorPlay className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{projectorOpen ? "Close Projector" : "Open Projector"}</span>
+          </button>
+          <button
+            onClick={cycleTheme}
+            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label="Toggle theme"
+            title={`Theme: ${settings.theme}`}
+          >
+            {settings.theme === "dark" ? <Moon className="h-4 w-4" /> : settings.theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+          </button>
+        </header>
         <main className="flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
