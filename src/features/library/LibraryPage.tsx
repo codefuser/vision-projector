@@ -114,13 +114,17 @@ export function LibraryPage() {
   };
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-card/30">
-        <FolderTree />
-      </div>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
-          <div className="relative flex-1 max-w-md">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
+        <button
+          onClick={() => setFoldersOpen((v) => !v)}
+          title={foldersOpen ? "Hide folders" : "Show folders"}
+          aria-label={foldersOpen ? "Hide folders" : "Show folders"}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          {foldersOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+        </button>
+        <div className="relative flex-1 max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
