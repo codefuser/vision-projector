@@ -88,18 +88,14 @@ export function PlaylistsPage() {
                     <Copy className="h-3 w-3" />
                   </button>
                   <button
-                    onClick={async () => {
-                      if (confirm(`Delete playlist "${p.name}"?`)) {
-                        await deletePlaylist(p.id);
-                        await refresh();
-                      }
-                    }}
+                    onClick={() => setDeleteTarget(p)}
                     className="ml-auto cursor-pointer rounded-md border border-destructive/40 bg-destructive/10 p-1.5 text-destructive hover:bg-destructive/20"
                     aria-label="Delete"
                     title="Delete"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
+
                 </div>
               </div>
             ))}
