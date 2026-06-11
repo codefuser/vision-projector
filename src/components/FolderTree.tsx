@@ -40,6 +40,8 @@ export function FolderTree() {
   const tree = useMemo(() => buildTree(folders), [folders]);
   const [renameTarget, setRenameTarget] = useState<FolderRecord | null>(null);
   const [createFor, setCreateFor] = useState<{ parentId: string | null } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FolderRecord | null>(null);
+
 
   useEffect(() => {
     void refreshFolders();
