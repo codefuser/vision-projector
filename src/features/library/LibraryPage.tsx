@@ -275,6 +275,9 @@ export function LibraryPage() {
           )}
         </div>
       </div>
+      </div>
+
+
 
       {preview && (
         <MediaPreview
