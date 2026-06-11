@@ -1,14 +1,21 @@
-import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles } from "lucide-react";
+import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { useFocusZone } from "./focus-manager";
+import { useWorkspace } from "./workspace.store";
 import { cn } from "@/lib/utils";
 
 /**
  * Text Formatting Panel — UI scaffold only.
  * No controls are wired to projection yet. Future modules (Bible / Songs /
  * Text) will read these values from a shared formatting store.
+ *
+ * Supports a collapsed state where only the header strip is visible, so the
+ * preview and right workspace get maximum vertical room.
  */
 export function TextFormattingPanel() {
   const focus = useFocusZone("text-format");
+  const collapsed = useWorkspace((s) => s.textFormatCollapsed);
+  const toggle = useWorkspace((s) => s.toggleTextFormatCollapsed);
+
   return (
     <div
       className={cn(
@@ -19,110 +26,122 @@ export function TextFormattingPanel() {
       onMouseDown={focus.onFocus}
       tabIndex={focus.tabIndex}
     >
-      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-muted/30 px-2.5">
-        <div className="flex items-baseline gap-2">
+      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-2.5">
+        <div className="flex items-baseline gap-2 min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
-          <div className="text-[10px] text-muted-foreground">Reserved for future text modules</div>
+          <div className="truncate text-[10px] text-muted-foreground">
+            {collapsed ? "Collapsed — click to expand" : "Reserved for future text modules"}
+          </div>
         </div>
+        <button
+          onClick={toggle}
+          title={collapsed ? "Expand formatting panel" : "Collapse formatting panel"}
+          aria-label={collapsed ? "Expand formatting panel" : "Collapse formatting panel"}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Group icon={Type} title="Typography">
-            <Field label="Font Family">
-              <FauxSelect placeholder="Inter" />
-            </Field>
-            <Row>
-              <Field label="Size">
-                <FauxInput placeholder="48" suffix="px" />
+      {!collapsed && (
+        <div className="flex-1 overflow-y-auto p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Group icon={Type} title="Typography">
+              <Field label="Font Family">
+                <FauxSelect placeholder="Inter" />
               </Field>
-              <Field label="Weight">
-                <FauxSelect placeholder="Regular" />
-              </Field>
-            </Row>
-          </Group>
+              <Row>
+                <Field label="Size">
+                  <FauxInput placeholder="48" suffix="px" />
+                </Field>
+                <Field label="Weight">
+                  <FauxSelect placeholder="Regular" />
+                </Field>
+              </Row>
+            </Group>
 
-          <Group icon={Palette} title="Color">
-            <Row>
-              <Field label="Color">
-                <FauxSwatch color="#ffffff" />
-              </Field>
-              <Field label="Opacity">
-                <FauxInput placeholder="100" suffix="%" />
-              </Field>
-            </Row>
-          </Group>
+            <Group icon={Palette} title="Color">
+              <Row>
+                <Field label="Color">
+                  <FauxSwatch color="#ffffff" />
+                </Field>
+                <Field label="Opacity">
+                  <FauxInput placeholder="100" suffix="%" />
+                </Field>
+              </Row>
+            </Group>
 
-          <Group icon={Bold} title="Style">
-            <div className="flex flex-wrap gap-1.5">
-              <FauxToggle label="B" />
-              <FauxToggle label="I" />
-              <FauxToggle label="U" />
-              <FauxToggle label="S" />
-            </div>
-          </Group>
+            <Group icon={Bold} title="Style">
+              <div className="flex flex-wrap gap-1.5">
+                <FauxToggle label="B" />
+                <FauxToggle label="I" />
+                <FauxToggle label="U" />
+                <FauxToggle label="S" />
+              </div>
+            </Group>
 
-          <Group icon={AlignLeft} title="Alignment">
-            <div className="flex flex-wrap gap-1.5">
-              <FauxToggle label="Left" />
-              <FauxToggle label="Center" />
-              <FauxToggle label="Right" />
-              <FauxToggle label="Justify" />
-            </div>
-          </Group>
+            <Group icon={AlignLeft} title="Alignment">
+              <div className="flex flex-wrap gap-1.5">
+                <FauxToggle label="Left" />
+                <FauxToggle label="Center" />
+                <FauxToggle label="Right" />
+                <FauxToggle label="Justify" />
+              </div>
+            </Group>
 
-          <Group icon={Sparkles} title="Shadow">
-            <Row>
-              <Field label="Offset">
-                <FauxInput placeholder="0" suffix="px" />
-              </Field>
-              <Field label="Blur">
-                <FauxInput placeholder="8" suffix="px" />
-              </Field>
-            </Row>
-            <Field label="Color">
-              <FauxSwatch color="#000000" />
-            </Field>
-          </Group>
-
-          <Group icon={Sun} title="Outline">
-            <Row>
-              <Field label="Width">
-                <FauxInput placeholder="0" suffix="px" />
-              </Field>
+            <Group icon={Sparkles} title="Shadow">
+              <Row>
+                <Field label="Offset">
+                  <FauxInput placeholder="0" suffix="px" />
+                </Field>
+                <Field label="Blur">
+                  <FauxInput placeholder="8" suffix="px" />
+                </Field>
+              </Row>
               <Field label="Color">
                 <FauxSwatch color="#000000" />
               </Field>
-            </Row>
-          </Group>
+            </Group>
 
-          <Group icon={SquareIcon} title="Background">
-            <Row>
-              <Field label="Color">
-                <FauxSwatch color="#000000" />
-              </Field>
-              <Field label="Opacity">
-                <FauxInput placeholder="50" suffix="%" />
-              </Field>
-            </Row>
-          </Group>
+            <Group icon={Sun} title="Outline">
+              <Row>
+                <Field label="Width">
+                  <FauxInput placeholder="0" suffix="px" />
+                </Field>
+                <Field label="Color">
+                  <FauxSwatch color="#000000" />
+                </Field>
+              </Row>
+            </Group>
 
-          <Group icon={Move} title="Position">
-            <Row>
-              <Field label="X">
-                <FauxInput placeholder="50" suffix="%" />
-              </Field>
-              <Field label="Y">
-                <FauxInput placeholder="50" suffix="%" />
-              </Field>
-            </Row>
-          </Group>
+            <Group icon={SquareIcon} title="Background">
+              <Row>
+                <Field label="Color">
+                  <FauxSwatch color="#000000" />
+                </Field>
+                <Field label="Opacity">
+                  <FauxInput placeholder="50" suffix="%" />
+                </Field>
+              </Row>
+            </Group>
+
+            <Group icon={Move} title="Position">
+              <Row>
+                <Field label="X">
+                  <FauxInput placeholder="50" suffix="%" />
+                </Field>
+                <Field label="Y">
+                  <FauxInput placeholder="50" suffix="%" />
+                </Field>
+              </Row>
+            </Group>
+          </div>
+
+          <div className="mt-4 rounded-md border border-dashed border-border bg-muted/30 p-3 text-center text-[11px] text-muted-foreground">
+            Controls are disabled. Will activate when Bible, Songs and Text modules ship.
+          </div>
         </div>
-
-        <div className="mt-4 rounded-md border border-dashed border-border bg-muted/30 p-3 text-center text-[11px] text-muted-foreground">
-          Controls are disabled. Will activate when Bible, Songs and Text modules ship.
-        </div>
-      </div>
+      )}
     </div>
   );
 }
