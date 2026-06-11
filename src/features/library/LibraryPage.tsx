@@ -299,16 +299,13 @@ export function LibraryPage() {
                         onClick={(e) => handleTileClick(e, m, idx)}
                         onDoubleClick={(e) => {
                           e.stopPropagation();
-                          if (projectorOpen) {
-                            setPreview(m);
-                          } else {
-                            void projectOne(m);
-                          }
+                          // Double-click always opens preview (never projects in selection mode).
+                          if (!selectionMode) setPreview(m);
                         }}
                         title={
-                          projectorOpen
-                            ? "Click to project · Double-click to preview"
-                            : "Click to select · Double-click to project"
+                          selectionMode
+                            ? "Click to select · Shift-click range"
+                            : "Click to project · Double-click to preview"
                         }
                         className={cn(
                           "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
@@ -335,33 +332,46 @@ export function LibraryPage() {
                           </div>
                         </div>
 
-                        {/* Hover overlay: select checkbox + dedicated rename icon.
-                            Redundant "project" button removed — clicking the
-                            card already projects when the projector is on. */}
-                        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-1.5 opacity-0 transition group-hover:opacity-100">
+                        {/* Top overlay: checkbox (always visible in selection mode,
+                            hover-only otherwise) + rename icon on hover. */}
+                        <div
+                          className={cn(
+                            "absolute inset-x-0 top-0 flex items-center justify-between p-1.5 transition",
+                            selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                          )}
+                        >
                           <input
                             type="checkbox"
                             checked={selected}
                             onChange={(e) => {
                               e.stopPropagation();
-                              toggleSelect(m.id, true);
+                              if (!selectionMode) {
+                                enterSelectionWith(m, idx);
+                              } else {
+                                anchorIndexRef.current = idx;
+                                toggleSelect(m.id, true);
+                              }
                             }}
                             onClick={(e) => e.stopPropagation()}
                             className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+                            title={selectionMode ? "Toggle selection" : "Enter selection mode"}
                           />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenameTarget(m);
-                            }}
-                            title="Rename"
-                            aria-label="Rename"
-                            className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
+                          {!selectionMode && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameTarget(m);
+                              }}
+                              title="Rename"
+                              aria-label="Rename"
+                              className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       </div>
+
                     );
                   })}
                 </div>
