@@ -230,17 +230,17 @@ function EmptyDock({ onShow, visible }: { onShow: (k: keyof PanelVisibility) => 
       <div>All panels are collapsed.</div>
       <div className="flex flex-wrap justify-center gap-2">
         {!visible.preview && (
-          <button onClick={() => onShow("preview")} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+          <button onClick={() => onShow("preview")} className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
             Show Preview
           </button>
         )}
         {!visible.textFormat && (
-          <button onClick={() => onShow("textFormat")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
+          <button onClick={() => onShow("textFormat")} className="cursor-pointer rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Text Formatting
           </button>
         )}
         {!visible.tabs && (
-          <button onClick={() => onShow("tabs")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
+          <button onClick={() => onShow("tabs")} className="cursor-pointer rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Workspace Tabs
           </button>
         )}
