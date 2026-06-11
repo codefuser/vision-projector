@@ -257,6 +257,12 @@ export function LivePreviewPanel() {
         <IconBtn onClick={() => send({ type: "STOP" })} title="Stop">
           <Square className="h-3.5 w-3.5" />
         </IconBtn>
+        {isVideo && (
+          <IconBtn onClick={() => handleSeek(0)} title="Restart">
+            <RotateCcw className="h-3.5 w-3.5" />
+          </IconBtn>
+        )}
+
         <div className="mx-1 h-4 w-px bg-border" />
         <IconBtn
           onClick={() => send({ type: "BLACK", value: !state?.black })}
