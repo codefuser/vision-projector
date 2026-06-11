@@ -164,10 +164,17 @@ export function ProjectionWorkspace() {
               )}
               {leftVisible && visible.tabs && <HHandle />}
               {visible.tabs && (
-                <Panel id="right" defaultSize={50} minSize={25} className="min-h-0 min-w-0">
+                <Panel
+                  id="right"
+                  defaultSize={tabsCollapsed ? 4 : 50}
+                  minSize={tabsCollapsed ? 3 : 25}
+                  maxSize={tabsCollapsed ? 6 : 100}
+                  className="min-h-0 min-w-0"
+                >
                   <WorkspaceTabsPanel />
                 </Panel>
               )}
+
             </Group>
           )}
         </div>
