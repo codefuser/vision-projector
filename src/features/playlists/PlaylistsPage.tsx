@@ -127,6 +127,26 @@ export function PlaylistsPage() {
             await refresh();
           }}
         />
+        <ConfirmDialog
+          open={!!deleteTarget}
+          title="Delete Playlist"
+          description={
+            deleteTarget
+              ? `Delete playlist "${deleteTarget.name}" only? The playlist is removed. Media files remain untouched.`
+              : ""
+          }
+          confirmLabel="Delete Playlist"
+          destructive
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            if (!deleteTarget) return;
+            await deletePlaylist(deleteTarget.id);
+            setDeleteTarget(null);
+            await refresh();
+            toast.success("Playlist deleted");
+          }}
+        />
+
       </div>
     </div>
   );
