@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProjectionWorkspace } from "@/features/workspace/ProjectionWorkspace";
 import { ProjectionWindow } from "@/features/projection/ProjectionWindow";
