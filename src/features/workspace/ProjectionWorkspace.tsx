@@ -58,6 +58,8 @@ export function ProjectionWorkspace() {
   const { visible, togglePanel, showPanel } = useWorkspace();
   const textFormatCollapsed = useWorkspace((s) => s.textFormatCollapsed);
   const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
+  const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
+  const setTabsCollapsed = useWorkspace((s) => s.setTabsCollapsed);
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
 
@@ -72,16 +74,10 @@ export function ProjectionWorkspace() {
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
   const leftVisible = visible.preview || visible.textFormat;
 
-  // Only apply persisted layouts when the panel structure matches the saved
-  // 2-panel topology. Passing a 2-size layout to a 1-panel Group throws
-  // inside react-resizable-panels and causes the "page didn't load" crash
-  // when toggling Preview / Text dock chips.
-  const outerLayout = leftVisible && visible.tabs ? savedOuter : undefined;
+  const outerLayout = leftVisible && visible.tabs && !tabsCollapsed ? savedOuter : undefined;
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
-  // Force a fresh Group instance whenever the panel topology changes so the
-  // library never tries to reconcile against a stale, mismatched layout.
-  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}`;
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}`;
   const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}`;
 
   // Drive the bottom panel size from the persisted collapsed flag.
@@ -96,6 +92,8 @@ export function ProjectionWorkspace() {
       /* panel handle not ready yet — next layout pass will reconcile */
     }
   }, [textFormatCollapsed, visible.textFormat, visible.preview]);
+
+
 
 
   return (
