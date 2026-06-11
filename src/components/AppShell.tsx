@@ -55,18 +55,25 @@ export function AppShell({ children }: { children: ReactNode }) {
         title={item.label}
         aria-label={item.label}
         className={cn(
-          "flex cursor-pointer items-center rounded-md text-sm transition-colors duration-150",
-          collapsed ? "h-9 w-9 justify-center mx-auto" : "gap-3 px-3 py-2",
+          "relative flex h-9 cursor-pointer items-center gap-3 overflow-hidden rounded-md px-2.5 text-sm transition-colors duration-150",
           active
             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         )}
       >
         <Icon className="h-4 w-4 shrink-0" />
-        {!collapsed && <span className="truncate">{item.label}</span>}
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate whitespace-nowrap transition-[opacity,transform] duration-200 ease-out",
+            collapsed ? "pointer-events-none -translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+          )}
+        >
+          {item.label}
+        </span>
       </Link>
     );
   };
+
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -74,14 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         style={{ width: collapsed ? 56 : 224, willChange: "width" }}
         className="flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar transition-[width] duration-200 ease-out"
       >
-        {/* Brand / toggle header */}
-        <div
-          className={cn(
-            "flex h-14 shrink-0 items-center border-b border-sidebar-border",
-            collapsed ? "justify-center px-2" : "gap-2 px-3",
-          )}
-        >
-          {/* Logo — also acts as Expand trigger when sidebar is collapsed. */}
+        {/* Brand / toggle header — stable layout regardless of collapsed state */}
+        <div className="flex h-14 shrink-0 items-center gap-2 overflow-hidden border-b border-sidebar-border px-2.5">
           <button
             type="button"
             onClick={collapsed ? () => setCollapsed(false) : undefined}
@@ -95,33 +96,47 @@ export function AppShell({ children }: { children: ReactNode }) {
             <MonitorPlay className="h-4 w-4" />
           </button>
 
-          {!collapsed && (
-            <>
-              <div className="flex-1 truncate text-sm font-semibold">Church Media</div>
-              <button
-                type="button"
-                onClick={() => setCollapsed(true)}
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
-                className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
-            </>
-          )}
+          <div
+            className={cn(
+              "min-w-0 flex-1 truncate whitespace-nowrap text-sm font-semibold transition-opacity duration-200",
+              collapsed ? "pointer-events-none opacity-0" : "opacity-100",
+            )}
+          >
+            Church Media
+          </div>
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+            className={cn(
+              "inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-[opacity,colors] duration-200 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              collapsed ? "pointer-events-none opacity-0" : "opacity-100",
+            )}
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Primary nav — icons always visible; labels only when expanded */}
-        <nav className={cn("flex-1 space-y-1 overflow-y-auto", collapsed ? "p-1.5" : "p-2")}>
+        {/* Primary nav — icons always visible; labels fade with the sidebar width */}
+        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-2">
           {PRIMARY_NAV.map(renderNavItem)}
         </nav>
 
         {/* Pinned bottom: Settings */}
-        <div className={cn("border-t border-sidebar-border", collapsed ? "p-1.5" : "p-2")}>
+        <div className="overflow-hidden border-t border-sidebar-border p-2">
           {renderNavItem(SETTINGS_NAV)}
-          {!collapsed && <div className="px-2 pt-2 text-[10px] text-muted-foreground">Offline-first · Local only</div>}
+          <div
+            className={cn(
+              "whitespace-nowrap px-2 pt-2 text-[10px] text-muted-foreground transition-opacity duration-200",
+              collapsed ? "pointer-events-none opacity-0" : "opacity-100",
+            )}
+          >
+            Offline-first · Local only
+          </div>
         </div>
       </aside>
+
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Integrated top bar — projector + theme controls. Compact, anchored, not floating. */}

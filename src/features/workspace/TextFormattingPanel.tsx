@@ -19,7 +19,7 @@ export function TextFormattingPanel() {
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col bg-card",
+        "@container flex h-full min-h-0 flex-col bg-card",
         focus.isActive && "ring-1 ring-primary/40",
       )}
       onFocus={focus.onFocus}
@@ -27,7 +27,7 @@ export function TextFormattingPanel() {
       tabIndex={focus.tabIndex}
     >
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-2.5">
-        <div className="flex items-baseline gap-2 min-w-0">
+        <div className="flex min-w-0 items-baseline gap-2">
           <div className="text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
           <div className="truncate text-[10px] text-muted-foreground">
             {collapsed ? "Collapsed — click to expand" : "Reserved for future text modules"}
@@ -37,7 +37,7 @@ export function TextFormattingPanel() {
           onClick={toggle}
           title={collapsed ? "Expand formatting panel" : "Collapse formatting panel"}
           aria-label={collapsed ? "Expand formatting panel" : "Collapse formatting panel"}
-          className="inline-flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
         >
           {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
@@ -45,7 +45,12 @@ export function TextFormattingPanel() {
 
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/*
+            Responsive groups grid driven by container queries:
+              very small → 1 col, small → 2, medium → 3, large → 4.
+            Adapts to the live panel width, not the viewport.
+          */}
+          <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-3 @3xl:grid-cols-4">
             <Group icon={Type} title="Typography">
               <Field label="Font Family">
                 <FauxSelect placeholder="Inter" />
@@ -145,6 +150,7 @@ export function TextFormattingPanel() {
     </div>
   );
 }
+
 
 function Group({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) {
   return (

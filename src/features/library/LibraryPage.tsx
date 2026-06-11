@@ -198,13 +198,51 @@ export function LibraryPage() {
             : "Click to project · Double-click to preview"
         }
         className={cn(
-          "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
+          "group relative cursor-pointer overflow-hidden rounded-lg border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
           selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
         )}
       >
-        <Thumb media={m} className="aspect-video" />
-        <div className="p-2">
-          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+        {/* Thumbnail area — badges live on the image, actions never go here */}
+        <div className="relative">
+          <Thumb media={m} className="aspect-video" />
+
+          {/* Top-left checkbox */}
+          <div
+            className={cn(
+              "absolute left-1.5 top-1.5 transition",
+              selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => {
+                e.stopPropagation();
+                if (!selectionMode) enterSelectionWith(m, idx);
+                else {
+                  anchorIndexRef.current = idx;
+                  toggleSelect(m.id, true);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+              title={selectionMode ? "Toggle selection" : "Enter selection mode"}
+            />
+          </div>
+
+          {/* Persistent video badge — top-right */}
+          {m.type === "video" && (
+            <div className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur">
+              <span>VIDEO</span>
+              <span className="opacity-70">·</span>
+              <span className="tabular-nums">{formatDuration(m.durationMs)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Metadata + bottom-positioned hover actions */}
+        <div className="relative p-2">
+          <div className="truncate pr-1 text-xs font-medium text-foreground" title={m.name}>
             {m.name}
           </div>
           <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
@@ -220,52 +258,30 @@ export function LibraryPage() {
               </>
             )}
           </div>
-        </div>
 
-        {/* Top-left checkbox */}
-        <div
-          className={cn(
-            "absolute left-1.5 top-1.5 transition",
-            selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+          {/* Hover action toolbar — overlays the metadata footer only,
+              never the thumbnail or video badge. */}
+          {!selectionMode && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-end gap-1 rounded-b-lg bg-gradient-to-t from-card via-card/95 to-transparent p-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+              <CardAction label="Preview" onClick={() => setPreview(m)}>
+                <Eye className="h-3 w-3" />
+              </CardAction>
+              <CardAction label="Details" onClick={() => setDetailsTarget(m)}>
+                <Info className="h-3 w-3" />
+              </CardAction>
+              <CardAction label="Rename" onClick={() => setRenameTarget(m)}>
+                <Pencil className="h-3 w-3" />
+              </CardAction>
+              <CardAction label="Delete" variant="danger" onClick={() => setDeleteTargets([m])}>
+                <Trash2 className="h-3 w-3" />
+              </CardAction>
+            </div>
           )}
-        >
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={(e) => {
-              e.stopPropagation();
-              if (!selectionMode) enterSelectionWith(m, idx);
-              else {
-                anchorIndexRef.current = idx;
-                toggleSelect(m.id, true);
-              }
-            }}
-            onClick={(e) => e.stopPropagation()}
-            className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
-            title={selectionMode ? "Toggle selection" : "Enter selection mode"}
-          />
         </div>
-
-        {/* Top-right action toolbar (hover) */}
-        {!selectionMode && (
-          <div className="absolute right-1.5 top-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-            <CardAction label="Preview" onClick={() => setPreview(m)}>
-              <Eye className="h-3 w-3" />
-            </CardAction>
-            <CardAction label="Details" onClick={() => setDetailsTarget(m)}>
-              <Info className="h-3 w-3" />
-            </CardAction>
-            <CardAction label="Rename" onClick={() => setRenameTarget(m)}>
-              <Pencil className="h-3 w-3" />
-            </CardAction>
-            <CardAction label="Delete" variant="danger" onClick={() => setDeleteTargets([m])}>
-              <Trash2 className="h-3 w-3" />
-            </CardAction>
-          </div>
-        )}
       </div>
     );
   };
+
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
