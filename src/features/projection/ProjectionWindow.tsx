@@ -63,6 +63,7 @@ export function ProjectionWindow() {
 
   const broadcastState = useCallback(() => {
     const cur = items[index];
+    const v = videoRef.current;
     const state: ProjectionState = {
       type: "STATE",
       mode,
@@ -73,6 +74,9 @@ export function ProjectionWindow() {
       black,
       muted,
       volume,
+      videoCurrentTime: v && cur?.media.type === "video" ? v.currentTime : undefined,
+      videoDurationMs:
+        v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
     };
     channelRef.current?.postMessage(state);
   }, [mode, items, index, playing, black, muted, volume]);
@@ -80,6 +84,15 @@ export function ProjectionWindow() {
   useEffect(() => {
     broadcastState();
   }, [broadcastState]);
+
+  // Periodic time broadcast while a video is playing
+  useEffect(() => {
+    const cur = items[index];
+    if (!cur || cur.media.type !== "video") return;
+    const id = window.setInterval(() => broadcastState(), 250);
+    return () => clearInterval(id);
+  }, [items, index, broadcastState]);
+
 
   const loadMediaUrl = async (m: MediaRecord): Promise<string> => {
     const rec = await db().blobs.get(m.blobId);
@@ -314,14 +327,22 @@ export function ProjectionWindow() {
       {cur && !black && cur.media.type === "video" && (
         <video
           ref={videoRef}
-          key={"vid-" + cur.id + "-" + index}
+          key={"vid-" + cur.id + "-" + index + "-" + cur.blobUrl}
           src={cur.blobUrl}
           autoPlay={playing}
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => {
+            // Always start from the beginning on every projection.
+            (e.currentTarget as HTMLVideoElement).currentTime = 0;
+            broadcastState();
+          }}
+          onTimeUpdate={() => broadcastState()}
+          onDurationChange={() => broadcastState()}
           className="absolute inset-0 h-full w-full object-contain"
           playsInline
         />
       )}
+
 
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
