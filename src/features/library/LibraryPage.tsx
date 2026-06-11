@@ -190,10 +190,11 @@ export function LibraryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Compact folder rail — narrower, top-aligned with the upload area. */}
-        <aside className="flex w-[140px] shrink-0 flex-col border-r border-border bg-card/30">
+        {/* Compact folder rail — file-explorer style: slightly wider, content-driven height. */}
+        <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
           <FolderTree />
         </aside>
+
 
         <div className="flex flex-1 flex-col overflow-hidden">
           {selectedIds.length > 0 && (
