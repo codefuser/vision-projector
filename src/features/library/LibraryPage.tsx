@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
-// projection store no longer needed here — click always projects in normal mode.
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
@@ -13,6 +12,9 @@ import { cn } from "@/lib/utils";
 import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
 import { RenameDialog } from "@/components/RenameDialog";
+import { MediaDeleteDialog } from "@/components/MediaDeleteDialog";
+import { MoveMediaDialog } from "@/components/MoveMediaDialog";
+import { MediaDetailsDialog } from "@/components/MediaDetailsDialog";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -38,12 +40,14 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
-  
 
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
   const [renameTarget, setRenameTarget] = useState<MediaRecord | null>(null);
+  const [detailsTarget, setDetailsTarget] = useState<MediaRecord | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<MediaRecord[] | null>(null);
+  const [showMove, setShowMove] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
 
   const anchorIndexRef = useRef<number | null>(null);
@@ -56,7 +60,6 @@ export function LibraryPage() {
   const visible = useMemo(() => filterMedia(media, search, filter), [media, search, filter]);
   const selectedIds = useMemo(() => Array.from(selection), [selection]);
 
-  // Auto-exit selection mode when nothing is selected anymore.
   useEffect(() => {
     if (selectionMode && selection.size === 0) setSelectionMode(false);
   }, [selection, selectionMode]);
@@ -65,11 +68,6 @@ export function LibraryPage() {
     await MediaAdapter.projectMedia(m);
   }, []);
 
-  // Click rules:
-  //   • Selection mode ON  → click toggles selection; shift = range; ctrl = individual.
-  //                          Projection is disabled while in selection mode.
-  //   • Selection mode OFF → click projects immediately. The only way to enter
-  //                          selection mode is to click a card checkbox.
   const handleTileClick = useCallback(
     (e: React.MouseEvent, m: MediaRecord, index: number) => {
       if (selectionMode) {
@@ -99,7 +97,6 @@ export function LibraryPage() {
     [toggleSelect],
   );
 
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
@@ -116,10 +113,16 @@ export function LibraryPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selectAll, visible]);
 
-  const onDelete = async () => {
+  const requestDeleteSelection = () => {
     if (!selectedIds.length) return;
-    if (!confirm(`Delete ${selectedIds.length} item${selectedIds.length > 1 ? "s" : ""}?`)) return;
-    await deleteMedia(selectedIds);
+    const items = visible.filter((m) => selection.has(m.id));
+    if (items.length) setDeleteTargets(items);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTargets) return;
+    await deleteMedia(deleteTargets.map((m) => m.id));
+    setDeleteTargets(null);
     clearSelection();
     await refreshMedia();
     toast.success("Deleted");
@@ -131,20 +134,12 @@ export function LibraryPage() {
     toast.success("Duplicated");
   };
 
-  const onMoveTo = async () => {
-    const target = prompt(
-      "Move to folder name (leave empty for All Media). Available: " + folders.map((f) => f.name).join(", "),
-    );
-    if (target === null) return;
-    if (target === "") {
-      await moveMedia(selectedIds, null);
-    } else {
-      const f = folders.find((f) => f.name.toLowerCase() === target.toLowerCase());
-      if (!f) return toast.error("Folder not found");
-      await moveMedia(selectedIds, f.id);
-    }
+  const confirmMove = async (folderId: string | null) => {
+    await moveMedia(selectedIds, folderId);
+    setShowMove(false);
     clearSelection();
     await refreshMedia();
+    toast.success("Moved");
   };
 
   const onAddToPlaylist = async () => {
@@ -158,6 +153,118 @@ export function LibraryPage() {
     setRenameTarget(null);
     await refreshMedia();
     toast.success("Renamed");
+  };
+
+  // Group "Recently Added" by upload date (Today / Yesterday / explicit date).
+  const grouped = useMemo(() => {
+    if (filter !== "recent-added") return null;
+    const groups = new Map<string, MediaRecord[]>();
+    const order: string[] = [];
+    const today = startOfDay(Date.now());
+    const yesterday = today - 86400000;
+    for (const m of visible) {
+      const day = startOfDay(m.createdAt);
+      let label: string;
+      if (day === today) label = "Today";
+      else if (day === yesterday) label = "Yesterday";
+      else label = new Date(day).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+      if (!groups.has(label)) {
+        groups.set(label, []);
+        order.push(label);
+      }
+      groups.get(label)!.push(m);
+    }
+    return order.map((label) => ({ label, items: groups.get(label)! }));
+  }, [filter, visible]);
+
+  const renderCard = (m: MediaRecord, idx: number) => {
+    const selected = selection.has(m.id);
+    return (
+      <div
+        key={m.id}
+        draggable
+        onDragStart={(e) => {
+          const ids = selected ? selectedIds : [m.id];
+          e.dataTransfer.setData("application/x-media-ids", JSON.stringify(ids));
+        }}
+        onClick={(e) => handleTileClick(e, m, idx)}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if (!selectionMode) setPreview(m);
+        }}
+        title={
+          selectionMode
+            ? "Click to select · Shift-click range"
+            : "Click to project · Double-click to preview"
+        }
+        className={cn(
+          "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
+          selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
+        )}
+      >
+        <Thumb media={m} className="aspect-video" />
+        <div className="p-2">
+          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+            {m.name}
+          </div>
+          <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            {m.type === "video" ? (
+              <>
+                <span>{formatDuration(m.durationMs)}</span>
+                <span>{formatBytes(m.size)}</span>
+              </>
+            ) : (
+              <>
+                <span className="uppercase tracking-wide opacity-70">Image</span>
+                <span>{formatBytes(m.size)}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Top-left checkbox */}
+        <div
+          className={cn(
+            "absolute left-1.5 top-1.5 transition",
+            selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => {
+              e.stopPropagation();
+              if (!selectionMode) enterSelectionWith(m, idx);
+              else {
+                anchorIndexRef.current = idx;
+                toggleSelect(m.id, true);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+            title={selectionMode ? "Toggle selection" : "Enter selection mode"}
+          />
+        </div>
+
+        {/* Top-right action toolbar (hover) */}
+        {!selectionMode && (
+          <div className="absolute right-1.5 top-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+            <CardAction label="Preview" onClick={() => setPreview(m)}>
+              <Eye className="h-3 w-3" />
+            </CardAction>
+            <CardAction label="Details" onClick={() => setDetailsTarget(m)}>
+              <Info className="h-3 w-3" />
+            </CardAction>
+            <CardAction label="Rename" onClick={() => setRenameTarget(m)}>
+              <Pencil className="h-3 w-3" />
+            </CardAction>
+            <CardAction label="Delete" variant="danger" onClick={() => setDeleteTargets([m])}>
+              <Trash2 className="h-3 w-3" />
+            </CardAction>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -190,15 +297,13 @@ export function LibraryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Compact folder rail — file-explorer style: slightly wider, content-driven height. */}
         <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
           <FolderTree />
         </aside>
 
-
         <div className="flex flex-1 flex-col overflow-hidden">
           {(selectionMode || selectedIds.length > 0) && (
-            <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
+            <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
               <span className="font-medium">
                 {selectedIds.length} selected
                 <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
@@ -208,7 +313,7 @@ export function LibraryPage() {
               <button onClick={onAddToPlaylist} className="ml-3 inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <ListPlus className="h-3.5 w-3.5" /> Add to playlist
               </button>
-              <button onClick={onMoveTo} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+              <button onClick={() => setShowMove(true)} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <FolderInput className="h-3.5 w-3.5" /> Move
               </button>
               <button onClick={onDuplicate} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
@@ -225,7 +330,7 @@ export function LibraryPage() {
                   <Pencil className="h-3.5 w-3.5" /> Rename
                 </button>
               )}
-              <button onClick={onDelete} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
+              <button onClick={requestDeleteSelection} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
               <button
@@ -239,7 +344,6 @@ export function LibraryPage() {
               </button>
             </div>
           )}
-
 
           <div
             className="flex-1 overflow-y-auto p-4"
@@ -281,99 +385,30 @@ export function LibraryPage() {
                   )}
                 </div>
 
-                <div
-                  ref={gridRef}
-                  className="grid gap-3"
-                  style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
-                >
-                  {visible.map((m, idx) => {
-                    const selected = selection.has(m.id);
-                    return (
-                      <div
-                        key={m.id}
-                        draggable
-                        onDragStart={(e) => {
-                          const ids = selected ? selectedIds : [m.id];
-                          e.dataTransfer.setData("application/x-media-ids", JSON.stringify(ids));
-                        }}
-                        onClick={(e) => handleTileClick(e, m, idx)}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          // Double-click always opens preview (never projects in selection mode).
-                          if (!selectionMode) setPreview(m);
-                        }}
-                        title={
-                          selectionMode
-                            ? "Click to select · Shift-click range"
-                            : "Click to project · Double-click to preview"
-                        }
-                        className={cn(
-                          "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
-                          selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
-                        )}
-                      >
-                        <Thumb media={m} className="aspect-video" />
-                        <div className="p-2">
-                          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
-                            {m.name}
-                          </div>
-                          <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                            {m.type === "video" ? (
-                              <>
-                                <span>{formatDuration(m.durationMs)}</span>
-                                <span>{formatBytes(m.size)}</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="uppercase tracking-wide opacity-70">Image</span>
-                                <span>{formatBytes(m.size)}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Top overlay: checkbox (always visible in selection mode,
-                            hover-only otherwise) + rename icon on hover. */}
+                <div ref={gridRef}>
+                  {grouped ? (
+                    grouped.map((g) => (
+                      <section key={g.label} className="mb-5">
+                        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {g.label}
+                          <span className="ml-2 text-[10px] font-normal opacity-70">{g.items.length}</span>
+                        </h3>
                         <div
-                          className={cn(
-                            "absolute inset-x-0 top-0 flex items-center justify-between p-1.5 transition",
-                            selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-                          )}
+                          className="grid gap-3"
+                          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (!selectionMode) {
-                                enterSelectionWith(m, idx);
-                              } else {
-                                anchorIndexRef.current = idx;
-                                toggleSelect(m.id, true);
-                              }
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
-                            title={selectionMode ? "Toggle selection" : "Enter selection mode"}
-                          />
-                          {!selectionMode && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenameTarget(m);
-                              }}
-                              title="Rename"
-                              aria-label="Rename"
-                              className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </button>
-                          )}
+                          {g.items.map((m) => renderCard(m, visible.indexOf(m)))}
                         </div>
-                      </div>
-
-                    );
-                  })}
+                      </section>
+                    ))
+                  ) : (
+                    <div
+                      className="grid gap-3"
+                      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
+                    >
+                      {visible.map((m, idx) => renderCard(m, idx))}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -400,6 +435,30 @@ export function LibraryPage() {
         onSubmit={onRenameSubmit}
       />
 
+      <MediaDetailsDialog
+        open={!!detailsTarget}
+        media={detailsTarget}
+        folders={folders}
+        onClose={() => setDetailsTarget(null)}
+      />
+
+      <MediaDeleteDialog
+        open={!!deleteTargets}
+        items={deleteTargets ?? []}
+        folders={folders}
+        onCancel={() => setDeleteTargets(null)}
+        onConfirm={confirmDelete}
+      />
+
+      <MoveMediaDialog
+        open={showMove}
+        count={selectedIds.length}
+        folders={folders}
+        currentFolderId={currentFolderId}
+        onCancel={() => setShowMove(false)}
+        onConfirm={confirmMove}
+      />
+
       {showAddTo && (
         <AddToPlaylistDialog
           playlists={playlists}
@@ -412,6 +471,41 @@ export function LibraryPage() {
         />
       )}
     </div>
+  );
+}
+
+function startOfDay(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function CardAction({
+  children,
+  label,
+  onClick,
+  variant,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  variant?: "danger";
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-background/90 shadow-sm transition hover:bg-background",
+        variant === "danger" ? "text-destructive hover:bg-destructive/10" : "text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
