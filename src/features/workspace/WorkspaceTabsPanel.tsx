@@ -1,4 +1,4 @@
-import { Image as ImageIcon, BookOpen, Music, Type } from "lucide-react";
+import { Image as ImageIcon, BookOpen, Music, Type, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useWorkspace, type WorkspaceTab } from "./workspace.store";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { useFocusZone, type FocusZone } from "./focus-manager";
@@ -13,8 +13,49 @@ const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ class
 
 export function WorkspaceTabsPanel() {
   const { activeTab, setActiveTab } = useWorkspace();
+  const collapsed = useWorkspace((s) => s.tabsCollapsed);
+  const toggleCollapsed = useWorkspace((s) => s.toggleTabsCollapsed);
   const active = TABS.find((t) => t.id === activeTab) ?? TABS[0];
   const focus = useFocusZone(active.focus);
+
+  // Collapsed icon-rail
+  if (collapsed) {
+    return (
+      <div className="flex h-full w-12 flex-col items-center gap-1 border-l border-border bg-card py-2">
+        <button
+          onClick={toggleCollapsed}
+          title="Expand workspace"
+          aria-label="Expand workspace"
+          className="mb-1 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <PanelRightOpen className="h-4 w-4" />
+        </button>
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const isActive = t.id === activeTab;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTab(t.id);
+                toggleCollapsed();
+              }}
+              title={t.label}
+              aria-label={t.label}
+              className={cn(
+                "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md transition",
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -32,7 +73,7 @@ export function WorkspaceTabsPanel() {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
                 isActive
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
@@ -48,9 +89,17 @@ export function WorkspaceTabsPanel() {
             </button>
           );
         })}
+        <button
+          onClick={toggleCollapsed}
+          title="Collapse workspace"
+          aria-label="Collapse workspace"
+          className="ml-auto inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === "media" && (
           <div className="h-full overflow-hidden">
             <LibraryPage />
