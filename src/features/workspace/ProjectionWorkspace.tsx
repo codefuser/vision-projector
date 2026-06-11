@@ -167,7 +167,7 @@ export function ProjectionWorkspace() {
                 <Panel
                   id="right"
                   defaultSize={tabsCollapsed ? 4 : 50}
-                  minSize={tabsCollapsed ? 3 : 12}
+                  minSize={tabsCollapsed ? 3 : 6}
                   maxSize={tabsCollapsed ? 6 : 100}
                   className="min-h-0 min-w-0"
                 >
