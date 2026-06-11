@@ -164,6 +164,27 @@ export function FolderTree() {
           await refreshFolders();
         }}
       />
+
+      <FolderDeleteDialog
+        open={!!deleteTarget}
+        folderName={deleteTarget?.name ?? ""}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async (mode: FolderDeleteMode) => {
+          if (!deleteTarget) return;
+          if (mode === "folder-and-files") {
+            await deleteFolderDeep(deleteTarget.id);
+            toast.success("Folder and files deleted");
+          } else {
+            await deleteFolderOnly(deleteTarget.id);
+            toast.success("Folder deleted · files moved to All Media");
+          }
+          if (currentFolderId === deleteTarget.id) await setFolder(null);
+          setDeleteTarget(null);
+          await refreshFolders();
+          await refreshMedia();
+        }}
+      />
     </div>
   );
 }
+
