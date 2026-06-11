@@ -67,6 +67,23 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
     set({ projectorOpen: false, windowRef: null, state: null });
   },
   send: (cmd) => {
+    // Optimistically reflect transport commands in the local state so the
+    // Preview window reacts instantly without waiting for the projector to
+    // echo back a STATE frame. The authoritative STATE follow-up will
+    // overwrite this within a frame or two.
+    const cur = get().state;
+    if (cur) {
+      let next = cur;
+      switch (cmd.type) {
+        case "PLAY":  next = { ...cur, playing: true }; break;
+        case "PAUSE": next = { ...cur, playing: false }; break;
+        case "STOP":  next = { ...cur, playing: false, mode: "idle", currentMediaId: null, index: 0, total: 0 }; break;
+        case "BLACK": next = { ...cur, black: cmd.value }; break;
+        case "MUTE":  next = { ...cur, muted: cmd.value }; break;
+        case "VOLUME":next = { ...cur, volume: cmd.value }; break;
+      }
+      if (next !== cur) set({ state: next });
+    }
     get().channel?.postMessage(cmd);
   },
 }));
