@@ -41,6 +41,19 @@ export function LibraryPage() {
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
+  const [foldersOpen, setFoldersOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const v = window.localStorage.getItem(FOLDER_PANEL_KEY);
+    return v === null ? true : v === "1";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FOLDER_PANEL_KEY, foldersOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [foldersOpen]);
 
   useEffect(() => {
     void refreshAll();
