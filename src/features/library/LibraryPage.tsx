@@ -44,6 +44,7 @@ export function LibraryPage() {
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
   const [renameTarget, setRenameTarget] = useState<MediaRecord | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const anchorIndexRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -55,38 +56,49 @@ export function LibraryPage() {
   const visible = useMemo(() => filterMedia(media, search, filter), [media, search, filter]);
   const selectedIds = useMemo(() => Array.from(selection), [selection]);
 
+  // Auto-exit selection mode when nothing is selected anymore.
+  useEffect(() => {
+    if (selectionMode && selection.size === 0) setSelectionMode(false);
+  }, [selection, selectionMode]);
+
   const projectOne = useCallback(async (m: MediaRecord) => {
     await MediaAdapter.projectMedia(m);
   }, []);
 
   // Click rules:
-  //   • Shift+Click  → range select from anchor
-  //   • Ctrl/Cmd+Click → toggle individual
-  //   • Plain click  → projector ON: project immediately
-  //                    projector OFF: single-select
+  //   • Selection mode ON  → click toggles selection; shift = range; ctrl = individual.
+  //                          Projection is disabled while in selection mode.
+  //   • Selection mode OFF → click projects immediately. The only way to enter
+  //                          selection mode is to click a card checkbox.
   const handleTileClick = useCallback(
     (e: React.MouseEvent, m: MediaRecord, index: number) => {
-      if (e.shiftKey) {
-        const anchor = anchorIndexRef.current ?? index;
-        const [start, end] = anchor <= index ? [anchor, index] : [index, anchor];
-        const ids = visible.slice(start, end + 1).map((x) => x.id);
-        selectAll(ids);
-        return;
-      }
-      if (e.ctrlKey || e.metaKey) {
+      if (selectionMode) {
+        if (e.shiftKey) {
+          const anchor = anchorIndexRef.current ?? index;
+          const [start, end] = anchor <= index ? [anchor, index] : [index, anchor];
+          const ids = visible.slice(start, end + 1).map((x) => x.id);
+          selectAll(ids);
+          return;
+        }
         anchorIndexRef.current = index;
         toggleSelect(m.id, true);
         return;
       }
       anchorIndexRef.current = index;
-      if (projectorOpen) {
-        void projectOne(m);
-      } else {
-        selectAll([m.id]);
-      }
+      void projectOne(m);
     },
-    [projectorOpen, projectOne, selectAll, toggleSelect, visible],
+    [projectOne, selectAll, selectionMode, toggleSelect, visible],
   );
+
+  const enterSelectionWith = useCallback(
+    (m: MediaRecord, index: number) => {
+      setSelectionMode(true);
+      anchorIndexRef.current = index;
+      toggleSelect(m.id, true);
+    },
+    [toggleSelect],
+  );
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
