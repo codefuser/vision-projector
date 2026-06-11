@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye, PanelLeftClose, FolderTree as FolderTreeIcon } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
