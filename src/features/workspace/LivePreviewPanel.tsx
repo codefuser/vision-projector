@@ -212,37 +212,20 @@ export function LivePreviewPanel() {
         )}
       </div>
 
-      {/* Timeline (video only) */}
+      {/* Timeline (video only) — with hover thumbnail + timestamp preview */}
       {isVideo && (
-        <div className="flex items-center gap-2 border-t border-border bg-background/60 px-2.5 pt-1.5">
-          <span className="w-12 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
-            {fmtTime(currentTime)}
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(0.01, duration)}
-            step={0.05}
-            value={Math.min(currentTime, duration || 0)}
-            onChange={(e) => setScrubbing(Number(e.target.value))}
-            onMouseUp={(e) => {
-              const t = Number((e.target as HTMLInputElement).value);
-              setScrubbing(null);
-              handleSeek(t);
-            }}
-            onTouchEnd={(e) => {
-              const t = Number((e.target as HTMLInputElement).value);
-              setScrubbing(null);
-              handleSeek(t);
-            }}
-            className="h-1 flex-1 cursor-pointer accent-primary"
-            aria-label="Seek"
-          />
-          <span className="w-12 font-mono text-[11px] tabular-nums text-muted-foreground">
-            {fmtTime(duration)}
-          </span>
-        </div>
+        <TimelineScrubber
+          src={url}
+          duration={duration}
+          currentTime={currentTime}
+          onScrub={(t) => setScrubbing(t)}
+          onCommit={(t) => {
+            setScrubbing(null);
+            handleSeek(t);
+          }}
+        />
       )}
+
 
       {/* Transport */}
       <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-background/60 px-2 py-1.5">
