@@ -195,7 +195,7 @@ function DockButton({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition",
+        "inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition",
         active
           ? "border-primary/30 bg-primary/10 text-primary"
           : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
