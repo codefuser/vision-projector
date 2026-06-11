@@ -371,3 +371,114 @@ function IconBtn({
     </button>
   );
 }
+
+/**
+ * Timeline scrubber with an offscreen hover-preview video that seeks to
+ * the cursor's mapped time and displays a frame thumbnail + timestamp,
+ * similar to professional media players. Only ever rendered inside the
+ * Live Preview — never inside the projector output.
+ */
+function TimelineScrubber({
+  src,
+  duration,
+  currentTime,
+  onScrub,
+  onCommit,
+}: {
+  src: string | null;
+  duration: number;
+  currentTime: number;
+  onScrub: (t: number) => void;
+  onCommit: (t: number) => void;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
+
+  const updateHover = (clientX: number) => {
+    const row = rowRef.current;
+    if (!row || !duration) return;
+    const rect = row.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const t = ratio * duration;
+    setHover({ x: clientX - rect.left, t });
+    const v = previewVideoRef.current;
+    if (v && isFinite(t)) {
+      try {
+        v.currentTime = t;
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  return (
+    <div
+      ref={rowRef}
+      className="relative flex items-center gap-2 border-t border-border bg-background/60 px-2.5 pt-1.5"
+      onMouseMove={(e) => updateHover(e.clientX)}
+      onMouseLeave={() => setHover(null)}
+    >
+      <span className="w-12 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+        {fmtTime(currentTime)}
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={Math.max(0.01, duration)}
+        step={0.05}
+        value={Math.min(currentTime, duration || 0)}
+        onChange={(e) => onScrub(Number(e.target.value))}
+        onMouseUp={(e) => onCommit(Number((e.target as HTMLInputElement).value))}
+        onTouchEnd={(e) => onCommit(Number((e.target as HTMLInputElement).value))}
+        className="h-1 flex-1 cursor-pointer accent-primary"
+        aria-label="Seek"
+      />
+      <span className="w-12 font-mono text-[11px] tabular-nums text-muted-foreground">
+        {fmtTime(duration)}
+      </span>
+
+      {/* Offscreen video that drives the hover thumbnail */}
+      {src && (
+        <video
+          ref={previewVideoRef}
+          src={src}
+          muted
+          playsInline
+          preload="auto"
+          className="pointer-events-none absolute h-0 w-0 opacity-0"
+        />
+      )}
+
+      {/* Hover preview popover */}
+      {hover && src && (
+        <div
+          className="pointer-events-none absolute bottom-full mb-2 flex -translate-x-1/2 flex-col items-center"
+          style={{ left: `calc(${hover.x}px + 3rem + 0.5rem)` }}
+        >
+          <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg">
+            <video
+              src={src}
+              muted
+              playsInline
+              className="h-20 w-36 object-contain"
+              ref={(el) => {
+                if (el && isFinite(hover.t)) {
+                  try {
+                    el.currentTime = hover.t;
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }}
+            />
+          </div>
+          <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
+            {fmtTime(hover.t)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
