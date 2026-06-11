@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Folder, FolderOpen, FolderPlus, Home, Pencil, Trash2 } from "lucide-react";
 import { useLibrary } from "@/stores/library.store";
-import { createFolder, renameFolder, deleteFolderDeep, moveMedia } from "@/db/repo";
+import { createFolder, renameFolder, deleteFolderDeep, deleteFolderOnly, moveMedia } from "@/db/repo";
 import type { FolderRecord } from "@/db/schema";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RenameDialog } from "@/components/RenameDialog";
+import { FolderDeleteDialog, type FolderDeleteMode } from "@/components/FolderDeleteDialog";
+
 
 interface Node {
   folder: FolderRecord;
