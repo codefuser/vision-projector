@@ -6,11 +6,14 @@ import type { PlaylistRecord } from "@/db/schema";
 import { MediaAdapter } from "@/projection";
 import { toast } from "sonner";
 import { RenameDialog } from "@/components/RenameDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [renameTarget, setRenameTarget] = useState<PlaylistRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PlaylistRecord | null>(null);
+
 
   const refresh = async () => setPlaylists(await listPlaylists());
 
