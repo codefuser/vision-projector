@@ -515,7 +515,7 @@ function CardAction({
       title={label}
       aria-label={label}
       className={cn(
-        "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-background/90 shadow-sm transition hover:bg-background",
+        "inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-background/90 shadow-sm backdrop-blur transition hover:bg-background",
         variant === "danger" ? "text-destructive hover:bg-destructive/10" : "text-foreground",
       )}
     >
