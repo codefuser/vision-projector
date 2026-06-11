@@ -202,7 +202,7 @@ export function LibraryPage() {
           selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
         )}
       >
-        {/* Thumbnail area — badges live on the image, actions never go here */}
+        {/* Thumbnail area — badges live on the image; hover actions float at bottom-right of the thumbnail (never the metadata) */}
         <div className="relative">
           <Thumb media={m} className="aspect-video" />
 
@@ -238,31 +238,10 @@ export function LibraryPage() {
               <span className="tabular-nums">{formatDuration(m.durationMs)}</span>
             </div>
           )}
-        </div>
 
-        {/* Metadata + bottom-positioned hover actions */}
-        <div className="relative p-2">
-          <div className="truncate pr-1 text-xs font-medium text-foreground" title={m.name}>
-            {m.name}
-          </div>
-          <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-            {m.type === "video" ? (
-              <>
-                <span>{formatDuration(m.durationMs)}</span>
-                <span>{formatBytes(m.size)}</span>
-              </>
-            ) : (
-              <>
-                <span className="uppercase tracking-wide opacity-70">Image</span>
-                <span>{formatBytes(m.size)}</span>
-              </>
-            )}
-          </div>
-
-          {/* Hover action toolbar — overlays the metadata footer only,
-              never the thumbnail or video badge. */}
+          {/* Hover actions — anchored to the thumbnail bottom-right so they never cover filename/size metadata */}
           {!selectionMode && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-end gap-1 rounded-b-lg bg-gradient-to-t from-card via-card/95 to-transparent p-2 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
+            <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-center justify-end gap-1 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
               <CardAction label="Preview" onClick={() => setPreview(m)}>
                 <Eye className="h-3 w-3" />
               </CardAction>
@@ -277,6 +256,26 @@ export function LibraryPage() {
               </CardAction>
             </div>
           )}
+        </div>
+
+        {/* Metadata — slightly taller for breathing room; never covered by hover actions */}
+        <div className="px-2.5 py-2">
+          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+            {m.name}
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            {m.type === "video" ? (
+              <>
+                <span className="tabular-nums">{formatDuration(m.durationMs)}</span>
+                <span className="tabular-nums">{formatBytes(m.size)}</span>
+              </>
+            ) : (
+              <>
+                <span className="uppercase tracking-wide opacity-70">Image</span>
+                <span className="tabular-nums">{formatBytes(m.size)}</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
