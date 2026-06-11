@@ -15,12 +15,11 @@ export const Route = createFileRoute("/project")({
 });
 
 function ProjectRoute() {
-  const [mode, setMode] = useState<"loading" | "popup" | "control">("loading");
-  useEffect(() => {
-    const isPopup = typeof window !== "undefined" && window.opener && window.name === "church-projector";
-    setMode(isPopup ? "popup" : "control");
-  }, []);
-  if (mode === "loading") return <div className="h-screen bg-black" />;
+  // Compute mode synchronously to avoid the "loading" black-flash on every nav.
+  const [mode] = useState<"popup" | "control">(() => {
+    if (typeof window === "undefined") return "control";
+    return window.opener && window.name === "church-projector" ? "popup" : "control";
+  });
   if (mode === "popup") return <ProjectionWindow />;
   return (
     <AppShell>
@@ -28,4 +27,5 @@ function ProjectRoute() {
     </AppShell>
   );
 }
+
 
