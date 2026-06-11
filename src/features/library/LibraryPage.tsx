@@ -4,7 +4,7 @@ import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
-import { useProjection } from "@/stores/projection.store";
+// projection store no longer needed here — click always projects in normal mode.
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
