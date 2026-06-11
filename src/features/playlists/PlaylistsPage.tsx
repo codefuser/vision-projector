@@ -159,14 +159,16 @@ function PlaylistCard({
   onDelete: () => void;
 }) {
   const [thumbs, setThumbs] = useState<MediaRecord[]>([]);
+  const [allItems, setAllItems] = useState<MediaRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const ids = playlist.items.slice(0, 4).map((i) => i.mediaId);
-      const records = await Promise.all(ids.map((id) => getMedia(id)));
+      const records = await Promise.all(playlist.items.map((i) => getMedia(i.mediaId)));
+      const filtered = records.filter((m): m is MediaRecord => !!m);
       if (!cancelled) {
-        setThumbs(records.filter((m): m is MediaRecord => !!m));
+        setAllItems(filtered);
+        setThumbs(filtered.slice(0, 4));
       }
     })();
     return () => {
@@ -177,12 +179,12 @@ function PlaylistCard({
   const counts = useMemo(() => {
     let videos = 0;
     let images = 0;
-    for (const t of thumbs) {
+    for (const t of allItems) {
       if (t.type === "video") videos++;
       else if (t.type === "image") images++;
     }
     return { videos, images };
-  }, [thumbs]);
+  }, [allItems]);
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">

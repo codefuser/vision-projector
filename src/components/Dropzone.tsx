@@ -57,7 +57,21 @@ export function Dropzone({ folderId, onDone, className }: Props) {
       />
       <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
       <p className="mt-2 text-sm text-foreground">Drag & drop images, posters, or videos here</p>
-      <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, GIF · MP4, WEBM, MOV</p>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Images</span>
+        {["JPG", "JPEG", "PNG", "WEBP", "GIF"].map((f) => (
+          <span key={f} className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground/80">
+            {f}
+          </span>
+        ))}
+        <span className="mx-1 text-muted-foreground/40">·</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Videos</span>
+        {["MP4", "WEBM", "MOV"].map((f) => (
+          <span key={f} className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground/80">
+            {f}
+          </span>
+        ))}
+      </div>
       <label
         htmlFor="file-input"
         className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
