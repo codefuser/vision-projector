@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
 import { ChevronUp, ChevronDown, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
 import { LivePreviewPanel } from "./LivePreviewPanel";
@@ -16,16 +16,25 @@ import { cn } from "@/lib/utils";
  *   │  Live Preview        │                      │
  *   ├──────────────────────┤   Workspace Tabs     │
  *   │  Text Formatting     │   (Media / Bible /   │
- *   │  (UI only)           │    Songs / Text)     │
+ *   │  (collapsible)       │    Songs / Text)     │
  *   └──────────────────────┴──────────────────────┘
  *
- * Layout (panel sizes) persists via localStorage on every drag commit.
- * Panel visibility and active tab persist via the workspace zustand store.
+ * • Every divider is drag-resizable.
+ * • Layout (panel sizes) persists via localStorage on every drag commit.
+ * • Panel visibility, active tab, and the bottom-panel collapsed state
+ *   persist via the workspace zustand store.
+ * • The bottom Text Formatting panel is collapsible — when collapsed it
+ *   shrinks to its header strip, handing all extra vertical space to the
+ *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
   outer: "church-media-ws-outer-v1",
   left: "church-media-ws-left-v1",
 };
+// Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
+// height (~700px) for the resizable-panels percentage model.
+const TEXT_FORMAT_COLLAPSED_SIZE = 6;
+const TEXT_FORMAT_DEFAULT_SIZE = 40;
 
 function readLayout(key: string): Layout | undefined {
   try {
@@ -47,6 +56,8 @@ function writeLayout(key: string, layout: Layout) {
 
 export function ProjectionWorkspace() {
   const { visible, togglePanel, showPanel } = useWorkspace();
+  const textFormatCollapsed = useWorkspace((s) => s.textFormatCollapsed);
+  const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
 
@@ -60,6 +71,15 @@ export function ProjectionWorkspace() {
 
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
   const leftVisible = visible.preview || visible.textFormat;
+
+  // Drive the bottom panel size from the persisted collapsed flag.
+  const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
+  useEffect(() => {
+    const p = textFormatPanelRef.current;
+    if (!p) return;
+    if (textFormatCollapsed && !p.isCollapsed()) p.collapse();
+    if (!textFormatCollapsed && p.isCollapsed()) p.expand();
+  }, [textFormatCollapsed, visible.textFormat, visible.preview]);
 
   return (
     <FocusManagerProvider>
@@ -102,7 +122,23 @@ export function ProjectionWorkspace() {
                     )}
                     {visible.preview && visible.textFormat && <VHandle />}
                     {visible.textFormat && (
-                      <Panel id="text-format" defaultSize={40} minSize={15} className="min-h-0">
+                      <Panel
+                        id="text-format"
+                        panelRef={(handle) => {
+                          textFormatPanelRef.current = handle as typeof textFormatPanelRef.current;
+                        }}
+                        defaultSize={textFormatCollapsed ? TEXT_FORMAT_COLLAPSED_SIZE : TEXT_FORMAT_DEFAULT_SIZE}
+                        minSize={15}
+                        collapsible
+                        collapsedSize={TEXT_FORMAT_COLLAPSED_SIZE}
+                        onResize={(size) => {
+                          const isCollapsed = size <= TEXT_FORMAT_COLLAPSED_SIZE + 0.5;
+                          if (isCollapsed !== textFormatCollapsed) {
+                            setTextFormatCollapsed(isCollapsed);
+                          }
+                        }}
+                        className="min-h-0"
+                      >
                         <TextFormattingPanel />
                       </Panel>
                     )}
