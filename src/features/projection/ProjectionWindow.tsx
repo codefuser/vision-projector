@@ -327,14 +327,22 @@ export function ProjectionWindow() {
       {cur && !black && cur.media.type === "video" && (
         <video
           ref={videoRef}
-          key={"vid-" + cur.id + "-" + index}
+          key={"vid-" + cur.id + "-" + index + "-" + cur.blobUrl}
           src={cur.blobUrl}
           autoPlay={playing}
           onEnded={onVideoEnded}
+          onLoadedMetadata={(e) => {
+            // Always start from the beginning on every projection.
+            (e.currentTarget as HTMLVideoElement).currentTime = 0;
+            broadcastState();
+          }}
+          onTimeUpdate={() => broadcastState()}
+          onDurationChange={() => broadcastState()}
           className="absolute inset-0 h-full w-full object-contain"
           playsInline
         />
       )}
+
 
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
