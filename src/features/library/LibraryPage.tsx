@@ -200,7 +200,10 @@ export function LibraryPage() {
                   Select all
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              <div
+                className="grid gap-3"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
+              >
                 {visible.map((m) => {
                   const selected = selection.has(m.id);
                   return (
