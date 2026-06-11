@@ -49,6 +49,13 @@ export function LibraryPage() {
   const [deleteTargets, setDeleteTargets] = useState<MediaRecord[] | null>(null);
   const [showMove, setShowMove] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
+  const [foldersCollapsed, setFoldersCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("church-media-folders-collapsed-v1") === "1";
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("church-media-folders-collapsed-v1", foldersCollapsed ? "1" : "0"); } catch { /* ignore */ }
+  }, [foldersCollapsed]);
 
   const anchorIndexRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
