@@ -5,6 +5,7 @@ import { createFolder, renameFolder, deleteFolderDeep, moveMedia } from "@/db/re
 import type { FolderRecord } from "@/db/schema";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { RenameDialog } from "@/components/RenameDialog";
 
 interface Node {
   folder: FolderRecord;
@@ -35,17 +36,12 @@ export function FolderTree() {
   const clearSelection = useLibrary((s) => s.clearSelection);
 
   const tree = useMemo(() => buildTree(folders), [folders]);
+  const [renameTarget, setRenameTarget] = useState<FolderRecord | null>(null);
+  const [createFor, setCreateFor] = useState<{ parentId: string | null } | null>(null);
 
   useEffect(() => {
     void refreshFolders();
   }, [refreshFolders]);
-
-  const onCreate = async (parentId: string | null) => {
-    const name = prompt("Folder name");
-    if (!name) return;
-    await createFolder(name, parentId);
-    await refreshFolders();
-  };
 
   const onDropMedia = async (e: React.DragEvent, folderId: string | null) => {
     e.preventDefault();
@@ -67,22 +63,23 @@ export function FolderTree() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => onDropMedia(e, n.folder.id)}
           className={cn(
-            "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+            "group flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-xs",
             active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
           )}
-          style={{ paddingLeft: depth * 12 + 8 }}
+          style={{ paddingLeft: depth * 10 + 6 }}
+          title={n.folder.name}
         >
-          {active ? <FolderOpen className="h-4 w-4 shrink-0" /> : <Folder className="h-4 w-4 shrink-0" />}
+          {active ? <FolderOpen className="h-3.5 w-3.5 shrink-0" /> : <Folder className="h-3.5 w-3.5 shrink-0" />}
           <span className="flex-1 truncate">{n.folder.name}</span>
-          <div className="invisible flex items-center gap-1 group-hover:visible">
+          <div className="invisible flex items-center gap-0.5 group-hover:visible">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const name = prompt("Rename folder", n.folder.name);
-                if (name) renameFolder(n.folder.id, name).then(refreshFolders);
+                setRenameTarget(n.folder);
               }}
-              className="rounded p-0.5 hover:bg-background"
-              aria-label="Rename"
+              className="cursor-pointer rounded p-0.5 hover:bg-background"
+              aria-label="Rename folder"
+              title="Rename"
             >
               <Pencil className="h-3 w-3" />
             </button>
@@ -97,8 +94,9 @@ export function FolderTree() {
                   });
                 }
               }}
-              className="rounded p-0.5 hover:bg-background"
-              aria-label="Delete"
+              className="cursor-pointer rounded p-0.5 hover:bg-background"
+              aria-label="Delete folder"
+              title="Delete"
             >
               <Trash2 className="h-3 w-3" />
             </button>
@@ -111,14 +109,15 @@ export function FolderTree() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-3 py-2">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Folders</div>
+      <div className="flex shrink-0 items-center justify-between px-2 py-1.5">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Folders</div>
         <button
-          onClick={() => onCreate(currentFolderId)}
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          onClick={() => setCreateFor({ parentId: currentFolderId })}
+          className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           aria-label="New folder"
+          title="New folder"
         >
-          <FolderPlus className="h-4 w-4" />
+          <FolderPlus className="h-3.5 w-3.5" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-1 pb-2">
@@ -127,18 +126,45 @@ export function FolderTree() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => onDropMedia(e, null)}
           className={cn(
-            "flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm",
+            "flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs",
             currentFolderId === null ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
           )}
         >
-          <Home className="h-4 w-4" />
-          <span>All Media</span>
+          <Home className="h-3.5 w-3.5" />
+          <span className="truncate">All Media</span>
           {selection.size > 0 && (
-            <span className="ml-auto text-xs text-muted-foreground">{selection.size} selected</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">{selection.size}</span>
           )}
         </div>
         {tree.map((n) => renderNode(n, 0))}
       </div>
+
+      <RenameDialog
+        open={!!renameTarget}
+        initialName={renameTarget?.name ?? ""}
+        title="Folder"
+        onCancel={() => setRenameTarget(null)}
+        onSubmit={async (name) => {
+          if (!renameTarget) return;
+          await renameFolder(renameTarget.id, name);
+          setRenameTarget(null);
+          await refreshFolders();
+          toast.success("Folder renamed");
+        }}
+      />
+
+      <RenameDialog
+        open={!!createFor}
+        initialName=""
+        title="New folder"
+        label="Folder name"
+        onCancel={() => setCreateFor(null)}
+        onSubmit={async (name) => {
+          await createFolder(name, createFor?.parentId ?? null);
+          setCreateFor(null);
+          await refreshFolders();
+        }}
+      />
     </div>
   );
 }
