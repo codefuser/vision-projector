@@ -132,7 +132,7 @@ export function ProjectionWorkspace() {
                         collapsible
                         collapsedSize={TEXT_FORMAT_COLLAPSED_SIZE}
                         onResize={(size) => {
-                          const isCollapsed = size <= TEXT_FORMAT_COLLAPSED_SIZE + 0.5;
+                          const isCollapsed = size.asPercentage <= TEXT_FORMAT_COLLAPSED_SIZE + 0.5;
                           if (isCollapsed !== textFormatCollapsed) {
                             setTextFormatCollapsed(isCollapsed);
                           }
