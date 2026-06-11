@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, Plus, Play, ListPlus } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, Play, ListPlus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
+
+const FOLDER_PANEL_KEY = "church-media-library-folders-open-v1";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -39,6 +41,19 @@ export function LibraryPage() {
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
+  const [foldersOpen, setFoldersOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const v = window.localStorage.getItem(FOLDER_PANEL_KEY);
+    return v === null ? true : v === "1";
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FOLDER_PANEL_KEY, foldersOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [foldersOpen]);
 
   useEffect(() => {
     void refreshAll();
@@ -99,13 +114,17 @@ export function LibraryPage() {
   };
 
   return (
-    <div className="flex h-full">
-      <div className="flex w-60 shrink-0 flex-col border-r border-border bg-card/30">
-        <FolderTree />
-      </div>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
-          <div className="relative flex-1 max-w-md">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
+        <button
+          onClick={() => setFoldersOpen((v) => !v)}
+          title={foldersOpen ? "Hide folders" : "Show folders"}
+          aria-label={foldersOpen ? "Hide folders" : "Show folders"}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          {foldersOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+        </button>
+        <div className="relative flex-1 max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
@@ -129,7 +148,16 @@ export function LibraryPage() {
               </button>
             ))}
           </div>
-        </div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {foldersOpen && (
+          <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-card/30">
+            <FolderTree />
+          </aside>
+        )}
+        <div className="flex flex-1 flex-col overflow-hidden">
+
 
         {selectedIds.length > 0 && (
           <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
@@ -172,7 +200,10 @@ export function LibraryPage() {
                   Select all
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              <div
+                className="grid gap-3"
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
+              >
                 {visible.map((m) => {
                   const selected = selection.has(m.id);
                   return (
@@ -247,6 +278,9 @@ export function LibraryPage() {
           )}
         </div>
       </div>
+      </div>
+
+
 
       {preview && (
         <MediaPreview
