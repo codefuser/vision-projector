@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
 import { projectionEngine } from "@/projection";
@@ -13,16 +13,30 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
+const SIDEBAR_KEY = "church-media-sidebar-collapsed-v1";
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { settings, update, load, loaded } = useSettings();
   const { projectorOpen, openProjector, closeProjector, init } = useProjection();
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_KEY) === "1";
+  });
 
   useEffect(() => {
     init();
     projectionEngine.bootstrap();
     if (!loaded) void load();
   }, [init, load, loaded]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [collapsed]);
 
   const cycleTheme = () => {
     const order: Array<typeof settings.theme> = ["light", "dark", "system"];
@@ -32,12 +46,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-sidebar">
-        <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+      <aside
+        className={cn(
+          "flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200",
+          collapsed ? "w-14" : "w-56",
+        )}
+      >
+        <div className={cn("flex h-14 items-center gap-2 border-b border-sidebar-border", collapsed ? "justify-center px-2" : "px-4")}>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <MonitorPlay className="h-4 w-4" />
           </div>
-          <div className="text-sm font-semibold">Church Media</div>
+          {!collapsed && <div className="truncate text-sm font-semibold">Church Media</div>}
         </div>
         <nav className="flex-1 space-y-1 p-2">
           {NAV.map((item) => {
@@ -47,21 +66,37 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.to}
                 to={item.to}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition",
+                  "flex items-center gap-3 rounded-md text-sm transition",
+                  collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border p-2 text-xs text-muted-foreground">
-          Offline-first · Local only
+        <div className="border-t border-sidebar-border p-2">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground",
+              collapsed && "justify-center",
+            )}
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            {!collapsed && <span>Collapse</span>}
+          </button>
+          {!collapsed && (
+            <div className="px-2 pt-2 text-[10px] text-muted-foreground">Offline-first · Local only</div>
+          )}
         </div>
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
