@@ -42,6 +42,9 @@ export const useLibrary = create<LibraryStore>((set, get) => ({
       media = (await listAllMedia()).sort((a, b) => b.createdAt - a.createdAt).slice(0, 200);
     } else if (filter === "recent-used") {
       media = (await listAllMedia()).filter((m) => m.lastUsedAt).sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0)).slice(0, 200);
+    } else if (currentFolderId === null) {
+      // "All Media" = master view of every uploaded file, regardless of folder.
+      media = await listAllMedia();
     } else {
       media = await listMediaInFolder(currentFolderId);
     }
