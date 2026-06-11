@@ -5,22 +5,18 @@ import { createPlaylist, deletePlaylist, duplicatePlaylist, listPlaylists, renam
 import type { PlaylistRecord } from "@/db/schema";
 import { MediaAdapter } from "@/projection";
 import { toast } from "sonner";
+import { RenameDialog } from "@/components/RenameDialog";
 
 export function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
+  const [renameTarget, setRenameTarget] = useState<PlaylistRecord | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const refresh = async () => setPlaylists(await listPlaylists());
 
   useEffect(() => {
     void refresh();
   }, []);
-
-  const onCreate = async () => {
-    const name = prompt("Playlist name");
-    if (!name) return;
-    await createPlaylist(name);
-    await refresh();
-  };
 
   const projectPlaylist = async (p: PlaylistRecord) => {
     if (!p.items.length) return toast.error("Playlist is empty");
@@ -36,8 +32,8 @@ export function PlaylistsPage() {
             <p className="text-sm text-muted-foreground">Organize media into ordered sequences for services.</p>
           </div>
           <button
-            onClick={onCreate}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            onClick={() => setCreating(true)}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             <Plus className="h-4 w-4" /> New Playlist
           </button>
@@ -53,7 +49,7 @@ export function PlaylistsPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {playlists.map((p) => (
               <div key={p.id} className="group rounded-lg border border-border bg-card p-4 transition hover:border-primary/50">
-                <Link to="/playlists/$id" params={{ id: p.id }} className="block">
+                <Link to="/playlists/$id" params={{ id: p.id }} className="block cursor-pointer">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-base font-semibold">{p.name}</div>
@@ -65,20 +61,15 @@ export function PlaylistsPage() {
                 <div className="mt-3 flex items-center gap-1">
                   <button
                     onClick={() => projectPlaylist(p)}
-                    className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
                   >
                     <Play className="h-3 w-3" /> Project
                   </button>
                   <button
-                    onClick={async () => {
-                      const name = prompt("Rename", p.name);
-                      if (name) {
-                        await renamePlaylist(p.id, name);
-                        await refresh();
-                      }
-                    }}
-                    className="rounded-md border border-border bg-background p-1.5 hover:bg-accent"
+                    onClick={() => setRenameTarget(p)}
+                    className="cursor-pointer rounded-md border border-border bg-background p-1.5 hover:bg-accent"
                     aria-label="Rename"
+                    title="Rename"
                   >
                     <Pencil className="h-3 w-3" />
                   </button>
@@ -87,8 +78,9 @@ export function PlaylistsPage() {
                       await duplicatePlaylist(p.id);
                       await refresh();
                     }}
-                    className="rounded-md border border-border bg-background p-1.5 hover:bg-accent"
+                    className="cursor-pointer rounded-md border border-border bg-background p-1.5 hover:bg-accent"
                     aria-label="Duplicate"
+                    title="Duplicate"
                   >
                     <Copy className="h-3 w-3" />
                   </button>
@@ -99,8 +91,9 @@ export function PlaylistsPage() {
                         await refresh();
                       }
                     }}
-                    className="ml-auto rounded-md border border-destructive/40 bg-destructive/10 p-1.5 text-destructive hover:bg-destructive/20"
+                    className="ml-auto cursor-pointer rounded-md border border-destructive/40 bg-destructive/10 p-1.5 text-destructive hover:bg-destructive/20"
                     aria-label="Delete"
+                    title="Delete"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -109,6 +102,32 @@ export function PlaylistsPage() {
             ))}
           </div>
         )}
+
+        <RenameDialog
+          open={!!renameTarget}
+          initialName={renameTarget?.name ?? ""}
+          title="Playlist"
+          onCancel={() => setRenameTarget(null)}
+          onSubmit={async (name) => {
+            if (!renameTarget) return;
+            await renamePlaylist(renameTarget.id, name);
+            setRenameTarget(null);
+            await refresh();
+            toast.success("Playlist renamed");
+          }}
+        />
+        <RenameDialog
+          open={creating}
+          initialName=""
+          title="New playlist"
+          label="Playlist name"
+          onCancel={() => setCreating(false)}
+          onSubmit={async (name) => {
+            await createPlaylist(name);
+            setCreating(false);
+            await refresh();
+          }}
+        />
       </div>
     </div>
   );

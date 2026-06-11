@@ -100,17 +100,14 @@ export function ProjectionWorkspace() {
 
   return (
     <FocusManagerProvider>
-      <div className="flex h-full min-h-0 flex-col bg-background">
-        {/* Workspace toolbar */}
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-2">
-          <div className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Workspace
-          </div>
-          <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
-          <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
-          <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
-          <div className="ml-auto text-[10px] text-muted-foreground">
-            Drag dividers to resize · Click chips to dock / undock
+      <div className="relative flex h-full min-h-0 flex-col bg-background">
+        {/* Floating workspace dock controls — overlay so the workspace
+            content owns the full vertical space. */}
+        <div className="pointer-events-none absolute right-3 top-2 z-20 flex items-center gap-1">
+          <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-border bg-background/85 px-1.5 py-1 shadow-sm backdrop-blur">
+            <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
+            <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
+            <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
           </div>
         </div>
 
@@ -198,7 +195,7 @@ function DockButton({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition",
+        "inline-flex cursor-pointer items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium transition",
         active
           ? "border-primary/30 bg-primary/10 text-primary"
           : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -233,17 +230,17 @@ function EmptyDock({ onShow, visible }: { onShow: (k: keyof PanelVisibility) => 
       <div>All panels are collapsed.</div>
       <div className="flex flex-wrap justify-center gap-2">
         {!visible.preview && (
-          <button onClick={() => onShow("preview")} className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
+          <button onClick={() => onShow("preview")} className="cursor-pointer rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90">
             Show Preview
           </button>
         )}
         {!visible.textFormat && (
-          <button onClick={() => onShow("textFormat")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
+          <button onClick={() => onShow("textFormat")} className="cursor-pointer rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Text Formatting
           </button>
         )}
         {!visible.tabs && (
-          <button onClick={() => onShow("tabs")} className="rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
+          <button onClick={() => onShow("tabs")} className="cursor-pointer rounded-md border border-border bg-background px-3 py-1.5 text-xs hover:bg-accent">
             Show Workspace Tabs
           </button>
         )}

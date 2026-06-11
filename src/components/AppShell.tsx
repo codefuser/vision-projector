@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
@@ -14,7 +14,7 @@ const PRIMARY_NAV = [
 
 const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon } as const;
 
-const SIDEBAR_KEY = "church-media-sidebar-collapsed-v1";
+const SIDEBAR_KEY = "church-media-sidebar-collapsed-v2";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -52,24 +52,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Link
         key={item.to}
         to={item.to}
-        title={collapsed ? item.label : undefined}
+        title={item.label}
         className={cn(
-          "flex items-center gap-3 rounded-md text-sm transition-colors duration-150",
-          collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
+          "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150",
           active
             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
         )}
       >
         <Icon className="h-4 w-4 shrink-0" />
-        <span
-          className={cn(
-            "truncate transition-[opacity,width] duration-200",
-            collapsed ? "w-0 overflow-hidden opacity-0" : "w-auto opacity-100",
-          )}
-        >
-          {item.label}
-        </span>
+        <span className="truncate">{item.label}</span>
       </Link>
     );
   };
@@ -78,51 +70,63 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen bg-background text-foreground">
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 ease-out",
+          "flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar transition-[width] duration-300 ease-in-out",
           collapsed ? "w-14" : "w-56",
         )}
       >
-        {/* Header with brand + top-mounted collapse toggle */}
-        <div className={cn("flex h-14 items-center gap-2 border-b border-sidebar-border", collapsed ? "justify-center px-2" : "px-3")}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <MonitorPlay className="h-4 w-4" />
-          </div>
-          {!collapsed && <div className="flex-1 truncate text-sm font-semibold">Church Media</div>}
+        {/* Brand / logo header.
+            • Collapsed: the whole row is a clickable logo that expands the sidebar.
+            • Expanded: logo + name on the left, collapse button on the right. */}
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center border-b border-sidebar-border",
+            collapsed ? "justify-center px-2" : "gap-2 px-3",
+          )}
+        >
           <button
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            type="button"
+            onClick={() => collapsed && setCollapsed(false)}
+            aria-label={collapsed ? "Expand sidebar" : "Church Media"}
+            title={collapsed ? "Expand sidebar" : "Church Media"}
             className={cn(
-              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-              collapsed && "hidden",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-transform",
+              collapsed ? "cursor-pointer hover:scale-105" : "cursor-default",
             )}
           >
-            <PanelLeftClose className="h-4 w-4" />
+            <MonitorPlay className="h-4 w-4" />
           </button>
-        </div>
-        {collapsed && (
-          <button
-            onClick={() => setCollapsed(false)}
-            title="Expand sidebar"
-            aria-label="Expand sidebar"
-            className="mx-2 mt-2 inline-flex h-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
-        )}
 
-        {/* Primary nav */}
-        <nav className="flex-1 space-y-1 p-2">
-          {PRIMARY_NAV.map(renderNavItem)}
-        </nav>
-
-        {/* Pinned bottom: Settings */}
-        <div className="border-t border-sidebar-border p-2">
-          {renderNavItem(SETTINGS_NAV)}
           {!collapsed && (
-            <div className="px-2 pt-2 text-[10px] text-muted-foreground">Offline-first · Local only</div>
+            <>
+              <div className="flex-1 truncate text-sm font-semibold">Church Media</div>
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+                className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </>
           )}
         </div>
+
+        {/* Primary nav (hidden when collapsed — only the logo remains) */}
+        {!collapsed && (
+          <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+            {PRIMARY_NAV.map(renderNavItem)}
+          </nav>
+        )}
+        {collapsed && <div className="flex-1" />}
+
+        {/* Pinned bottom: Settings (only when expanded) */}
+        {!collapsed && (
+          <div className="border-t border-sidebar-border p-2">
+            {renderNavItem(SETTINGS_NAV)}
+            <div className="px-2 pt-2 text-[10px] text-muted-foreground">Offline-first · Local only</div>
+          </div>
+        )}
       </aside>
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4">
@@ -133,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <button
               onClick={projectorOpen ? closeProjector : openProjector}
               className={cn(
-                "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition",
+                "inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition",
                 projectorOpen
                   ? "bg-destructive text-destructive-foreground hover:opacity-90"
                   : "bg-primary text-primary-foreground hover:opacity-90",
@@ -144,7 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
             <button
               onClick={cycleTheme}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background hover:bg-accent"
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-border bg-background hover:bg-accent"
               aria-label="Toggle theme"
               title={`Theme: ${settings.theme}`}
             >

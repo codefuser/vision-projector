@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, Play, ListPlus, Pencil } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
-import { RenameMediaDialog } from "./RenameMediaDialog";
+import { RenameDialog } from "@/components/RenameDialog";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -45,7 +45,6 @@ export function LibraryPage() {
   const [showAddTo, setShowAddTo] = useState(false);
   const [renameTarget, setRenameTarget] = useState<MediaRecord | null>(null);
 
-  // Anchor index used for Shift+Click range selection (Windows Explorer style).
   const anchorIndexRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -60,10 +59,11 @@ export function LibraryPage() {
     await MediaAdapter.projectMedia(m);
   }, []);
 
-  // Windows-style click handler:
+  // Click rules:
   //   • Shift+Click  → range select from anchor
   //   • Ctrl/Cmd+Click → toggle individual
-  //   • Plain click  → if projector open: project; else: single-select
+  //   • Plain click  → projector ON: project immediately
+  //                    projector OFF: single-select
   const handleTileClick = useCallback(
     (e: React.MouseEvent, m: MediaRecord, index: number) => {
       if (e.shiftKey) {
@@ -82,14 +82,12 @@ export function LibraryPage() {
       if (projectorOpen) {
         void projectOne(m);
       } else {
-        // Single selection — mirrors Windows Explorer behavior.
         selectAll([m.id]);
       }
     },
     [projectorOpen, projectOne, selectAll, toggleSelect, visible],
   );
 
-  // Ctrl+A → select all visible (only when grid is focused / mouse over it).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
@@ -98,7 +96,6 @@ export function LibraryPage() {
         if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
         const grid = gridRef.current;
         if (!grid) return;
-        // Only intercept when grid is in the active document area.
         e.preventDefault();
         selectAll(visible.map((m) => m.id));
       }
@@ -154,7 +151,7 @@ export function LibraryPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative max-w-md flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
@@ -170,7 +167,7 @@ export function LibraryPage() {
               key={f.value}
               onClick={() => setFilter(f.value)}
               className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition",
+                "cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition",
                 filter === f.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -181,8 +178,8 @@ export function LibraryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Compact, always-visible folder panel (file-explorer style) */}
-        <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
+        {/* Compact folder rail — narrower, top-aligned with the upload area. */}
+        <aside className="flex w-[140px] shrink-0 flex-col border-r border-border bg-card/30">
           <FolderTree />
         </aside>
 
@@ -190,13 +187,13 @@ export function LibraryPage() {
           {selectedIds.length > 0 && (
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
               <span className="font-medium">{selectedIds.length} selected</span>
-              <button onClick={onAddToPlaylist} className="ml-3 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+              <button onClick={onAddToPlaylist} className="ml-3 inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <ListPlus className="h-3.5 w-3.5" /> Add to playlist
               </button>
-              <button onClick={onMoveTo} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+              <button onClick={onMoveTo} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <FolderInput className="h-3.5 w-3.5" /> Move
               </button>
-              <button onClick={onDuplicate} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+              <button onClick={onDuplicate} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <Copy className="h-3.5 w-3.5" /> Duplicate
               </button>
               {selectedIds.length === 1 && (
@@ -205,15 +202,15 @@ export function LibraryPage() {
                     const m = visible.find((x) => x.id === selectedIds[0]);
                     if (m) setRenameTarget(m);
                   }}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent"
                 >
                   <Pencil className="h-3.5 w-3.5" /> Rename
                 </button>
               )}
-              <button onClick={onDelete} className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
+              <button onClick={onDelete} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
-              <button onClick={clearSelection} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
+              <button onClick={clearSelection} className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground">
                 Clear
               </button>
             </div>
@@ -222,7 +219,6 @@ export function LibraryPage() {
           <div
             className="flex-1 overflow-y-auto p-4"
             onMouseDown={(e) => {
-              // Click on empty space clears selection (Explorer-like).
               if (e.target === e.currentTarget) clearSelection();
             }}
           >
@@ -245,7 +241,7 @@ export function LibraryPage() {
                   </div>
                   <button
                     onClick={() => selectAll(visible.map((m) => m.id))}
-                    className="hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground"
                   >
                     Select all
                   </button>
@@ -303,6 +299,10 @@ export function LibraryPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Hover overlay: select checkbox + dedicated rename icon.
+                            Redundant "project" button removed — clicking the
+                            card already projects when the projector is on. */}
                         <div className="absolute inset-x-0 top-0 flex items-center justify-between p-1.5 opacity-0 transition group-hover:opacity-100">
                           <input
                             type="checkbox"
@@ -312,30 +312,20 @@ export function LibraryPage() {
                               toggleSelect(m.id, true);
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 rounded border-border accent-primary"
+                            className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
                           />
-                          {!projectorOpen && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void projectOne(m);
-                              }}
-                              title="Project"
-                              className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground shadow"
-                            >
-                              <Play className="h-3 w-3" />
-                            </button>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRenameTarget(m);
+                            }}
+                            title="Rename"
+                            aria-label="Rename"
+                            className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenameTarget(m);
-                          }}
-                          className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] opacity-0 transition group-hover:opacity-100"
-                        >
-                          Rename
-                        </button>
                       </div>
                     );
                   })}
@@ -357,9 +347,10 @@ export function LibraryPage() {
         />
       )}
 
-      <RenameMediaDialog
+      <RenameDialog
         open={!!renameTarget}
         initialName={renameTarget?.name ?? ""}
+        title="File"
         onCancel={() => setRenameTarget(null)}
         onSubmit={onRenameSubmit}
       />
@@ -404,7 +395,7 @@ function AddToPlaylistDialog({
                 toast.success(`Added to ${p.name}`);
                 onDone();
               }}
-              className="flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
+              className="flex w-full cursor-pointer items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
             >
               <span>{p.name}</span>
               <span className="text-xs text-muted-foreground">{p.items.length} items</span>
@@ -412,7 +403,7 @@ function AddToPlaylistDialog({
           ))}
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">
+          <button onClick={onClose} className="cursor-pointer rounded-md border border-border bg-background px-3 py-1.5 text-sm hover:bg-accent">
             Cancel
           </button>
         </div>
