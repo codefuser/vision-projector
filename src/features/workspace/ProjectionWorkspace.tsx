@@ -119,19 +119,26 @@ export function ProjectionWorkspace() {
             <EmptyDock onShow={showPanel} visible={visible} />
           ) : (
             <Group
+              key={outerKey}
               orientation="horizontal"
               className="h-full"
-              defaultLayout={savedOuter}
-              onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.outer, l)}
+              defaultLayout={outerLayout}
+              onLayoutChanged={(l) => {
+                if (leftVisible && visible.tabs) writeLayout(LAYOUT_KEYS.outer, l);
+              }}
             >
               {leftVisible && (
                 <Panel id="left" defaultSize={50} minSize={20} className="min-h-0 min-w-0">
                   <Group
+                    key={leftKey}
                     orientation="vertical"
                     className="h-full"
-                    defaultLayout={savedLeft}
-                    onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.left, l)}
+                    defaultLayout={leftLayout}
+                    onLayoutChanged={(l) => {
+                      if (visible.preview && visible.textFormat) writeLayout(LAYOUT_KEYS.left, l);
+                    }}
                   >
+
                     {visible.preview && (
                       <Panel id="preview" defaultSize={60} minSize={15} className="min-h-0">
                         <LivePreviewPanel />
