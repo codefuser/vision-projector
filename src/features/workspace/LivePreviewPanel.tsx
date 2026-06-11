@@ -233,7 +233,7 @@ export function LivePreviewPanel() {
           <SkipBack className="h-3.5 w-3.5" />
         </IconBtn>
         {isVideo && (
-          <IconBtn onClick={() => jump(-10)} title="Back 10s">
+          <IconBtn onClick={() => jump(-5)} title="Back 5s">
             <Rewind className="h-3.5 w-3.5" />
           </IconBtn>
         )}
@@ -247,7 +247,7 @@ export function LivePreviewPanel() {
           </IconBtn>
         )}
         {isVideo && (
-          <IconBtn onClick={() => jump(10)} title="Forward 10s">
+          <IconBtn onClick={() => jump(5)} title="Forward 5s">
             <FastForward className="h-3.5 w-3.5" />
           </IconBtn>
         )}
