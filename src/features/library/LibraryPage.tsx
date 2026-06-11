@@ -38,7 +38,7 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
-  const projectorOpen = useProjection((s) => s.projectorOpen);
+  
 
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
