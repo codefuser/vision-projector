@@ -319,8 +319,32 @@ export function LibraryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
-          <FolderTree />
+        <aside
+          style={{ width: foldersCollapsed ? 36 : 180, willChange: "width" }}
+          className="relative flex shrink-0 flex-col overflow-hidden border-r border-border bg-card/30 transition-[width] duration-200 ease-out"
+        >
+          {foldersCollapsed ? (
+            <button
+              onClick={() => setFoldersCollapsed(false)}
+              title="Expand folders"
+              aria-label="Expand folders"
+              className="mt-2 inline-flex h-8 w-8 cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <FolderTreeIcon className="h-4 w-4" />
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setFoldersCollapsed(true)}
+                title="Collapse folders"
+                aria-label="Collapse folders"
+                className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <PanelLeftClose className="h-3.5 w-3.5" />
+              </button>
+              <FolderTree />
+            </>
+          )}
         </aside>
 
         <div className="flex flex-1 flex-col overflow-hidden">
