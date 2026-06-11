@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, Plus, Play, ListPlus } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, Play, ListPlus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
+
+const FOLDER_PANEL_KEY = "church-media-library-folders-open-v1";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
