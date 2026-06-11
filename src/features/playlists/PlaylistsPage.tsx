@@ -6,11 +6,14 @@ import type { PlaylistRecord } from "@/db/schema";
 import { MediaAdapter } from "@/projection";
 import { toast } from "sonner";
 import { RenameDialog } from "@/components/RenameDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export function PlaylistsPage() {
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [renameTarget, setRenameTarget] = useState<PlaylistRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PlaylistRecord | null>(null);
+
 
   const refresh = async () => setPlaylists(await listPlaylists());
 
@@ -85,18 +88,14 @@ export function PlaylistsPage() {
                     <Copy className="h-3 w-3" />
                   </button>
                   <button
-                    onClick={async () => {
-                      if (confirm(`Delete playlist "${p.name}"?`)) {
-                        await deletePlaylist(p.id);
-                        await refresh();
-                      }
-                    }}
+                    onClick={() => setDeleteTarget(p)}
                     className="ml-auto cursor-pointer rounded-md border border-destructive/40 bg-destructive/10 p-1.5 text-destructive hover:bg-destructive/20"
                     aria-label="Delete"
                     title="Delete"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
+
                 </div>
               </div>
             ))}
@@ -128,6 +127,26 @@ export function PlaylistsPage() {
             await refresh();
           }}
         />
+        <ConfirmDialog
+          open={!!deleteTarget}
+          title="Delete Playlist"
+          description={
+            deleteTarget
+              ? `Delete playlist "${deleteTarget.name}" only? The playlist is removed. Media files remain untouched.`
+              : ""
+          }
+          confirmLabel="Delete Playlist"
+          destructive
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            if (!deleteTarget) return;
+            await deletePlaylist(deleteTarget.id);
+            setDeleteTarget(null);
+            await refresh();
+            toast.success("Playlist deleted");
+          }}
+        />
+
       </div>
     </div>
   );

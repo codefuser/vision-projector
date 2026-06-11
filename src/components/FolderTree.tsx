@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Folder, FolderOpen, FolderPlus, Home, Pencil, Trash2 } from "lucide-react";
 import { useLibrary } from "@/stores/library.store";
-import { createFolder, renameFolder, deleteFolderDeep, moveMedia } from "@/db/repo";
+import { createFolder, renameFolder, deleteFolderDeep, deleteFolderOnly, moveMedia } from "@/db/repo";
 import type { FolderRecord } from "@/db/schema";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RenameDialog } from "@/components/RenameDialog";
+import { FolderDeleteDialog, type FolderDeleteMode } from "@/components/FolderDeleteDialog";
+
 
 interface Node {
   folder: FolderRecord;
@@ -38,6 +40,8 @@ export function FolderTree() {
   const tree = useMemo(() => buildTree(folders), [folders]);
   const [renameTarget, setRenameTarget] = useState<FolderRecord | null>(null);
   const [createFor, setCreateFor] = useState<{ parentId: string | null } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FolderRecord | null>(null);
+
 
   useEffect(() => {
     void refreshFolders();
@@ -86,13 +90,7 @@ export function FolderTree() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`Delete folder "${n.folder.name}" and all its contents?`)) {
-                  deleteFolderDeep(n.folder.id).then(() => {
-                    if (currentFolderId === n.folder.id) setFolder(null);
-                    refreshFolders();
-                    refreshMedia();
-                  });
-                }
+                setDeleteTarget(n.folder);
               }}
               className="cursor-pointer rounded p-0.5 hover:bg-background"
               aria-label="Delete folder"
@@ -100,6 +98,7 @@ export function FolderTree() {
             >
               <Trash2 className="h-3 w-3" />
             </button>
+
           </div>
         </div>
         {n.children.map((c) => renderNode(c, depth + 1))}
@@ -165,6 +164,27 @@ export function FolderTree() {
           await refreshFolders();
         }}
       />
+
+      <FolderDeleteDialog
+        open={!!deleteTarget}
+        folderName={deleteTarget?.name ?? ""}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async (mode: FolderDeleteMode) => {
+          if (!deleteTarget) return;
+          if (mode === "folder-and-files") {
+            await deleteFolderDeep(deleteTarget.id);
+            toast.success("Folder and files deleted");
+          } else {
+            await deleteFolderOnly(deleteTarget.id);
+            toast.success("Folder deleted · files moved to All Media");
+          }
+          if (currentFolderId === deleteTarget.id) await setFolder(null);
+          setDeleteTarget(null);
+          await refreshFolders();
+          await refreshMedia();
+        }}
+      />
     </div>
   );
 }
+

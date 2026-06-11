@@ -4,7 +4,7 @@ import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
-import { useProjection } from "@/stores/projection.store";
+// projection store no longer needed here — click always projects in normal mode.
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
@@ -38,12 +38,13 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
-  const projectorOpen = useProjection((s) => s.projectorOpen);
+  
 
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
   const [renameTarget, setRenameTarget] = useState<MediaRecord | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   const anchorIndexRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -55,38 +56,49 @@ export function LibraryPage() {
   const visible = useMemo(() => filterMedia(media, search, filter), [media, search, filter]);
   const selectedIds = useMemo(() => Array.from(selection), [selection]);
 
+  // Auto-exit selection mode when nothing is selected anymore.
+  useEffect(() => {
+    if (selectionMode && selection.size === 0) setSelectionMode(false);
+  }, [selection, selectionMode]);
+
   const projectOne = useCallback(async (m: MediaRecord) => {
     await MediaAdapter.projectMedia(m);
   }, []);
 
   // Click rules:
-  //   • Shift+Click  → range select from anchor
-  //   • Ctrl/Cmd+Click → toggle individual
-  //   • Plain click  → projector ON: project immediately
-  //                    projector OFF: single-select
+  //   • Selection mode ON  → click toggles selection; shift = range; ctrl = individual.
+  //                          Projection is disabled while in selection mode.
+  //   • Selection mode OFF → click projects immediately. The only way to enter
+  //                          selection mode is to click a card checkbox.
   const handleTileClick = useCallback(
     (e: React.MouseEvent, m: MediaRecord, index: number) => {
-      if (e.shiftKey) {
-        const anchor = anchorIndexRef.current ?? index;
-        const [start, end] = anchor <= index ? [anchor, index] : [index, anchor];
-        const ids = visible.slice(start, end + 1).map((x) => x.id);
-        selectAll(ids);
-        return;
-      }
-      if (e.ctrlKey || e.metaKey) {
+      if (selectionMode) {
+        if (e.shiftKey) {
+          const anchor = anchorIndexRef.current ?? index;
+          const [start, end] = anchor <= index ? [anchor, index] : [index, anchor];
+          const ids = visible.slice(start, end + 1).map((x) => x.id);
+          selectAll(ids);
+          return;
+        }
         anchorIndexRef.current = index;
         toggleSelect(m.id, true);
         return;
       }
       anchorIndexRef.current = index;
-      if (projectorOpen) {
-        void projectOne(m);
-      } else {
-        selectAll([m.id]);
-      }
+      void projectOne(m);
     },
-    [projectorOpen, projectOne, selectAll, toggleSelect, visible],
+    [projectOne, selectAll, selectionMode, toggleSelect, visible],
   );
+
+  const enterSelectionWith = useCallback(
+    (m: MediaRecord, index: number) => {
+      setSelectionMode(true);
+      anchorIndexRef.current = index;
+      toggleSelect(m.id, true);
+    },
+    [toggleSelect],
+  );
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -178,15 +190,21 @@ export function LibraryPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Compact folder rail — narrower, top-aligned with the upload area. */}
-        <aside className="flex w-[140px] shrink-0 flex-col border-r border-border bg-card/30">
+        {/* Compact folder rail — file-explorer style: slightly wider, content-driven height. */}
+        <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
           <FolderTree />
         </aside>
 
+
         <div className="flex flex-1 flex-col overflow-hidden">
-          {selectedIds.length > 0 && (
+          {(selectionMode || selectedIds.length > 0) && (
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
-              <span className="font-medium">{selectedIds.length} selected</span>
+              <span className="font-medium">
+                {selectedIds.length} selected
+                <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                  Selection mode
+                </span>
+              </span>
               <button onClick={onAddToPlaylist} className="ml-3 inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
                 <ListPlus className="h-3.5 w-3.5" /> Add to playlist
               </button>
@@ -210,11 +228,18 @@ export function LibraryPage() {
               <button onClick={onDelete} className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
-              <button onClick={clearSelection} className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                Clear
+              <button
+                onClick={() => {
+                  clearSelection();
+                  setSelectionMode(false);
+                }}
+                className="ml-auto cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+              >
+                Exit selection
               </button>
             </div>
           )}
+
 
           <div
             className="flex-1 overflow-y-auto p-4"
@@ -233,19 +258,29 @@ export function LibraryPage() {
                 <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                   <div>
                     {visible.length} item{visible.length !== 1 ? "s" : ""}
-                    {projectorOpen && (
+                    {!selectionMode && (
                       <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
                         Click to project
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => selectAll(visible.map((m) => m.id))}
-                    className="cursor-pointer hover:text-foreground"
-                  >
-                    Select all
-                  </button>
+                  {!selectionMode ? (
+                    <button
+                      onClick={() => setSelectionMode(true)}
+                      className="cursor-pointer hover:text-foreground"
+                    >
+                      Select
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => selectAll(visible.map((m) => m.id))}
+                      className="cursor-pointer hover:text-foreground"
+                    >
+                      Select all
+                    </button>
+                  )}
                 </div>
+
                 <div
                   ref={gridRef}
                   className="grid gap-3"
@@ -264,16 +299,13 @@ export function LibraryPage() {
                         onClick={(e) => handleTileClick(e, m, idx)}
                         onDoubleClick={(e) => {
                           e.stopPropagation();
-                          if (projectorOpen) {
-                            setPreview(m);
-                          } else {
-                            void projectOne(m);
-                          }
+                          // Double-click always opens preview (never projects in selection mode).
+                          if (!selectionMode) setPreview(m);
                         }}
                         title={
-                          projectorOpen
-                            ? "Click to project · Double-click to preview"
-                            : "Click to select · Double-click to project"
+                          selectionMode
+                            ? "Click to select · Shift-click range"
+                            : "Click to project · Double-click to preview"
                         }
                         className={cn(
                           "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
@@ -300,33 +332,46 @@ export function LibraryPage() {
                           </div>
                         </div>
 
-                        {/* Hover overlay: select checkbox + dedicated rename icon.
-                            Redundant "project" button removed — clicking the
-                            card already projects when the projector is on. */}
-                        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-1.5 opacity-0 transition group-hover:opacity-100">
+                        {/* Top overlay: checkbox (always visible in selection mode,
+                            hover-only otherwise) + rename icon on hover. */}
+                        <div
+                          className={cn(
+                            "absolute inset-x-0 top-0 flex items-center justify-between p-1.5 transition",
+                            selectionMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                          )}
+                        >
                           <input
                             type="checkbox"
                             checked={selected}
                             onChange={(e) => {
                               e.stopPropagation();
-                              toggleSelect(m.id, true);
+                              if (!selectionMode) {
+                                enterSelectionWith(m, idx);
+                              } else {
+                                anchorIndexRef.current = idx;
+                                toggleSelect(m.id, true);
+                              }
                             }}
                             onClick={(e) => e.stopPropagation()}
                             className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+                            title={selectionMode ? "Toggle selection" : "Enter selection mode"}
                           />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenameTarget(m);
-                            }}
-                            title="Rename"
-                            aria-label="Rename"
-                            className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
+                          {!selectionMode && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameTarget(m);
+                              }}
+                              title="Rename"
+                              aria-label="Rename"
+                              className="cursor-pointer rounded-md bg-background/90 p-1.5 text-foreground shadow hover:bg-background"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       </div>
+
                     );
                   })}
                 </div>

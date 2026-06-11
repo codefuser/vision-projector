@@ -100,16 +100,14 @@ export function ProjectionWorkspace() {
 
   return (
     <FocusManagerProvider>
-      <div className="relative flex h-full min-h-0 flex-col bg-background">
-        {/* Floating workspace dock controls — overlay so the workspace
-            content owns the full vertical space. */}
-        <div className="pointer-events-none absolute right-3 top-2 z-20 flex items-center gap-1">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-md border border-border bg-background/85 px-1.5 py-1 shadow-sm backdrop-blur">
-            <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
-            <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
-            <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
-          </div>
+      <div className="flex h-full min-h-0 flex-col bg-background">
+        {/* Workspace dock controls — original inline toolbar (Preview / Text / Tabs). */}
+        <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-muted/20 px-2 pr-44">
+          <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
+          <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
+          <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
         </div>
+
 
         <div className="min-h-0 flex-1">
           {allHidden ? (
