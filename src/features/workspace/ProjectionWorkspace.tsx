@@ -72,14 +72,31 @@ export function ProjectionWorkspace() {
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
   const leftVisible = visible.preview || visible.textFormat;
 
+  // Only apply persisted layouts when the panel structure matches the saved
+  // 2-panel topology. Passing a 2-size layout to a 1-panel Group throws
+  // inside react-resizable-panels and causes the "page didn't load" crash
+  // when toggling Preview / Text dock chips.
+  const outerLayout = leftVisible && visible.tabs ? savedOuter : undefined;
+  const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
+
+  // Force a fresh Group instance whenever the panel topology changes so the
+  // library never tries to reconcile against a stale, mismatched layout.
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}`;
+  const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}`;
+
   // Drive the bottom panel size from the persisted collapsed flag.
   const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
   useEffect(() => {
     const p = textFormatPanelRef.current;
     if (!p) return;
-    if (textFormatCollapsed && !p.isCollapsed()) p.collapse();
-    if (!textFormatCollapsed && p.isCollapsed()) p.expand();
+    try {
+      if (textFormatCollapsed && !p.isCollapsed()) p.collapse();
+      if (!textFormatCollapsed && p.isCollapsed()) p.expand();
+    } catch {
+      /* panel handle not ready yet — next layout pass will reconcile */
+    }
   }, [textFormatCollapsed, visible.textFormat, visible.preview]);
+
 
   return (
     <FocusManagerProvider>
@@ -102,19 +119,26 @@ export function ProjectionWorkspace() {
             <EmptyDock onShow={showPanel} visible={visible} />
           ) : (
             <Group
+              key={outerKey}
               orientation="horizontal"
               className="h-full"
-              defaultLayout={savedOuter}
-              onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.outer, l)}
+              defaultLayout={outerLayout}
+              onLayoutChanged={(l) => {
+                if (leftVisible && visible.tabs) writeLayout(LAYOUT_KEYS.outer, l);
+              }}
             >
               {leftVisible && (
                 <Panel id="left" defaultSize={50} minSize={20} className="min-h-0 min-w-0">
                   <Group
+                    key={leftKey}
                     orientation="vertical"
                     className="h-full"
-                    defaultLayout={savedLeft}
-                    onLayoutChanged={(l) => writeLayout(LAYOUT_KEYS.left, l)}
+                    defaultLayout={leftLayout}
+                    onLayoutChanged={(l) => {
+                      if (visible.preview && visible.textFormat) writeLayout(LAYOUT_KEYS.left, l);
+                    }}
                   >
+
                     {visible.preview && (
                       <Panel id="preview" defaultSize={60} minSize={15} className="min-h-0">
                         <LivePreviewPanel />

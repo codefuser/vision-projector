@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, Play, ListPlus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Search, Filter, Trash2, FolderInput, Copy, Play, ListPlus, Pencil } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
+import { useProjection } from "@/stores/projection.store";
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
@@ -11,8 +12,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { MediaAdapter } from "@/projection";
 import { MediaPreview } from "./MediaPreview";
-
-const FOLDER_PANEL_KEY = "church-media-library-folders-open-v1";
+import { RenameMediaDialog } from "./RenameMediaDialog";
 
 const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -38,22 +38,16 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
+  const projectorOpen = useProjection((s) => s.projectorOpen);
+
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
   const [showAddTo, setShowAddTo] = useState(false);
-  const [foldersOpen, setFoldersOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const v = window.localStorage.getItem(FOLDER_PANEL_KEY);
-    return v === null ? true : v === "1";
-  });
+  const [renameTarget, setRenameTarget] = useState<MediaRecord | null>(null);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(FOLDER_PANEL_KEY, foldersOpen ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, [foldersOpen]);
+  // Anchor index used for Shift+Click range selection (Windows Explorer style).
+  const anchorIndexRef = useRef<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void refreshAll();
@@ -62,20 +56,56 @@ export function LibraryPage() {
   const visible = useMemo(() => filterMedia(media, search, filter), [media, search, filter]);
   const selectedIds = useMemo(() => Array.from(selection), [selection]);
 
-  // Selection = Projection: a single click routes through the Projection
-  // Engine via the media adapter. The legacy preview modal is reachable
-  // via double-click so the Rename / Project-from-preview affordances
-  // remain available.
-  const projectOne = async (m: MediaRecord) => {
+  const projectOne = useCallback(async (m: MediaRecord) => {
     await MediaAdapter.projectMedia(m);
-  };
+  }, []);
 
-  const onRename = async (m: MediaRecord) => {
-    const name = prompt("Rename", m.name);
-    if (!name) return;
-    await renameMedia(m.id, name);
-    await refreshMedia();
-  };
+  // Windows-style click handler:
+  //   • Shift+Click  → range select from anchor
+  //   • Ctrl/Cmd+Click → toggle individual
+  //   • Plain click  → if projector open: project; else: single-select
+  const handleTileClick = useCallback(
+    (e: React.MouseEvent, m: MediaRecord, index: number) => {
+      if (e.shiftKey) {
+        const anchor = anchorIndexRef.current ?? index;
+        const [start, end] = anchor <= index ? [anchor, index] : [index, anchor];
+        const ids = visible.slice(start, end + 1).map((x) => x.id);
+        selectAll(ids);
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        anchorIndexRef.current = index;
+        toggleSelect(m.id, true);
+        return;
+      }
+      anchorIndexRef.current = index;
+      if (projectorOpen) {
+        void projectOne(m);
+      } else {
+        // Single selection — mirrors Windows Explorer behavior.
+        selectAll([m.id]);
+      }
+    },
+    [projectorOpen, projectOne, selectAll, toggleSelect, visible],
+  );
+
+  // Ctrl+A → select all visible (only when grid is focused / mouse over it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+        const grid = gridRef.current;
+        if (!grid) return;
+        // Only intercept when grid is in the active document area.
+        e.preventDefault();
+        selectAll(visible.map((m) => m.id));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectAll, visible]);
 
   const onDelete = async () => {
     if (!selectedIds.length) return;
@@ -113,174 +143,208 @@ export function LibraryPage() {
     setShowAddTo(true);
   };
 
+  const onRenameSubmit = async (name: string) => {
+    if (!renameTarget) return;
+    await renameMedia(renameTarget.id, name);
+    setRenameTarget(null);
+    await refreshMedia();
+    toast.success("Renamed");
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
-        <button
-          onClick={() => setFoldersOpen((v) => !v)}
-          title={foldersOpen ? "Hide folders" : "Show folders"}
-          aria-label={foldersOpen ? "Hide folders" : "Show folders"}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          {foldersOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-        </button>
         <div className="relative flex-1 max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search media…"
-              className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="flex items-center gap-1 rounded-md border border-input bg-background p-0.5">
-            <Filter className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
-            {FILTERS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFilter(f.value)}
-                className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition",
-                  filter === f.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search media…"
+            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <div className="flex items-center gap-1 rounded-md border border-input bg-background p-0.5">
+          <Filter className="ml-2 h-3.5 w-3.5 text-muted-foreground" />
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "rounded px-2.5 py-1 text-xs font-medium transition",
+                filter === f.value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {foldersOpen && (
-          <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-card/30">
-            <FolderTree />
-          </aside>
-        )}
+        {/* Compact, always-visible folder panel (file-explorer style) */}
+        <aside className="flex w-[180px] shrink-0 flex-col border-r border-border bg-card/30">
+          <FolderTree />
+        </aside>
+
         <div className="flex flex-1 flex-col overflow-hidden">
-
-
-        {selectedIds.length > 0 && (
-          <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
-            <span className="font-medium">{selectedIds.length} selected</span>
-            <button onClick={onAddToPlaylist} className="ml-3 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
-              <ListPlus className="h-3.5 w-3.5" /> Add to playlist
-            </button>
-            <button onClick={onMoveTo} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
-              <FolderInput className="h-3.5 w-3.5" /> Move
-            </button>
-            <button onClick={onDuplicate} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
-              <Copy className="h-3.5 w-3.5" /> Duplicate
-            </button>
-            <button onClick={onDelete} className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
-            <button onClick={clearSelection} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
-              Clear
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto p-4">
-          <Dropzone folderId={currentFolderId} onDone={refreshMedia} className="mb-4" />
-
-          {visible.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-              <p className="text-sm">No media here yet.</p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-                <div>
-                  {visible.length} item{visible.length !== 1 ? "s" : ""}
-                </div>
+          {selectedIds.length > 0 && (
+            <div className="flex shrink-0 items-center gap-2 border-b border-border bg-accent/40 px-4 py-2 text-sm">
+              <span className="font-medium">{selectedIds.length} selected</span>
+              <button onClick={onAddToPlaylist} className="ml-3 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+                <ListPlus className="h-3.5 w-3.5" /> Add to playlist
+              </button>
+              <button onClick={onMoveTo} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+                <FolderInput className="h-3.5 w-3.5" /> Move
+              </button>
+              <button onClick={onDuplicate} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent">
+                <Copy className="h-3.5 w-3.5" /> Duplicate
+              </button>
+              {selectedIds.length === 1 && (
                 <button
-                  onClick={() => selectAll(visible.map((m) => m.id))}
-                  className="hover:text-foreground"
+                  onClick={() => {
+                    const m = visible.find((x) => x.id === selectedIds[0]);
+                    if (m) setRenameTarget(m);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 hover:bg-accent"
                 >
-                  Select all
+                  <Pencil className="h-3.5 w-3.5" /> Rename
                 </button>
+              )}
+              <button onClick={onDelete} className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-1 text-destructive hover:bg-destructive/20">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+              <button onClick={clearSelection} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
+                Clear
+              </button>
+            </div>
+          )}
+
+          <div
+            className="flex-1 overflow-y-auto p-4"
+            onMouseDown={(e) => {
+              // Click on empty space clears selection (Explorer-like).
+              if (e.target === e.currentTarget) clearSelection();
+            }}
+          >
+            <Dropzone folderId={currentFolderId} onDone={refreshMedia} className="mb-4" />
+
+            {visible.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                <p className="text-sm">No media here yet.</p>
               </div>
-              <div
-                className="grid gap-3"
-                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
-              >
-                {visible.map((m) => {
-                  const selected = selection.has(m.id);
-                  return (
-                    <div
-                      key={m.id}
-                      draggable
-                      onDragStart={(e) => {
-                        const ids = selected ? selectedIds : [m.id];
-                        e.dataTransfer.setData("application/x-media-ids", JSON.stringify(ids));
-                      }}
-                      onClick={(e) => {
-                        if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                          toggleSelect(m.id, true);
-                        } else {
-                          void projectOne(m);
+            ) : (
+              <>
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <div>
+                    {visible.length} item{visible.length !== 1 ? "s" : ""}
+                    {projectorOpen && (
+                      <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                        Click to project
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => selectAll(visible.map((m) => m.id))}
+                    className="hover:text-foreground"
+                  >
+                    Select all
+                  </button>
+                </div>
+                <div
+                  ref={gridRef}
+                  className="grid gap-3"
+                  style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
+                >
+                  {visible.map((m, idx) => {
+                    const selected = selection.has(m.id);
+                    return (
+                      <div
+                        key={m.id}
+                        draggable
+                        onDragStart={(e) => {
+                          const ids = selected ? selectedIds : [m.id];
+                          e.dataTransfer.setData("application/x-media-ids", JSON.stringify(ids));
+                        }}
+                        onClick={(e) => handleTileClick(e, m, idx)}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          if (projectorOpen) {
+                            setPreview(m);
+                          } else {
+                            void projectOne(m);
+                          }
+                        }}
+                        title={
+                          projectorOpen
+                            ? "Click to project · Double-click to preview"
+                            : "Click to select · Double-click to project"
                         }
-                      }}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setPreview(m);
-                      }}
-                      title="Click to project · Double-click to preview"
-                      className={cn(
-                        "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
-                        selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
-                      )}
-                    >
-                      <Thumb media={m} className="aspect-video" />
-                      <div className="p-2">
-                        <div className="truncate text-xs font-medium text-foreground" title={m.name}>
-                          {m.name}
+                        className={cn(
+                          "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
+                          selected ? "border-primary ring-2 ring-primary" : "border-border hover:border-primary/50",
+                        )}
+                      >
+                        <Thumb media={m} className="aspect-video" />
+                        <div className="p-2">
+                          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+                            {m.name}
+                          </div>
+                          <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                            {m.type === "video" ? (
+                              <>
+                                <span>{formatDuration(m.durationMs)}</span>
+                                <span>{formatBytes(m.size)}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="uppercase tracking-wide opacity-70">Image</span>
+                                <span>{formatBytes(m.size)}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div className="mt-0.5 text-[10px] text-muted-foreground">
-                          {m.type === "video" ? formatDuration(m.durationMs) : formatBytes(m.size)}
+                        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-1.5 opacity-0 transition group-hover:opacity-100">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleSelect(m.id, true);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 rounded border-border accent-primary"
+                          />
+                          {!projectorOpen && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void projectOne(m);
+                              }}
+                              title="Project"
+                              className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground shadow"
+                            >
+                              <Play className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
-                      </div>
-                      <div className="absolute inset-x-0 top-0 flex items-center justify-between p-1.5 opacity-0 transition group-hover:opacity-100">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            toggleSelect(m.id, true);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 rounded border-border accent-primary"
-                        />
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            void projectOne(m);
+                            setRenameTarget(m);
                           }}
-                          className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground shadow"
+                          className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] opacity-0 transition group-hover:opacity-100"
                         >
-                          <Play className="h-3 w-3" />
+                          Rename
                         </button>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void onRename(m);
-                        }}
-                        className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] opacity-0 transition group-hover:opacity-100"
-                      >
-                        Rename
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      </div>
-
-
 
       {preview && (
         <MediaPreview
@@ -292,6 +356,13 @@ export function LibraryPage() {
           }}
         />
       )}
+
+      <RenameMediaDialog
+        open={!!renameTarget}
+        initialName={renameTarget?.name ?? ""}
+        onCancel={() => setRenameTarget(null)}
+        onSubmit={onRenameSubmit}
+      />
 
       {showAddTo && (
         <AddToPlaylistDialog
