@@ -100,6 +100,8 @@ export function TextFormattingPanel() {
         </div>
       </div>
 
+      {!collapsed && <TemplatesStrip />}
+
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-3">
           {/* Group selector — wraps on narrow widths so Reset/Visibility never clip. */}
