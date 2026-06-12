@@ -47,6 +47,9 @@ export function SongsPanel() {
   const [activeSlideById, setActiveSlideById] = useState<Record<number, number>>({});
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<SongFilter>("all");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<Song[]>([]);
   const projectedRef = useProjection((s) => s.state?.textOverlay?.text ?? null);
   const recent = useSongsRecent((s) => s.items);
   const pushRecent = useSongsRecent((s) => s.push);
