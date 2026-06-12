@@ -68,24 +68,24 @@ export function TextFormattingPanel() {
       tabIndex={focus.tabIndex}
     >
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-2.5">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
-          <div className="truncate text-[10px] text-muted-foreground">
-            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / Background"}
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <div className="shrink-0 text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
+          <div className="hidden truncate text-[10px] text-muted-foreground @sm:block">
+            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / BG / Logo"}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={reset}
             title="Reset all groups"
-            className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <RotateCcw className="h-3 w-3" /> Reset all
+            <RotateCcw className="h-3 w-3" /> <span className="hidden @sm:inline">Reset all</span>
           </button>
           <button
             onClick={toggle}
             title={collapsed ? "Expand" : "Collapse"}
-            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
@@ -94,14 +94,14 @@ export function TextFormattingPanel() {
 
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-3">
-          {/* Group selector */}
-          <div className="mb-3 flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+          {/* Group selector — wraps on narrow widths so Reset/Visibility never clip. */}
+          <div className="mb-3 flex flex-wrap items-center gap-1 rounded-md border border-border bg-background p-0.5">
             {(Object.keys(GROUP_LABELS) as StyleGroup[]).map((g) => (
               <button
                 key={g}
                 onClick={() => setActive(g)}
                 className={cn(
-                  "flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
+                  "min-w-[60px] flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
                   active === g
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -114,7 +114,7 @@ export function TextFormattingPanel() {
               onClick={() => patchGroup(active, { visible: !style.visible })}
               title={style.visible ? "Hide this section in projection" : "Show this section in projection"}
               className={cn(
-                "ml-1 inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded border text-[10px]",
+                "ml-1 inline-flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border text-[10px]",
                 style.visible ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground",
               )}
             >
@@ -123,13 +123,13 @@ export function TextFormattingPanel() {
             <button
               onClick={() => resetGroup(active)}
               title={`Reset ${GROUP_LABELS[active]}`}
-              className="ml-1 inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded border border-border bg-background text-[10px] text-muted-foreground hover:bg-accent"
+              className="ml-1 inline-flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-border bg-background text-[10px] text-muted-foreground hover:bg-accent"
             >
               <RotateCcw className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @2xl:grid-cols-3">
             <Group icon={Type} title="Typography">
               <Field label="Font Family">
                 <Select value={style.fontFamily} onChange={(v) => setField(active, "fontFamily", v)}
