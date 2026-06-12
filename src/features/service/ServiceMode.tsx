@@ -61,18 +61,16 @@ export function ServiceMode({ id }: { id: string }) {
       if (!list || !list.items.length) return;
       const safe = Math.max(0, Math.min(list.items.length - 1, idx));
       const item = list.items[safe];
-      const m = mediaMap.get(item.mediaId) ?? (await import("@/db/repo")).then;
-      // Use projectMedia by id to ensure freshness, falling back to map.
       const record = mediaMap.get(item.mediaId);
       if (record) {
         await MediaAdapter.projectMedia(record);
       } else {
-        const fetched = await (await import("@/db/repo")).getMedia(item.mediaId);
+        const { getMedia } = await import("@/db/repo");
+        const fetched = await getMedia(item.mediaId);
         if (fetched) await MediaAdapter.projectMedia(fetched);
         else toast.error("Missing media for this cue");
       }
       setCursor(safe);
-      void m; // keep TS quiet
     },
     [playlist, mediaMap],
   );
