@@ -3,8 +3,8 @@
  * projected text, plus an optional animated decorative overlay (particles,
  * bokeh, light rays, sparkles, floating cross, soft glow, gradient shift).
  *
- * Animations are pure CSS so they run identically in Preview and Projector
- * with no extra runtime cost.
+ * Animations are pure CSS (see styles.css `.bg-anim-*`) so Preview and
+ * Projector render identically without extra runtime cost.
  */
 import { useEffect, useState } from "react";
 import type { BackgroundConfig, BackgroundAnimation } from "@/lib/broadcast";
@@ -15,7 +15,22 @@ import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 
 interface Props { background: BackgroundConfig; }
 
-function withDefaults(bg: BackgroundConfig): Required<Omit<BackgroundConfig, "gradient" | "animation">> & { gradient: string | null; animation: BackgroundAnimation } {
+interface Resolved {
+  kind: BackgroundConfig["kind"];
+  color: string;
+  mediaId: string | null;
+  fit: "cover" | "contain" | "stretch";
+  opacity: number;
+  blur: number;
+  brightness: number;
+  zoom: number;
+  positionX: number;
+  positionY: number;
+  gradient: string | null;
+  animation: BackgroundAnimation;
+}
+
+function withDefaults(bg: BackgroundConfig): Resolved {
   return {
     kind: bg.kind,
     color: bg.color,
@@ -62,7 +77,7 @@ export function BackgroundLayer({ background }: Props) {
 
   if (bg.kind === "none") return <AnimationOverlay kind={bg.animation} />;
 
-  if (bg.kind === "color") {
+  if (bg.kind === "color" || !media || !url) {
     return (
       <>
         <div className="absolute inset-0" style={{ background: bg.gradient ?? bg.color }} />
@@ -71,14 +86,6 @@ export function BackgroundLayer({ background }: Props) {
     );
   }
 
-  if (!media || !url) {
-    return (
-      <>
-        <div className="absolute inset-0" style={{ background: bg.gradient ?? bg.color }} />
-        <AnimationOverlay kind={bg.animation} />
-      </>
-    );
-  }
   const objectFit: React.CSSProperties["objectFit"] =
     bg.fit === "contain" ? "contain" : bg.fit === "stretch" ? "fill" : "cover";
   const style: React.CSSProperties = {
@@ -89,6 +96,7 @@ export function BackgroundLayer({ background }: Props) {
     transformOrigin: `${bg.positionX}% ${bg.positionY}%`,
     filter: `blur(${bg.blur}px) brightness(${bg.brightness})`,
   };
+
   return (
     <>
       {media.type === "video" ? (

@@ -174,3 +174,128 @@
   }
 }
 
+/* ============================================================
+   Animated background overlays for Theme Presets.
+   Each .bg-anim-* class paints a decorative layer above the
+   base background but below the projected text + logo.
+   ============================================================ */
+
+@keyframes bg-float-up {
+  0%   { transform: translate3d(0, 100%, 0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  100% { transform: translate3d(0, -110%, 0); opacity: 0; }
+}
+@keyframes bg-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.4); }
+}
+@keyframes bg-gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes bg-light-rays {
+  0%   { transform: rotate(0deg);   opacity: 0.35; }
+  50%  { opacity: 0.55; }
+  100% { transform: rotate(360deg); opacity: 0.35; }
+}
+@keyframes bg-soft-glow {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.08); }
+}
+@keyframes bg-cross-drift {
+  0%   { transform: translate3d(-10%, 0, 0) rotate(-2deg); opacity: 0; }
+  20%  { opacity: 0.4; }
+  100% { transform: translate3d(110%, -20%, 0) rotate(2deg); opacity: 0; }
+}
+
+.bg-anim-particles::before,
+.bg-anim-particles::after {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.85) 1.2px, transparent 1.6px),
+    radial-gradient(circle, rgba(255,255,255,0.55) 1px,   transparent 1.4px);
+  background-size: 140px 140px, 90px 90px;
+  background-position: 0 0, 45px 60px;
+  animation: bg-float-up 18s linear infinite;
+}
+.bg-anim-particles::after {
+  background-size: 200px 200px, 120px 120px;
+  animation-duration: 26s; animation-delay: -8s; opacity: 0.7;
+}
+
+.bg-anim-bokeh::before,
+.bg-anim-bokeh::after {
+  content: ""; position: absolute; inset: -10%;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,210,140,0.35) 0, transparent 70px),
+    radial-gradient(circle at 70% 60%, rgba(255,180,200,0.30) 0, transparent 90px),
+    radial-gradient(circle at 40% 80%, rgba(180,220,255,0.30) 0, transparent 80px),
+    radial-gradient(circle at 85% 20%, rgba(255,235,180,0.30) 0, transparent 100px);
+  filter: blur(6px);
+  animation: bg-soft-glow 9s ease-in-out infinite;
+}
+.bg-anim-bokeh::after {
+  background-image:
+    radial-gradient(circle at 60% 35%, rgba(255,255,255,0.20) 0, transparent 120px),
+    radial-gradient(circle at 30% 70%, rgba(255,200,150,0.20) 0, transparent 110px);
+  animation-duration: 13s; animation-direction: reverse;
+}
+
+.bg-anim-gradient-shift {
+  background-image: linear-gradient(120deg, rgba(99,102,241,0.55), rgba(139,92,246,0.45), rgba(59,130,246,0.55), rgba(16,185,129,0.45));
+  background-size: 300% 300%;
+  animation: bg-gradient-shift 18s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.bg-anim-light-rays::before {
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 220%; height: 220%; transform-origin: center;
+  background: conic-gradient(from 0deg,
+    transparent 0deg, rgba(255,255,255,0.10) 14deg, transparent 28deg,
+    transparent 60deg, rgba(255,255,255,0.08) 74deg, transparent 88deg,
+    transparent 140deg, rgba(255,255,255,0.10) 154deg, transparent 168deg,
+    transparent 220deg, rgba(255,255,255,0.08) 234deg, transparent 248deg,
+    transparent 300deg, rgba(255,255,255,0.10) 314deg, transparent 328deg);
+  margin-left: -110%; margin-top: -110%;
+  animation: bg-light-rays 40s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.bg-anim-soft-glow::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 35%, transparent 70%);
+  animation: bg-soft-glow 7s ease-in-out infinite;
+}
+
+.bg-anim-sparkles::before,
+.bg-anim-sparkles::after {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.95) 1.4px, transparent 2px),
+    radial-gradient(circle, rgba(255,235,180,0.85) 1.2px, transparent 1.6px);
+  background-size: 180px 180px, 240px 240px;
+  background-position: 20px 40px, 90px 130px;
+  animation: bg-twinkle 3.5s ease-in-out infinite;
+}
+.bg-anim-sparkles::after {
+  background-size: 320px 320px, 380px 380px;
+  background-position: 140px 20px, 50px 200px;
+  animation-duration: 5s; animation-delay: -1.5s;
+}
+
+.bg-anim-floating-cross::before,
+.bg-anim-floating-cross::after {
+  content: "✝"; position: absolute;
+  left: -10%; top: 70%;
+  font-size: 180px; color: rgba(255,255,255,0.18);
+  filter: blur(0.5px);
+  animation: bg-cross-drift 28s linear infinite;
+}
+.bg-anim-floating-cross::after {
+  top: 30%; font-size: 120px; color: rgba(255,235,180,0.20);
+  animation-duration: 36s; animation-delay: -14s;
+}
+
+
