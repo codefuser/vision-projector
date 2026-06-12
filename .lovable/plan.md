@@ -1,215 +1,106 @@
-# Church Media Projection — Architecture Plan
+# Bible Module Phase 4 — Implementation Plan
 
-A focused, offline-first media projection app for churches. Scope is strictly: **Images, Posters, Videos**. No lyrics, no Bible verses, no slide editor, no worship planning.
+This phase extends the existing Bible module without redesigning the app. Navigation, theme, and layout primitives stay intact.
 
----
+## 1. Global Favorites Panel (always-visible)
 
-## 1. Tech Stack
+- New component `src/components/GlobalFavoritesDock.tsx` — a slim **right-edge collapsible rail** (default 240px expanded / 28px collapsed icon strip). Mounted once in `src/routes/__root.tsx` so it persists across `/library`, `/playlists`, `/bible tab`, `/settings`, `/service/$id`.
+- Persisted open/closed state in a new store `src/stores/favorites-dock.store.ts`.
+- Compact list, grouped by tabs: **Bible / Songs / Media / Text**. Single-line entries (`John 3:16`, `Amazing Grace`). No previews.
+- Keyboard: `Alt+F` toggles dock visibility.
 
-- React 19 + TypeScript on the existing TanStack Start template (used purely as the React/Vite shell — all logic is client-side, no server functions).
-- Tailwind CSS v4 (already configured via `src/styles.css`).
-- **Zustand** for state, with persistence middleware where appropriate.
-- **Dexie.js** as the IndexedDB wrapper (typed, fast, reliable).
-- **@dnd-kit/core + sortable** for drag & drop.
-- **@tanstack/react-virtual** for virtualized grids/lists (10k+ items).
-- **vite-plugin-pwa** (generateSW, guarded registration per Lovable rules) for offline support.
-- shadcn/ui components already in the template for primitives.
+## 2. Unified Favorites Source
 
-No backend. No Lovable Cloud. Everything lives in the browser.
+- New module `src/lib/favorites/index.ts` aggregating:
+  - Bible favorites from existing `useBibleStore` (already keyed `book:chapter:verse`).
+  - Media favorites (new store `src/stores/media-favorites.store.ts`, localStorage-backed, ids only).
+  - Song / Text favorites: stub stores returning `[]` until those modules ship — keeps the panel future-proof.
+- Each entry: `{ id, kind: 'bible'|'media'|'song'|'text', label, onActivate() }`.
 
----
+## 3. Click Behaviour
 
-## 2. Folder Structure
+- **Bible favorite** → navigate to `/library` route with Bible tab active, set `bibleStore` to its book/chapter (chapter mode), select the verse, dispatch a projection command. Implemented via a thin dispatcher in `src/lib/favorites/dispatch.ts` that uses `useBibleStore` setters + `useProjection.send`.
+- **Media favorite** → resolve from `library.store`, build a `LOAD_MEDIA` payload, project immediately.
+- **Song / Text** → no-op for now (button disabled with tooltip "Coming soon") because the modules do not exist yet.
 
-```text
-src/
-  routes/
-    __root.tsx
-    index.tsx                 -> redirects to /library
-    library.tsx               -> Media Library (folders + media grid)
-    playlists.tsx             -> Playlists list
-    playlists.$id.tsx         -> Playlist editor
-    project.tsx               -> Projection control room
-    settings.tsx              -> Settings
-  features/
-    media/                    -> upload, grid, preview, rename, bulk actions
-    folders/                  -> tree, CRUD, drag-move
-    playlists/                -> CRUD, reorder, duration editor
-    projection/               -> ProjectionWindow, engine, second-screen
-    slideshow/                -> slideshow engine + transitions
-    video/                    -> video player
-    backup/                   -> export/import zip
-    search/                   -> global search + filters
-    settings/                 -> settings UI
-  db/
-    schema.ts                 -> Dexie tables + types
-    repo.ts                   -> typed repository functions
-    migrations.ts
-  stores/
-    library.store.ts
-    playlist.store.ts
-    projection.store.ts
-    settings.store.ts
-    ui.store.ts
-  lib/
-    thumbnails.ts             -> generate + cache image/video thumbs
-    files.ts                  -> File <-> Blob helpers, mime validation
-    transitions.ts
-    presentation-api.ts       -> second-screen via window.open + Presentation API fallback
-    logger.ts
-    errors.ts
-  components/
-    AppShell.tsx              -> sidebar + topbar layout
-    ErrorBoundary.tsx
-    VirtualGrid.tsx
-    MediaCard.tsx
-    FolderTree.tsx
-    Dropzone.tsx
-  pwa/
-    register.ts               -> guarded SW registration (Lovable preview safe)
-```
+## 4. Verse Card Redesign
 
----
+- `BiblePanel.tsx` card markup compressed: single row reference + tiny language pill, two-line clamp preview, favorite + project icon buttons. Padding drops from `p-4` to `p-2`. Bilingual cards stack Tamil/English with a `border-l` separator instead of full second card. Target ~2x density.
 
-## 3. IndexedDB Schema (Dexie)
+## 5. Projection Reference Header
 
-```text
-folders
-  id (uuid), name, parentId|null, createdAt, updatedAt
-  index: parentId, name
+- `BibleRenderer` (in `src/projection/renderers/BibleRenderer.tsx`) and `TextOverlayRenderer` get an explicit reference line at top:
+  - English mode → English ref only.
+  - Tamil mode → Tamil ref only.
+  - Bilingual → Tamil ref above English ref.
+- `BibleProjectionPayload` extended with `referenceEn`, `referenceTa`, `mode`.
 
-media
-  id (uuid), name, type ('image'|'video'),
-  mime, size, durationMs (video), width, height,
-  folderId|null, blobId (-> blobs.id), thumbBlobId|null,
-  createdAt, updatedAt, lastUsedAt|null, tags[]
-  index: folderId, type, name, createdAt, lastUsedAt
+## 6. Independent Formatting Groups (Reference / Tamil / English)
 
-blobs            (separated so metadata queries stay fast)
-  id, blob (Blob), kind ('original'|'thumb')
+- Refactor `src/lib/text-format/store.ts`:
+  ```ts
+  type SectionStyle = TextStyle & { visible: boolean };
+  state = { reference: SectionStyle, tamil: SectionStyle, english: SectionStyle, background: BackgroundConfig }
+  ```
+- Existing global `style` kept as a derived alias (`state.english`) so non-Bible callers continue working unchanged.
+- Broadcast extended: `UPDATE_TEXT_STYLE_GROUPED` with full grouped payload; legacy `UPDATE_TEXT_STYLE` still honoured.
+- `TextFormattingPanel.tsx` gets a 3-tab segmented control at the top — **Reference / Tamil / English** — each rendering the existing field set against the active group, plus a Visibility toggle.
 
-playlists
-  id, name, createdAt, updatedAt
-  items: PlaylistItem[]  -- embedded array, ordered
-    { id, mediaId, durationMs (images), transition, muted?, loop? }
+## 7. Background Engine
 
-settings
-  key (singleton 'app'), value (Settings)
+- New `BackgroundConfig`:
+  ```ts
+  { kind: 'none'|'color'|'media', color?: string, mediaId?: string, fit: 'cover'|'contain' }
+  ```
+- New **Background** group at the bottom of `TextFormattingPanel.tsx` with:
+  - Solid color picker
+  - "Select from Library" button → opens a reuse of the existing `MediaPickerDialog` (filtered to image/video/gif).
+  - "Clear" button.
+- Projection: `ProjectionWindow.tsx` gains a `<div class="bible-bg">` underlay rendering color or `<img>` / `<video autoplay loop muted playsinline>` based on `BackgroundConfig`. Layer order enforced via z-index: `bg (0) → reference (10) → verses (20)`.
+- Library media resolved through existing `library.store` blob URL helpers; URLs revoked on switch like the main renderer already does.
 
-logs (ring buffer, capped ~1000)
-  id, level, message, ctx, ts
-```
+## 8. Smart Search Upgrades
 
-Blobs are stored as `Blob` objects (browsers persist them efficiently in IDB). Thumbnails are generated on import via `createImageBitmap` (images) and a `<video>` + `<canvas>` snapshot at t=1s (videos), then cached as separate blobs.
+- `src/lib/bible/search.ts`:
+  - Add `normalizeTanglish()` — collapses `aa→a`, `oo→u`, `dh→d`, `th→t`, `v?→v`, strips trailing vowels (`yesuvae→yesu`), removes doubled consonants, lower-cases.
+  - Add `normalizeTamil()` — strips vowel sign variants and pulps (`ஆதியிலே → ஆதியில`).
+  - Full-text search runs against precomputed `normalizedLower` cache keyed per language; rebuilt lazily on first search.
+  - Token scoring: exact phrase > all-tokens-in-order > token coverage > Levenshtein fallback (cap distance 2 per token, only when no exact hits).
+- Verse cards highlight matched substrings via a `<HighlightedText match={tokens} />` helper.
 
----
+## 9. Performance
 
-## 4. State Management (Zustand)
+- Memoise Bilingual rendering, gate broadcasts behind `requestAnimationFrame` coalescer in text-format store, keep favorites dock as `React.memo` with stable selectors.
 
-- `library.store` — folders tree cache, selected folder, selection set, search query, filters.
-- `playlist.store` — current editing playlist, dirty flag.
-- `projection.store` — projection open?, current item, playback state (playing/paused), index, mode (slideshow/video/single), loop, shuffle, BroadcastChannel handle.
-- `settings.store` — persisted to IDB; hydrated on boot.
-- `ui.store` — theme, sidebar collapsed, modals.
+## Files
 
-DB is the source of truth; stores hold UI state + cached queries. Mutations go: action → repo (Dexie) → store refresh.
+**New**
+- `src/components/GlobalFavoritesDock.tsx`
+- `src/stores/favorites-dock.store.ts`
+- `src/stores/media-favorites.store.ts`
+- `src/lib/favorites/index.ts`
+- `src/lib/favorites/dispatch.ts`
+- `src/components/HighlightedText.tsx`
 
----
+**Modified**
+- `src/routes/__root.tsx` (mount dock)
+- `src/features/bible/BiblePanel.tsx` (compact cards, highlighting, favorite-driven nav)
+- `src/lib/bible/search.ts` (Tanglish + Tamil normalization, ranking)
+- `src/lib/text-format/store.ts` (grouped styles + background)
+- `src/lib/broadcast.ts` (grouped payload, background, ref fields)
+- `src/features/workspace/TextFormattingPanel.tsx` (group tabs + background section)
+- `src/features/projection/ProjectionWindow.tsx` (background layer, ref header)
+- `src/projection/renderers/BibleRenderer.tsx` (ref header, grouped styles)
+- `src/projection/adapters/bible.adapter.ts` (mode + grouped refs)
+- `src/components/TextOverlayRenderer.tsx` (consume grouped styles)
+- `src/features/library/LibraryPage.tsx` (favorite toggle on media items)
 
-## 5. Projection Engine
+**Unchanged**
+- Routing, theme tokens, AppShell, sidebar, playlists, service mode, all existing keyboard shortcuts.
 
-- **Projection window**: `window.open('/project', 'projector', 'popup')` so users can drag it to the second monitor and press F11 (or we call `requestFullscreen` on load). Clean route with pure black bg, no chrome, no scrollbars, cursor auto-hides after 2s.
-- **Cross-window comms**: `BroadcastChannel('church-projection')`. Control room sends `{type, payload}` messages: `LOAD_ITEM`, `PLAY`, `PAUSE`, `NEXT`, `PREV`, `STOP`, `SEEK`, `VOLUME`, `BLACK`, `CLOSE`. Projector window echoes state back.
-- **Second-screen detection**: feature-detect `window.getScreenDetails()` (Multi-Screen Window Placement API). If available and permission granted, auto-position the popup on the non-primary screen. Otherwise the popup opens on current screen and user moves it.
-- **Slideshow engine**: setTimeout per item using its own `durationMs`; preloads next image's `ObjectURL`; transitions via CSS (fade/crossfade/zoom/dissolve/none) with two stacked `<img>` layers.
-- **Video engine**: native `<video>` with autoplay+muted fallback; loop modes (single/playlist/none); seek/volume from control room.
+## Out of Scope (called out so we don't silently add later)
+- Song / Text favorites are surfaced but inert until those modules exist.
+- Lottie/animated backgrounds beyond `<video>` and `<img>` (GIFs work via `<img>`); a true Lottie renderer is not included.
 
----
-
-## 6. Media Management
-
-- Drag-drop & file-picker upload → validate mime → write blob + metadata → generate thumb → insert.
-- Bulk actions: delete, move, copy, duplicate (clones metadata, references same blob unless user duplicates blob too — we'll duplicate metadata only by default).
-- Preview modal with full-size image / inline video player.
-- Multi-select via shift/ctrl click + checkbox mode.
-
----
-
-## 7. Playlist Engine
-
-- Playlist = ordered `items[]`. dnd-kit sortable for reorder.
-- Per-image duration editor (number input, seconds).
-- Per-item transition override (falls back to settings default).
-- "Project playlist" → opens projection window in slideshow/video mode starting at index 0.
-
----
-
-## 8. Backup / Restore
-
-- **Export**: stream all tables to a single `.zip` using `fflate` — `manifest.json` (folders, media metadata, playlists, settings, version) plus `blobs/{id}.bin` files. Trigger download.
-- **Import**: read zip, validate manifest version, upsert all records into Dexie inside one transaction (with a "merge vs replace" choice). Progress UI for large libraries.
-
----
-
-## 9. Settings
-
-- Theme (light/dark/system), language (en only for v1, scaffolded for i18n).
-- Default image duration, default transition, default loop mode.
-- Default video volume, autoplay, mute-on-start.
-- Auto-save is always on (every mutation persists immediately).
-
----
-
-## 10. Performance Strategy
-
-- Virtualized grid (`@tanstack/react-virtual`) for media library.
-- Thumbnails (max 320px) decoded once, cached as Blob in IDB, served via `URL.createObjectURL` with a ref-counted URL cache that revokes on unmount.
-- Indexed Dexie queries; paginated reads (`offset/limit`) for huge folders.
-- Web Worker for thumbnail generation on import (keeps UI responsive on bulk drops).
-- Preload next-slide image during slideshow.
-- React 19 transitions for filter/search updates.
-
----
-
-## 11. Error Handling
-
-- Global React `ErrorBoundary` at app root + per-route boundaries.
-- All Dexie ops wrapped in `try/catch` → `logger.error` → toast.
-- Logs persisted to `logs` table (ring buffer) and viewable in Settings → Diagnostics, with "Export logs".
-- Projection window has its own boundary that falls back to a black screen + "Press Esc to return" rather than crashing mid-service.
-
----
-
-## 12. PWA / Offline
-
-- `vite-plugin-pwa` with `generateSW`, `registerType: autoUpdate`, NetworkFirst for navigations, CacheFirst for hashed assets.
-- Guarded registration wrapper per Lovable rules: refuses to register in dev, iframe, `id-preview--*`, `preview--*`, `*.lovableproject.com`, `*.lovableproject-dev.com`, `*.beta.lovable.dev`, or when URL has `?sw=off`.
-- Manifest with name "Church Media", standalone display, dark theme color, icons.
-
----
-
-## 13. Routes & Nav
-
-Sidebar: **Library · Playlists · Project · Settings**. Topbar: search + theme toggle + "Open Projector" button (always visible).
-
----
-
-## 14. Build Order
-
-1. Scaffold: deps, Dexie schema, Zustand stores, AppShell, routes.
-2. Media upload + library grid + folders + thumbnails.
-3. Playlists CRUD + sortable editor.
-4. Projection window + BroadcastChannel + slideshow + video engines.
-5. Settings + theme + backup/restore.
-6. Search/filters, virtualization, performance pass.
-7. PWA + error boundaries + logging.
-8. QA pass: large-library stress, projection reliability, recovery.
-
----
-
-## What I need from you
-
-This is a large build (~40–60 files). Two questions before I start:
-
-1. **Scope of v1 ship**: build everything end-to-end in one go, or ship in the 8 phases above with you reviewing each? End-to-end is faster but a single huge change; phased lets you sanity-check projection reliability early.
-2. **Second-screen UX**: confirm the "popup window the user drags to the projector" approach is acceptable (this is the only reliable cross-browser path — true automatic second-screen placement requires the experimental Multi-Screen API which only Chrome supports and needs a user permission grant).
+## Open Questions
+None — defaults above (right-edge collapsible rail, MediaPickerDialog reuse, English as legacy alias) are chosen to minimise risk to existing functionality. Confirm to proceed and I will implement.
