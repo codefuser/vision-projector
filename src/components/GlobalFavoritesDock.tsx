@@ -8,10 +8,11 @@ import { Star, BookOpen, Music, Image as ImageIcon, Type, ChevronRight, ChevronL
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useBibleStore } from "@/lib/bible/store";
+import { useSongsStore } from "@/lib/songs/store";
 import { useMediaFavorites } from "@/stores/media-favorites.store";
 import { useFavoritesDock, type FavoritesGroup } from "@/stores/favorites-dock.store";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
-import { activateBibleFavorite, activateMediaFavorite } from "@/lib/favorites/dispatch";
+import { activateBibleFavorite, activateMediaFavorite, activateSongFavorite } from "@/lib/favorites/dispatch";
 import { getMedia } from "@/db/repo";
 import type { MediaRecord } from "@/db/schema";
 import { cn } from "@/lib/utils";
