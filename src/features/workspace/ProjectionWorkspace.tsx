@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
+import { Group, Panel, Separator, type Layout, type PanelImperativeHandle } from "react-resizable-panels";
 import { ChevronUp, ChevronDown, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
 import { LivePreviewPanel } from "./LivePreviewPanel";
 import { TextFormattingPanel } from "./TextFormattingPanel";
@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
-  outer: "church-media-ws-outer-v2",
+  leftWidth: "church-media-ws-left-width-v1",
   left: "church-media-ws-left-v2",
 };
 // Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
@@ -36,12 +36,12 @@ const LAYOUT_KEYS = {
 const TEXT_FORMAT_COLLAPSED_SIZE = 6;
 const TEXT_FORMAT_DEFAULT_SIZE = 40;
 
-// Pixel-based constraints for the left column (Preview + Text Formatting).
-// Operators expect a Visual-Studio-style stable default; the column always
-// opens at 250px on first run and may be dragged anywhere from 200–600px.
-const LEFT_DEFAULT_PX = "250px";
+// Pixel-based sizing for the left column (Preview + Text Formatting).
+// The workspace must never auto-balance on load: use the saved operator width
+// or exactly 250px on first run. The right Media workspace consumes the rest.
+const LEFT_DEFAULT_WIDTH = 250;
 const LEFT_MIN_PX = "200px";
-const LEFT_MAX_PX = "600px";
+const RIGHT_MIN_PX = "320px";
 
 function readLayout(key: string): Layout | undefined {
   try {
@@ -56,6 +56,25 @@ function readLayout(key: string): Layout | undefined {
 function writeLayout(key: string, layout: Layout) {
   try {
     localStorage.setItem(key, JSON.stringify(layout));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function readSavedLeftWidth(): number | undefined {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEYS.leftWidth);
+    if (!raw) return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeLeftWidth(width: number) {
+  try {
+    localStorage.setItem(LAYOUT_KEYS.leftWidth, String(Math.round(width)));
   } catch {
     /* quota / private mode */
   }
@@ -76,17 +95,17 @@ export function ProjectionWorkspace() {
     send({ type: "PING" });
   }, [init, send]);
 
-  const savedOuter = useMemo(() => readLayout(LAYOUT_KEYS.outer), []);
+  const savedLeftWidth = useMemo(() => readSavedLeftWidth(), []);
   const savedLeft = useMemo(() => readLayout(LAYOUT_KEYS.left), []);
 
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
   const leftVisible = visible.preview || visible.textFormat;
 
-  const outerLayout = leftVisible && visible.tabs && !tabsCollapsed ? savedOuter : undefined;
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
   const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
   const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
+  const leftDefaultSize = `${savedLeftWidth ?? LEFT_DEFAULT_WIDTH}px`;
 
   // Drive the bottom panel size from the persisted collapsed flag.
   const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
@@ -106,7 +125,8 @@ export function ProjectionWorkspace() {
 
   const resetLayout = () => {
     try {
-      localStorage.removeItem(LAYOUT_KEYS.outer);
+      localStorage.removeItem(LAYOUT_KEYS.leftWidth);
+      localStorage.removeItem("church-media-ws-outer-v2");
       localStorage.removeItem(LAYOUT_KEYS.left);
     } catch {
       /* ignore */
@@ -148,17 +168,17 @@ export function ProjectionWorkspace() {
               key={outerKey}
               orientation="horizontal"
               className="h-full"
-              defaultLayout={outerLayout}
-              onLayoutChanged={(l) => {
-                if (leftVisible && visible.tabs) writeLayout(LAYOUT_KEYS.outer, l);
-              }}
+              resizeTargetMinimumSize={{ coarse: 28, fine: 8 }}
             >
               {leftVisible && (
                 <Panel
                   id="left"
-                  defaultSize={LEFT_DEFAULT_PX}
+                  defaultSize={leftDefaultSize}
                   minSize={LEFT_MIN_PX}
-                  maxSize={LEFT_MAX_PX}
+                  groupResizeBehavior="preserve-pixel-size"
+                  onResize={(size) => {
+                    writeLeftWidth(size.inPixels);
+                  }}
                   className="min-h-0 min-w-0"
                 >
                   <Group
@@ -205,9 +225,9 @@ export function ProjectionWorkspace() {
               {visible.tabs && (
                 <Panel
                   id="right"
-                  defaultSize={tabsCollapsed ? 4 : 50}
-                  minSize={tabsCollapsed ? 3 : 6}
-                  maxSize={tabsCollapsed ? 6 : 100}
+                  defaultSize={tabsCollapsed ? "48px" : undefined}
+                  minSize={tabsCollapsed ? "48px" : RIGHT_MIN_PX}
+                  maxSize={tabsCollapsed ? "48px" : undefined}
                   className="min-h-0 min-w-0"
                 >
                   <WorkspaceTabsPanel />
