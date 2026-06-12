@@ -22,6 +22,8 @@ export function GlobalFavoritesDock() {
   const navigate = useNavigate();
   const bibleFavorites = useBibleStore((s) => s.favorites);
   const removeBibleFav = useBibleStore((s) => s.removeFavorite);
+  const songFavorites = useSongsStore((s) => s.favorites);
+  const removeSongFav = useSongsStore((s) => s.removeFavorite);
   const mediaFavIds = useMediaFavorites((s) => s.ids);
   const removeMediaFav = useMediaFavorites((s) => s.remove);
   const [mediaItems, setMediaItems] = useState<MediaRecord[]>([]);
