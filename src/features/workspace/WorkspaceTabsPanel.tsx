@@ -3,10 +3,12 @@ import { useWorkspace, type WorkspaceTab } from "./workspace.store";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { BiblePanel } from "@/features/bible/BiblePanel";
 import { SongsPanel } from "@/features/songs/SongsPanel";
+import { TextPanel } from "@/features/text/TextPanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
 import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
 import { useShortcutTooltip } from "@/lib/shortcuts/use-shortcut-for";
 import { cn } from "@/lib/utils";
+
 
 const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null>; shortcutId: string }[] = [
   { id: "media", label: "Media", icon: ImageIcon, focus: "media", shortcutId: "tab.media" },
@@ -91,7 +93,11 @@ export function WorkspaceTabsPanel() {
             <SongsPanel />
           </div>
         )}
-        {activeTab === "text" && <ComingSoon icon={Type} title="Text" description="Free-form text projection coming soon." />}
+        {activeTab === "text" && (
+          <div className="h-full overflow-hidden">
+            <TextPanel />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -157,11 +163,7 @@ function TabBarButton({ tab, isActive, onClick }: { tab: TabDef; isActive: boole
     >
       <Icon className="h-3.5 w-3.5" />
       {tab.label}
-      {tab.id === "text" && (
-        <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
-          Soon
-        </span>
-      )}
     </button>
   );
 }
+

@@ -318,9 +318,11 @@ function ThumbCard({
         "group relative cursor-pointer overflow-hidden rounded-lg border bg-card transition",
         isActive ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-primary/60",
       )}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "240px 180px" } as React.CSSProperties}
       onClick={onClick}
     >
       <div className="relative" style={{ aspectRatio: "16 / 9" }}>
+
         {visible && groups && logo ? (
           <ProjectionTextStage
             overlay={SAMPLE_OVERLAY}
