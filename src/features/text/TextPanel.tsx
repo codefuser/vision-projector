@@ -820,22 +820,44 @@ export function TextPanel() {
                   )}
                 </div>
 
-                {/* Quick-insert strip */}
+                {/* Quick-insert tabbed strip */}
                 <div className="border-t border-border bg-muted/10 px-2 py-1.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <Sparkles className="h-3 w-3 text-primary" /> Quick insert
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {QUICK_INSERT_WORDS.map((w) => (
+                  <div className="mb-1 flex flex-wrap items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">Quick insert</span>
+                    {(["most", "recent", "church", "worship", "sermon", "announcement"] as const).map((t) => (
                       <button
-                        key={w.tamil}
-                        onClick={() => insertAtCaret(w.tamil)}
-                        title={w.label}
-                        className="inline-flex cursor-pointer items-center rounded-md border border-border bg-card px-2 py-0.5 text-[13px] text-foreground transition hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                        key={t}
+                        onClick={() => setQuickTab(t)}
+                        className={cn(
+                          "cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-medium transition",
+                          quickTab === t
+                            ? "bg-primary/15 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
                       >
-                        {w.tamil}
+                        {t === "most" ? "Most used" : t === "recent" ? "Recent" : CATEGORY_LABELS[t]}
                       </button>
                     ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {quickWords.length === 0 ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        {quickTab === "most" ? "Insert words to start building your list." : "No items yet."}
+                      </span>
+                    ) : (
+                      quickWords.map((w) => (
+                        <button
+                          key={w.tamil}
+                          onClick={() => { insertAtCaret(w.tamil); bumpVocab(w.tamil); }}
+                          title={w.label}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-[13px] text-foreground transition hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                        >
+                          {w.tamil}
+                          {w.label && <span className="text-[9px] text-muted-foreground">{w.label}</span>}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
 
