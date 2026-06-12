@@ -42,6 +42,10 @@ export interface PlaylistItem {
   durationMs: number; // image duration; for videos uses video's own length unless overridden
   transition: TransitionType;
   muted?: boolean;
+  /** Operator notes shown in Service Mode (cue sheet). */
+  notes?: string;
+  /** Optional title override for the cue list. */
+  label?: string;
 }
 
 export interface PlaylistRecord {
