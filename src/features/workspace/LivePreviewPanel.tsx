@@ -267,6 +267,11 @@ export function LivePreviewPanel() {
           <SkipBack className="h-3.5 w-3.5" />
         </IconBtn>
         {isVideo && (
+          <IconBtn onClick={() => jump(-10)} title="Back 10s">
+            <span className="text-[10px] font-semibold">-10</span>
+          </IconBtn>
+        )}
+        {isVideo && (
           <IconBtn onClick={() => jump(-5)} title="Back 5s">
             <Rewind className="h-3.5 w-3.5" />
           </IconBtn>
@@ -285,6 +290,11 @@ export function LivePreviewPanel() {
             <FastForward className="h-3.5 w-3.5" />
           </IconBtn>
         )}
+        {isVideo && (
+          <IconBtn onClick={() => jump(10)} title="Forward 10s">
+            <span className="text-[10px] font-semibold">+10</span>
+          </IconBtn>
+        )}
         <IconBtn onClick={() => send({ type: "NEXT" })} title="Next">
           <SkipForward className="h-3.5 w-3.5" />
         </IconBtn>
@@ -296,6 +306,21 @@ export function LivePreviewPanel() {
             <RotateCcw className="h-3.5 w-3.5" />
           </IconBtn>
         )}
+        {isVideo && (
+          <IconBtn
+            onClick={() => send({ type: "LOOP", value: !isLooping })}
+            title={isLooping ? "Disable loop" : "Loop"}
+            active={isLooping}
+          >
+            <Repeat className="h-3.5 w-3.5" />
+          </IconBtn>
+        )}
+        {isVideo && (
+          <IconBtn onClick={cycleRate} title={`Playback speed (${rate}x)`}>
+            <Gauge className="h-3.5 w-3.5" />
+            <span className="ml-1 text-[10px] font-semibold tabular-nums">{rate}x</span>
+          </IconBtn>
+        )}
 
         <div className="mx-1 h-4 w-px bg-border" />
         <IconBtn
@@ -304,6 +329,13 @@ export function LivePreviewPanel() {
           active={state?.black}
         >
           {state?.black ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+        </IconBtn>
+        <IconBtn
+          onClick={() => setFullPreview((v) => !v)}
+          title={fullPreview ? "Exit full preview" : "Full preview"}
+          active={fullPreview}
+        >
+          {fullPreview ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </IconBtn>
         <div className="mx-1 h-4 w-px bg-border" />
         <IconBtn
@@ -322,6 +354,14 @@ export function LivePreviewPanel() {
           className="h-1 w-20 cursor-pointer accent-primary"
           aria-label="Volume"
         />
+        {isVideo && (
+          <div className="ml-1 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted-foreground">
+            <span title="Current">{fmtTime(currentTime)}</span>
+            <span>/</span>
+            <span title="Duration">{fmtTime(duration)}</span>
+            <span className="ml-1 opacity-60" title="Remaining">-{fmtTime(remaining)}</span>
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-2 truncate text-[11px] text-muted-foreground">
           {isVideo && (
             <span
@@ -332,7 +372,7 @@ export function LivePreviewPanel() {
                   : "bg-muted text-muted-foreground",
               )}
             >
-              {state?.playing ? "Playing" : "Paused"}
+              {state?.playing ? (state?.videoReady === false ? "Buffering" : "Playing") : "Paused"}
             </span>
           )}
           <span className="truncate">{media ? media.name : "—"}</span>
@@ -341,6 +381,7 @@ export function LivePreviewPanel() {
     </div>
   );
 }
+
 
 function fmtTime(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
