@@ -18,6 +18,8 @@ import type { GroupedStyles, SectionStyle, TextOverlay, TextStyle } from "@/lib/
 import {
   DEFAULT_GROUPED_STYLES,
 } from "@/lib/broadcast";
+import { useBackground } from "@/stores/background.store";
+
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -193,9 +195,16 @@ function VerseBlock({ text, style, flex }: { text: string; style: SectionStyle; 
 }
 
 function textCss(style: SectionStyle): React.CSSProperties {
-  const textShadow = style.shadow
+  // Read master toggles synchronously — operators flip these in the
+  // Layers panel and the projector picks them up via the broadcasted
+  // style update that follows.
+  const s = useBackground.getState();
+  const shadowOn = s.textShadowEnabled;
+  const strokeOn = s.textStrokeEnabled;
+  const textShadow = style.shadow && shadowOn
     ? `0 4px ${style.shadowBlur}px ${mixAlpha(style.shadowColor, 0.6)}`
     : "none";
+
   return {
     fontFamily: `"${style.fontFamily}", system-ui, sans-serif`,
     fontWeight: style.fontWeight,
@@ -206,10 +215,11 @@ function textCss(style: SectionStyle): React.CSSProperties {
     lineHeight: style.lineHeight,
     letterSpacing: `${style.letterSpacing}px`,
     textShadow,
-    WebkitTextStrokeWidth: style.outlineWidth > 0 ? `${style.outlineWidth}px` : undefined,
-    WebkitTextStrokeColor: style.outlineWidth > 0 ? style.outlineColor : undefined,
+    WebkitTextStrokeWidth: strokeOn && style.outlineWidth > 0 ? `${style.outlineWidth}px` : undefined,
+    WebkitTextStrokeColor: strokeOn && style.outlineWidth > 0 ? style.outlineColor : undefined,
   };
 }
+
 
 function mixAlpha(hex: string, alpha: number): string {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);

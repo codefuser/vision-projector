@@ -86,6 +86,8 @@ export interface BackgroundConfig {
   opacity: number;     // 0..1
   blur: number;        // px
   brightness: number;  // 0..2 (1 = neutral)
+  /** NEW (additive): css contrast multiplier, defaults 1. */
+  contrast?: number;   // 0..2 (1 = neutral)
   zoom: number;        // 1..3 scale multiplier
   positionX: number;   // 0..100 (%, default 50)
   positionY: number;   // 0..100 (%, default 50)
@@ -93,6 +95,13 @@ export interface BackgroundConfig {
   gradient?: string | null;
   /** Optional animated decorative overlay rendered above the base. */
   animation?: BackgroundAnimation;
+  /** NEW (additive): coloured overlay rendered above media, below text. */
+  overlayColor?: string;
+  overlayOpacity?: number; // 0..1
+  /** NEW (additive): video playback controls. */
+  videoLoop?: boolean;
+  videoMuted?: boolean;
+  videoSpeed?: number; // 0.25..4, default 1
 }
 
 export type BackgroundAnimation =
@@ -112,10 +121,17 @@ export const DEFAULT_BACKGROUND: BackgroundConfig = {
   opacity: 1,
   blur: 0,
   brightness: 1,
+  contrast: 1,
   zoom: 1,
   positionX: 50,
   positionY: 50,
+  overlayColor: "#000000",
+  overlayOpacity: 0,
+  videoLoop: true,
+  videoMuted: true,
+  videoSpeed: 1,
 };
+
 
 export interface GroupedStyles {
   reference: SectionStyle;

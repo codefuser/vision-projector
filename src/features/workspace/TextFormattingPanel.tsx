@@ -7,7 +7,10 @@
  * projector + Live Preview in real time.
  */
 import { useEffect, useRef, useState } from "react";
-import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2 } from "lucide-react";
+import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2, Layers } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useBackground } from "@/stores/background.store";
+
 import { useFocusZone } from "./focus-manager";
 import { useWorkspace } from "./workspace.store";
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
@@ -252,14 +255,19 @@ export function TextFormattingPanel() {
             </Group>
           </div>
 
+          {/* Layer master toggles — themes never overwrite backgrounds when
+              "Custom Background" is on or "Theme Background" is off. */}
+          <LayerSwitchesPanel />
+
           {/* Background engine — global, sits at the bottom. Only relevant
               controls render per selected kind. */}
-          <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3">
+          <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
             <div className="mb-2 flex items-center gap-2">
               <ImageIcon className="h-3.5 w-3.5 text-primary" />
               <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Projection Background</div>
               <div className="ml-auto text-[10px] text-muted-foreground">None · Color · Media</div>
             </div>
+
 
             <div className="mb-2 flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
               {(["none", "color", "media"] as const).map((k) => (
@@ -340,6 +348,37 @@ export function TextFormattingPanel() {
                     <NumberInput value={groups.background.positionY ?? 50} step={1} min={0} max={100} suffix="%"
                                  onChange={(v) => setBackground({ positionY: v })} />
                   </Field>
+                  <Field label="Contrast">
+                    <NumberInput value={Math.round((groups.background.contrast ?? 1) * 100)} step={1} min={0} max={200} suffix="%"
+                                 onChange={(v) => setBackground({ contrast: v / 100 })} />
+                  </Field>
+                </div>
+
+                {/* Overlay tint */}
+                <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2">
+                  <Field label="Overlay Color">
+                    <ColorInput value={groups.background.overlayColor ?? "#000000"}
+                                onChange={(v) => setBackground({ overlayColor: v })} />
+                  </Field>
+                  <Field label="Overlay Opacity">
+                    <NumberInput value={Math.round((groups.background.overlayOpacity ?? 0) * 100)} step={1} min={0} max={100} suffix="%"
+                                 onChange={(v) => setBackground({ overlayOpacity: v / 100 })} />
+                  </Field>
+                </div>
+
+                {/* Video controls — only meaningful for video media. */}
+                <div className="flex flex-wrap items-center gap-3 border-t border-border/60 pt-2">
+                  <SwitchRow label="Loop video"
+                             checked={groups.background.videoLoop ?? true}
+                             onChange={(v) => setBackground({ videoLoop: v })} />
+                  <SwitchRow label="Mute video"
+                             checked={groups.background.videoMuted ?? true}
+                             onChange={(v) => setBackground({ videoMuted: v })} />
+                  <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    Speed
+                    <NumberInput value={groups.background.videoSpeed ?? 1} step={0.25} min={0.25} max={4} suffix="x"
+                                 onChange={(v) => setBackground({ videoSpeed: v })} />
+                  </div>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground">
@@ -347,6 +386,7 @@ export function TextFormattingPanel() {
                 </div>
               </div>
             )}
+
 
             {groups.background.kind === "none" && (
               <div className="rounded border border-dashed border-border bg-background/40 p-2 text-[10px] text-muted-foreground">
@@ -459,7 +499,72 @@ function Toggle({ label, active, onClick }: { label: string; active?: boolean; o
   );
 }
 
+function SwitchRow({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <label className={cn(
+      "flex items-center gap-2 text-[11px]",
+      disabled ? "opacity-50" : "cursor-pointer",
+    )}>
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+/**
+ * Master toggles for the projection layers. These are deliberately
+ * decoupled from theme styling — toggling "Custom Background" off does NOT
+ * change the active theme's typography. Real <Switch> controls (not text
+ * buttons) per the design spec.
+ */
+function LayerSwitchesPanel() {
+  const bg = useBackground();
+  return (
+    <div className="mt-3 rounded-md border border-border bg-background/60 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Layers className="h-3.5 w-3.5 text-primary" />
+        <div className="text-[11px] font-semibold uppercase tracking-wide">Layers</div>
+        <div className="ml-auto text-[10px] text-muted-foreground">Themes never overwrite layers below</div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 @md:grid-cols-3">
+        <SwitchRow label="Background"
+                   checked={bg.backgroundEnabled}
+                   onChange={(v) => bg.set("backgroundEnabled", v)} />
+        <SwitchRow label="Logo"
+                   checked={bg.logoEnabled}
+                   onChange={(v) => bg.set("logoEnabled", v)} />
+        <SwitchRow label="Theme Background"
+                   checked={bg.themeBackgroundEnabled}
+                   disabled={bg.customBackgroundEnabled}
+                   onChange={(v) => bg.set("themeBackgroundEnabled", v)} />
+        <SwitchRow label="Custom Background"
+                   checked={bg.customBackgroundEnabled}
+                   onChange={(v) => bg.set("customBackgroundEnabled", v)} />
+        <SwitchRow label="Motion Effects"
+                   checked={bg.motionEnabled}
+                   onChange={(v) => bg.set("motionEnabled", v)} />
+        <SwitchRow label="Particles"
+                   checked={bg.particlesEnabled}
+                   disabled={!bg.motionEnabled}
+                   onChange={(v) => bg.set("particlesEnabled", v)} />
+        <SwitchRow label="Text Shadow"
+                   checked={bg.textShadowEnabled}
+                   onChange={(v) => bg.set("textShadowEnabled", v)} />
+        <SwitchRow label="Text Stroke"
+                   checked={bg.textStrokeEnabled}
+                   onChange={(v) => bg.set("textStrokeEnabled", v)} />
+      </div>
+      {bg.customBackgroundEnabled && (
+        <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-300">
+          Custom Background is ON — applying a theme will NOT change your background.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export type { TextStyle, SectionStyle };
+
 
 // ─────────────────────────── Background gallery ────────────────────────────
 function BackgroundGallerySection({ onPickFromLibrary }: { onPickFromLibrary: () => void }) {
