@@ -78,3 +78,17 @@ export async function activateMediaFavorite(mediaId: string) {
   else setTimeout(send, 400);
   toast.success(`Projecting ${m.name}`);
 }
+
+export async function activateSongFavorite(songId: number, slideIndex = 0) {
+  await useSongsStore.getState().ensureLoaded();
+  const song = getSongs()?.find((s) => s.id === songId);
+  if (!song) { toast.error("Song not found"); return; }
+  const text = song.slides[slideIndex] ?? song.content;
+  projectSongSlide({
+    songId: song.id,
+    slideIndex,
+    totalSlides: song.slides.length || 1,
+    title: song.title,
+    text,
+  });
+}
