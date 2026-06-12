@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "@/db/schema";
 import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "@/db/schema";
 import { getMedia, getPlaylist, getSettings, touchMedia } from "@/db/repo";
-import { getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
+import { getChannel, type ProjectionCommand, type ProjectionState, type TextOverlay } from "@/lib/broadcast";
 
 type Mode = "idle" | "single" | "slideshow";
 
@@ -28,6 +28,7 @@ export function ProjectionWindow() {
   const [videoReady, setVideoReady] = useState(false);
   const [prevItem, setPrevItem] = useState<RuntimeItem | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
   const urlsRef = useRef<string[]>([]);
