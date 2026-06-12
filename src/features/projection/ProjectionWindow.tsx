@@ -346,10 +346,26 @@ export function ProjectionWindow() {
           key={"vid-" + cur.id + "-" + index + "-" + cur.blobUrl}
           src={cur.blobUrl}
           autoPlay={playing}
+          loop={loop}
           onEnded={onVideoEnded}
           onLoadedMetadata={(e) => {
-            // Always start from the beginning on every projection.
-            (e.currentTarget as HTMLVideoElement).currentTime = 0;
+            const v = e.currentTarget as HTMLVideoElement;
+            v.currentTime = 0;
+            v.playbackRate = playbackRate;
+            v.volume = volume;
+            v.muted = muted;
+            broadcastState();
+          }}
+          onCanPlay={() => {
+            setVideoReady(true);
+            broadcastState();
+          }}
+          onPlaying={() => {
+            setVideoReady(true);
+            broadcastState();
+          }}
+          onWaiting={() => {
+            setVideoReady(false);
             broadcastState();
           }}
           onTimeUpdate={() => broadcastState()}
