@@ -8,8 +8,12 @@
  *                         the library and the song's slides at the same time.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Music, Loader2, Star, Send, Search, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Music, Loader2, Star, Send, Search, Plus, X, Pencil, Trash2, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { useSongsStore } from "@/lib/songs/store";
 import { useSongsRecent } from "@/stores/songs-recent.store";
@@ -20,6 +24,14 @@ import { useProjection } from "@/stores/projection.store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SongEditorDialog } from "./SongEditorDialog";
+
+type SongFilter = "all" | "favorites" | "recent" | "mine";
+const FILTER_LABELS: Record<SongFilter, string> = {
+  all: "All Songs",
+  favorites: "Favorites",
+  recent: "Recently Used",
+  mine: "My Songs",
+};
 
 export function SongsPanel() {
   const {
