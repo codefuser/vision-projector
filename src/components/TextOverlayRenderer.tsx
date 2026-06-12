@@ -148,6 +148,7 @@ function VerseBlock({ text, style, flex }: { text: string; style: SectionStyle; 
       const w = stage.clientWidth, h = stage.clientHeight;
       if (w === 0 || h === 0) return;
       const pad = (style.paddingVw / 100) * w;
+      stage.style.padding = `${pad}px`;
       const maxW = w - pad * 2;
       const maxH = h - pad * 2;
       const startPx = (style.fontSizeVw / 100) * w;
