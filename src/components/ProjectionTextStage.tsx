@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const STAGE_ASPECT = 16 / 9;
+const STAGE_WIDTH = 1920;
+const STAGE_HEIGHT = 1080;
 
 interface ProjectionTextStageProps {
   overlay: TextOverlay;
@@ -32,6 +34,7 @@ export function ProjectionTextStage({
   const hostRef = useRef<HTMLDivElement>(null);
   const size = useFittedStage(hostRef, STAGE_ASPECT);
   const effectiveGroups = groupedStyles ?? DEFAULT_GROUPED_STYLES;
+  const scale = size ? size.width / STAGE_WIDTH : 1;
 
   return (
     <div
@@ -39,21 +42,31 @@ export function ProjectionTextStage({
       className={cn("relative flex h-full w-full items-center justify-center overflow-hidden bg-black", className)}
     >
       <div
-        className="relative overflow-hidden bg-black"
+        className="relative shrink-0 overflow-hidden bg-black"
         style={{
           width: size ? `${size.width}px` : "100%",
           height: size ? `${size.height}px` : "100%",
           aspectRatio: "16 / 9",
         }}
       >
-        <BackgroundLayer background={effectiveGroups.background} />
-        <TextOverlayRenderer
-          overlay={overlay}
-          style={textStyle ?? DEFAULT_TEXT_STYLE}
-          styles={effectiveGroups}
-          withBackground={false}
-        />
-        <LogoLayer logo={logo} />
+        <div
+          className="relative overflow-hidden bg-black"
+          style={{
+            width: `${STAGE_WIDTH}px`,
+            height: `${STAGE_HEIGHT}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
+          <BackgroundLayer background={effectiveGroups.background} />
+          <TextOverlayRenderer
+            overlay={overlay}
+            style={textStyle ?? DEFAULT_TEXT_STYLE}
+            styles={effectiveGroups}
+            withBackground={false}
+          />
+          <LogoLayer logo={logo} />
+        </div>
       </div>
     </div>
   );
