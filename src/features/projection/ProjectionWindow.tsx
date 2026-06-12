@@ -7,6 +7,7 @@ import {
   DEFAULT_TEXT_STYLE,
   DEFAULT_GROUPED_STYLES,
   type GroupedStyles,
+  type LogoBroadcast,
   type ProjectionCommand,
   type ProjectionState,
   type TextOverlay,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/broadcast";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
 import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { LogoLayer } from "@/components/LogoLayer";
 
 
 type Mode = "idle" | "single" | "slideshow" | "text";
