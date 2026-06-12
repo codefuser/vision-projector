@@ -211,8 +211,8 @@ export function ProjectionWorkspace() {
               {leftVisible && (
                 <div
                   data-workspace-left-panel
-                  style={{ width: leftWidthDefault, minWidth: LEFT_MIN_WIDTH }}
-                  className="min-h-0 min-w-0 shrink-0"
+                  style={visible.tabs ? { width: leftWidthDefault, minWidth: LEFT_MIN_WIDTH } : { minWidth: LEFT_MIN_WIDTH }}
+                  className={cn("min-h-0 min-w-0", visible.tabs ? "shrink-0" : "flex-1")}
                 >
                   <Group
                     key={leftKey}
