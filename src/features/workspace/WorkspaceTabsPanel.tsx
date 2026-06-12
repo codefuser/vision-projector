@@ -5,13 +5,14 @@ import { BiblePanel } from "@/features/bible/BiblePanel";
 import { SongsPanel } from "@/features/songs/SongsPanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
 import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
+import { useShortcutTooltip } from "@/lib/shortcuts/use-shortcut-for";
 import { cn } from "@/lib/utils";
 
-const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null> }[] = [
-  { id: "media", label: "Media", icon: ImageIcon, focus: "media" },
-  { id: "bible", label: "Bible", icon: BookOpen, focus: "bible" },
-  { id: "songs", label: "Songs", icon: Music, focus: "songs" },
-  { id: "text", label: "Text", icon: Type, focus: "text" },
+const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null>; shortcutId: string }[] = [
+  { id: "media", label: "Media", icon: ImageIcon, focus: "media", shortcutId: "tab.media" },
+  { id: "bible", label: "Bible", icon: BookOpen, focus: "bible", shortcutId: "tab.bible" },
+  { id: "songs", label: "Songs", icon: Music, focus: "songs", shortcutId: "tab.songs" },
+  { id: "text", label: "Text", icon: Type, focus: "text", shortcutId: "tab.text" },
 ];
 
 export function WorkspaceTabsPanel() {
