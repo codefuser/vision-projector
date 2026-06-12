@@ -5,6 +5,7 @@ import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
 import { projectionEngine } from "@/projection";
 import { GlobalFavoritesDock } from "@/components/GlobalFavoritesDock";
+import { useShortcutTooltip } from "@/lib/shortcuts/use-shortcut-for";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
