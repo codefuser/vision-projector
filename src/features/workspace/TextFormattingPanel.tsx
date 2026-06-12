@@ -19,6 +19,7 @@ import { db } from "@/db/schema";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useLogo, type LogoPosition } from "@/stores/logo.store";
 import { useBackgroundGallery, type BackgroundItem } from "@/stores/background-gallery.store";
+import { TemplatesStrip } from "./TemplatesStrip";
 
 const FONT_FAMILIES = [
   "Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma",
