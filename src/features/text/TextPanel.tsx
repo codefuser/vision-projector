@@ -7,8 +7,8 @@
  * Uses the same projection pipeline as Bible/Songs so theming, fonts,
  * background and animation render identically on the projector.
  */
-import { useEffect, useMemo, useState } from "react";
-import { Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,6 +18,7 @@ import {
 import { useTextItems, splitTextSlides, type TextItem } from "@/stores/text-items.store";
 import { projectTextSlide } from "@/projection/adapters/text.adapter";
 import { useProjection } from "@/stores/projection.store";
+import { convertCompleted } from "@/lib/text/tanglish";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -27,6 +28,38 @@ const FILTER_LABELS: Record<TextFilter, string> = {
   favorites: "Favorites",
   recent: "Recently Used",
 };
+
+type TypingMode = "english" | "tamil" | "tanglish";
+const MODE_LABELS: Record<TypingMode, string> = {
+  english: "English",
+  tamil: "Tamil",
+  tanglish: "Tanglish → தமிழ்",
+};
+const MODE_SHORT: Record<TypingMode, string> = {
+  english: "EN",
+  tamil: "தமிழ்",
+  tanglish: "Tang→த",
+};
+
+/** Word-boundary trigger characters — when one is typed, convert completed
+ *  Tanglish words behind it. Avoids mid-word interference. */
+const BOUNDARY_RE = /[\s.,;:!?()[\]{}"'\u0964\u0965/\\-]/;
+
+/** Reading time string at ~150 wpm. */
+function readingTime(words: number): string {
+  if (words === 0) return "0 sec";
+  const sec = Math.round((words / 150) * 60);
+  if (sec < 60) return `${sec} sec`;
+  const min = Math.round(sec / 60);
+  return `${min} min`;
+}
+
+/** Count words across mixed Tamil + Latin text. Treats any contiguous
+ *  letter run (Tamil block U+0B80–U+0BFF or A–Z) as one word. */
+function countWords(text: string): number {
+  const matches = text.match(/[A-Za-z\u0B80-\u0BFF']+/g);
+  return matches ? matches.length : 0;
+}
 
 const STARTER_SAMPLES = [
   { title: "Welcome", content: "Welcome to our service\n\nMay God bless you abundantly" },
