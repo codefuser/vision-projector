@@ -19,10 +19,16 @@ export async function activateBibleFavorite(
   book: number,
   chapter: number,
   verse: number,
+  savedMode?: "en" | "ta" | "both",
 ) {
   const meta = BIBLE_BOOKS[book];
   if (!meta) return;
   const bs = useBibleStore.getState();
+  // Restore the language context the favorite was saved with so Tamil
+  // favorites always project in Tamil regardless of current mode.
+  if (savedMode && savedMode !== bs.displayMode) {
+    await bs.setDisplayMode(savedMode);
+  }
   if (bs.displayMode === "both") await bs.ensureBoth();
   else await bs.ensureLoaded(bs.displayMode);
 

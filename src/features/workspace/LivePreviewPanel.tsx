@@ -27,6 +27,8 @@ import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
 import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { LogoLayer } from "@/components/LogoLayer";
+import { useLogo } from "@/stores/logo.store";
 import { DEFAULT_TEXT_STYLE, DEFAULT_GROUPED_STYLES } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +49,11 @@ export function LivePreviewPanel() {
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const [fullPreview, setFullPreview] = useState(false);
   const focus = useFocusZone("preview");
+  // Live logo config — mirrors projector exactly.
+  const logoEnabled = useLogo((s) => s.enabled);
+  const logoCurrent = useLogo((s) => s.current);
+  const logoSettings = useLogo((s) => s.settings);
+  const localLogo = { enabled: logoEnabled, current: logoCurrent, settings: logoSettings };
 
   // Resolve current media metadata
   useEffect(() => {
@@ -244,6 +251,9 @@ export function LivePreviewPanel() {
         )}
 
         {black && <div className="absolute inset-0 bg-black" />}
+
+        {/* Logo overlay — mirror of projector */}
+        {!black && <LogoLayer logo={localLogo} />}
 
         <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
           <span

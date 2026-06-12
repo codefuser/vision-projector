@@ -7,6 +7,7 @@ import {
   DEFAULT_TEXT_STYLE,
   DEFAULT_GROUPED_STYLES,
   type GroupedStyles,
+  type LogoBroadcast,
   type ProjectionCommand,
   type ProjectionState,
   type TextOverlay,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/broadcast";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
 import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { LogoLayer } from "@/components/LogoLayer";
 
 
 type Mode = "idle" | "single" | "slideshow" | "text";
@@ -43,6 +45,7 @@ export function ProjectionWindow() {
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [textStyle, setTextStyle] = useState<TextStyle>(DEFAULT_TEXT_STYLE);
   const [groupedStyles, setGroupedStyles] = useState<GroupedStyles>(DEFAULT_GROUPED_STYLES);
+  const [logo, setLogo] = useState<LogoBroadcast | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -102,9 +105,10 @@ export function ProjectionWindow() {
       textOverlay,
       textStyle,
       groupedStyles,
+      logo,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle, groupedStyles]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle, groupedStyles, logo]);
 
 
   useEffect(() => {
@@ -282,6 +286,9 @@ export function ProjectionWindow() {
         case "UPDATE_BACKGROUND":
           setGroupedStyles((g) => ({ ...g, background: cmd.background }));
           break;
+        case "UPDATE_LOGO":
+          setLogo(cmd.logo);
+          break;
 
         case "PLAY":
           setPlaying(true);
@@ -453,6 +460,9 @@ export function ProjectionWindow() {
 
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
+
+      {/* Logo — global, always on top, never inside the black overlay. */}
+      {!black && <LogoLayer logo={logo} />}
 
       {/* Idle */}
       {!cur && !black && !textOverlay && (

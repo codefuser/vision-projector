@@ -6,8 +6,8 @@
  * bottom. Every field writes to useTextFormat which broadcasts to the
  * projector + Live Preview in real time.
  */
-import { useState } from "react";
-import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2 } from "lucide-react";
 import { useFocusZone } from "./focus-manager";
 import { useWorkspace } from "./workspace.store";
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
@@ -15,8 +15,17 @@ import type { SectionStyle, TextStyle } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 import { MediaPickerDialog } from "@/features/playlists/MediaPickerDialog";
 import { getMedia } from "@/db/repo";
+import { db } from "@/db/schema";
+import { acquireUrl, releaseUrl } from "@/lib/blob-url";
+import { useLogo, type LogoPosition } from "@/stores/logo.store";
+import { useBackgroundGallery, type BackgroundItem } from "@/stores/background-gallery.store";
 
-const FONT_FAMILIES = ["Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma", "Latha", "Nirmala UI"];
+const FONT_FAMILIES = [
+  "Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma",
+  "Latha", "Nirmala UI",
+  "Noto Sans Tamil", "Noto Serif Tamil", "Mukta Malar", "Catamaran",
+  "Hind Madurai", "Meera Inimai", "Pavanam",
+];
 const WEIGHTS: { label: string; value: number }[] = [
   { label: "Light", value: 300 },
   { label: "Regular", value: 400 },
@@ -59,24 +68,24 @@ export function TextFormattingPanel() {
       tabIndex={focus.tabIndex}
     >
       <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-border bg-muted/30 px-2.5">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
-          <div className="truncate text-[10px] text-muted-foreground">
-            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / Background"}
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <div className="shrink-0 text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
+          <div className="hidden truncate text-[10px] text-muted-foreground @sm:block">
+            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / BG / Logo"}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={reset}
             title="Reset all groups"
-            className="inline-flex h-6 cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-2 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <RotateCcw className="h-3 w-3" /> Reset all
+            <RotateCcw className="h-3 w-3" /> <span className="hidden @sm:inline">Reset all</span>
           </button>
           <button
             onClick={toggle}
             title={collapsed ? "Expand" : "Collapse"}
-            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
@@ -85,14 +94,14 @@ export function TextFormattingPanel() {
 
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-3">
-          {/* Group selector */}
-          <div className="mb-3 flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+          {/* Group selector — wraps on narrow widths so Reset/Visibility never clip. */}
+          <div className="mb-3 flex flex-wrap items-center gap-1 rounded-md border border-border bg-background p-0.5">
             {(Object.keys(GROUP_LABELS) as StyleGroup[]).map((g) => (
               <button
                 key={g}
                 onClick={() => setActive(g)}
                 className={cn(
-                  "flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
+                  "min-w-[60px] flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
                   active === g
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -105,7 +114,7 @@ export function TextFormattingPanel() {
               onClick={() => patchGroup(active, { visible: !style.visible })}
               title={style.visible ? "Hide this section in projection" : "Show this section in projection"}
               className={cn(
-                "ml-1 inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded border text-[10px]",
+                "ml-1 inline-flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border text-[10px]",
                 style.visible ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground",
               )}
             >
@@ -114,13 +123,13 @@ export function TextFormattingPanel() {
             <button
               onClick={() => resetGroup(active)}
               title={`Reset ${GROUP_LABELS[active]}`}
-              className="ml-1 inline-flex h-6 w-7 cursor-pointer items-center justify-center rounded border border-border bg-background text-[10px] text-muted-foreground hover:bg-accent"
+              className="ml-1 inline-flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-border bg-background text-[10px] text-muted-foreground hover:bg-accent"
             >
               <RotateCcw className="h-3 w-3" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @2xl:grid-cols-3">
             <Group icon={Type} title="Typography">
               <Field label="Font Family">
                 <Select value={style.fontFamily} onChange={(v) => setField(active, "fontFamily", v)}
@@ -302,7 +311,13 @@ export function TextFormattingPanel() {
                 No background. The projector stage will be transparent (black) behind text.
               </div>
             )}
+
+            {/* Background gallery — thumbnails of saved backgrounds. */}
+            <BackgroundGallerySection onPickFromLibrary={() => setPickerOpen(true)} />
           </div>
+
+          {/* Logo manager */}
+          <LogoSection />
         </div>
       )}
 
@@ -315,6 +330,8 @@ export function TextFormattingPanel() {
           const m = await getMedia(id);
           setBackground({ mediaId: id, kind: "media" });
           setBgName(m?.name ?? null);
+          // Also push into the saved gallery for one-click recall.
+          useBackgroundGallery.getState().addMedia(id, m?.name);
           setPickerOpen(false);
         }}
       />
@@ -391,3 +408,186 @@ function Toggle({ label, active, onClick }: { label: string; active?: boolean; o
 }
 
 export type { TextStyle, SectionStyle };
+
+// ─────────────────────────── Background gallery ────────────────────────────
+function BackgroundGallerySection({ onPickFromLibrary }: { onPickFromLibrary: () => void }) {
+  const items = useBackgroundGallery((s) => s.items);
+  const remove = useBackgroundGallery((s) => s.remove);
+  const addColor = useBackgroundGallery((s) => s.addColor);
+  const setBackground = useTextFormat((s) => s.setBackground);
+  const bgColor = useTextFormat((s) => s.groups.background.color);
+  if (items.length === 0) {
+    return (
+      <div className="mt-2 flex items-center gap-1">
+        <button onClick={onPickFromLibrary} className="inline-flex h-7 flex-1 cursor-pointer items-center justify-center gap-1 rounded border border-dashed border-border bg-background px-2 text-[11px] hover:bg-accent">
+          <ImageIcon className="h-3 w-3" /> Add background from library
+        </button>
+        <button onClick={() => addColor(bgColor)} className="inline-flex h-7 cursor-pointer items-center justify-center gap-1 rounded border border-dashed border-border bg-background px-2 text-[11px] hover:bg-accent">
+          + Color
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2">
+      <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span>Saved backgrounds ({items.length})</span>
+        <button onClick={onPickFromLibrary} className="cursor-pointer text-primary hover:underline">+ Add</button>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 @md:grid-cols-6">
+        {items.map((it) => (
+          <BackgroundThumb
+            key={it.id}
+            item={it}
+            onSelect={() => {
+              if (it.kind === "color") setBackground({ kind: "color", color: it.color! });
+              else setBackground({ kind: "media", mediaId: it.mediaId! });
+            }}
+            onRemove={() => remove(it.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BackgroundThumb({ item, onSelect, onRemove }: { item: BackgroundItem; onSelect: () => void; onRemove: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (item.kind !== "media" || !item.mediaId) return;
+    let cancelled = false;
+    let key: string | null = null;
+    (async () => {
+      const m = await getMedia(item.mediaId!);
+      if (!m) return;
+      const rec = await db().blobs.get(m.thumbBlobId ?? m.blobId);
+      if (!rec || cancelled) return;
+      key = (m.thumbBlobId ?? m.blobId);
+      setUrl(acquireUrl(key, rec.blob));
+    })();
+    return () => { cancelled = true; if (key) releaseUrl(key); };
+  }, [item]);
+  return (
+    <div className="group relative aspect-video overflow-hidden rounded border border-border bg-background">
+      <button onClick={onSelect} className="absolute inset-0 cursor-pointer" title={item.name ?? item.color ?? ""}>
+        {item.kind === "color" ? (
+          <div className="h-full w-full" style={{ background: item.color }} />
+        ) : url ? (
+          <img src={url} alt="" className="h-full w-full object-cover" draggable={false} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-[9px] text-muted-foreground">…</div>
+        )}
+      </button>
+      <button onClick={onRemove} className="absolute right-0.5 top-0.5 hidden h-4 w-4 cursor-pointer items-center justify-center rounded bg-black/60 text-white group-hover:flex" title="Remove">
+        <X className="h-2.5 w-2.5" />
+      </button>
+    </div>
+  );
+}
+
+// ──────────────────────────────── Logo manager ─────────────────────────────
+function LogoSection() {
+  const enabled = useLogo((s) => s.enabled);
+  const current = useLogo((s) => s.current);
+  const gallery = useLogo((s) => s.gallery);
+  const settings = useLogo((s) => s.settings);
+  const setEnabled = useLogo((s) => s.setEnabled);
+  const addFromFile = useLogo((s) => s.addFromFile);
+  const selectFromGallery = useLogo((s) => s.selectFromGallery);
+  const removeFromGallery = useLogo((s) => s.removeFromGallery);
+  const patch = useLogo((s) => s.patch);
+  const [open, setOpen] = useState(true);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const POSITIONS: { id: LogoPosition; label: string }[] = [
+    { id: "top-left", label: "TL" }, { id: "top-right", label: "TR" },
+    { id: "bottom-left", label: "BL" }, { id: "bottom-right", label: "BR" },
+    { id: "custom", label: "Custom" },
+  ];
+
+  return (
+    <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <LogoIcon className="h-3.5 w-3.5 text-primary" />
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Projection Logo</div>
+        <label className="ml-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          {enabled ? "Enabled" : "Disabled"}
+        </label>
+        <button onClick={() => setOpen((v) => !v)} className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent">
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+
+      {open && enabled && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) void addFromFile(f); e.currentTarget.value = ""; }}
+            />
+            <button onClick={() => fileRef.current?.click()} className="inline-flex h-7 flex-1 cursor-pointer items-center justify-center gap-1 rounded border border-border bg-background px-2 text-[11px] hover:bg-accent">
+              <Upload className="h-3 w-3" /> Upload logo
+            </button>
+          </div>
+
+          {gallery.length > 0 && (
+            <div>
+              <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Gallery ({gallery.length}/5)</div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {gallery.map((g) => (
+                  <div key={g.id} className={cn("group relative aspect-square overflow-hidden rounded border bg-background", current?.id === g.id ? "border-primary ring-1 ring-primary/40" : "border-border")}>
+                    <button onClick={() => selectFromGallery(g.id)} className="absolute inset-0 cursor-pointer" title={g.name}>
+                      <img src={g.dataUrl} alt="" className="h-full w-full object-contain" draggable={false} />
+                    </button>
+                    <button onClick={() => removeFromGallery(g.id)} className="absolute right-0.5 top-0.5 hidden h-4 w-4 cursor-pointer items-center justify-center rounded bg-black/60 text-white group-hover:flex" title="Remove">
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Row>
+            <Field label="Width %">
+              <NumberInput value={settings.widthPct} step={1} min={2} max={80} suffix="%" onChange={(v) => patch({ widthPct: v })} />
+            </Field>
+            <Field label="Opacity">
+              <NumberInput value={Math.round(settings.opacity * 100)} step={1} min={0} max={100} suffix="%" onChange={(v) => patch({ opacity: v / 100 })} />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Radius">
+              <NumberInput value={settings.radius} step={1} min={0} max={200} suffix="px" onChange={(v) => patch({ radius: v })} />
+            </Field>
+            <Field label="Shadow">
+              <Toggle label={settings.shadow ? "On" : "Off"} active={settings.shadow} onClick={() => patch({ shadow: !settings.shadow })} />
+            </Field>
+          </Row>
+          <Field label="Position">
+            <div className="flex flex-wrap gap-1">
+              {POSITIONS.map((p) => (
+                <Toggle key={p.id} label={p.label} active={settings.position === p.id} onClick={() => patch({ position: p.id })} />
+              ))}
+            </div>
+          </Field>
+          {settings.position === "custom" && (
+            <Row>
+              <Field label="X %"><NumberInput value={settings.xPct} step={1} min={0} max={100} suffix="%" onChange={(v) => patch({ xPct: v })} /></Field>
+              <Field label="Y %"><NumberInput value={settings.yPct} step={1} min={0} max={100} suffix="%" onChange={(v) => patch({ yPct: v })} /></Field>
+            </Row>
+          )}
+        </div>
+      )}
+      {open && !enabled && (
+        <div className="rounded border border-dashed border-border bg-background/40 p-2 text-[10px] text-muted-foreground">
+          Logo is disabled. Toggle Enabled above to configure and project it.
+        </div>
+      )}
+    </div>
+  );
+}

@@ -56,6 +56,14 @@ export function GlobalShortcuts() {
   useShortcut({ id: "search.songs", label: "Focus Songs search", category: "navigation", keys: ["Alt+3"], handler: focusSearch("songs") });
   useShortcut({ id: "search.text",  label: "Focus Text search",  category: "navigation", keys: ["Alt+4"], handler: focusSearch("text") });
 
+  // ── Sidebar navigation — jump directly to a route from anywhere.
+  const goTo = (to: string) => () => { void navigate({ to }); };
+  useShortcut({ id: "nav.library",   label: "Go to Library",   category: "navigation", keys: ["Mod+Shift+L"], handler: goTo("/library") });
+  useShortcut({ id: "nav.playlists", label: "Go to Playlists", category: "navigation", keys: ["Mod+Shift+P"], handler: goTo("/playlists") });
+  useShortcut({ id: "nav.project",   label: "Go to Project",   category: "navigation", keys: ["Mod+Shift+J"], handler: goTo("/project") });
+  useShortcut({ id: "nav.settings",  label: "Go to Settings",  category: "navigation", keys: ["Mod+Shift+,"], handler: goTo("/settings") });
+  useShortcut({ id: "nav.shortcuts", label: "Open Shortcut Center", category: "navigation", keys: ["Mod+/"], handler: goTo("/shortcuts") });
+
   // ── Projector lifecycle
   useShortcut({
     id: "projector.toggle",

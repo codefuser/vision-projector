@@ -7,6 +7,9 @@ export type DisplayMode = "en" | "ta" | "both";
 export interface BibleFavorite {
   id: string;
   lang: BibleLang;
+  /** Display mode captured at save time so a favorite restores the same
+   *  Tamil / English / Bilingual context when activated. */
+  displayMode?: DisplayMode;
   book: number;
   chapter: number;
   verse: number;
@@ -82,7 +85,12 @@ export const useBibleStore = create<BibleStore>()(
       addFavorite: (fav) =>
         set((s) => ({
           favorites: [
-            { ...fav, id: `${fav.book}:${fav.chapter}:${fav.verse}`, addedAt: Date.now() },
+            {
+              ...fav,
+              displayMode: fav.displayMode ?? s.displayMode,
+              id: `${fav.book}:${fav.chapter}:${fav.verse}`,
+              addedAt: Date.now(),
+            },
             ...s.favorites.filter(
               (f) => !(f.book === fav.book && f.chapter === fav.chapter && f.verse === fav.verse),
             ),

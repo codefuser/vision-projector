@@ -14,10 +14,12 @@ export type ShortcutCategory =
   | "navigation"
   | "media"
   | "playlist"
+  | "playlists"
   | "projector"
   | "bible"
   | "songs"
-  | "text";
+  | "text"
+  | "favorites";
 
 /** Logical scope under which a shortcut is active. */
 export type ShortcutScope = "global" | "workspace" | "playlist-editor" | "service-mode" | "bible";
