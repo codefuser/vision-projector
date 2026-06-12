@@ -49,6 +49,11 @@ export function LivePreviewPanel() {
   const [scrubbing, setScrubbing] = useState<number | null>(null);
   const [fullPreview, setFullPreview] = useState(false);
   const focus = useFocusZone("preview");
+  // Live logo config — mirrors projector exactly.
+  const logoEnabled = useLogo((s) => s.enabled);
+  const logoCurrent = useLogo((s) => s.current);
+  const logoSettings = useLogo((s) => s.settings);
+  const localLogo = { enabled: logoEnabled, current: logoCurrent, settings: logoSettings };
 
   // Resolve current media metadata
   useEffect(() => {
