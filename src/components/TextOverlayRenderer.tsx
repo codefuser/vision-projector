@@ -18,6 +18,8 @@ import type { GroupedStyles, SectionStyle, TextOverlay, TextStyle } from "@/lib/
 import {
   DEFAULT_GROUPED_STYLES,
 } from "@/lib/broadcast";
+import { useBackground } from "@/stores/background.store";
+
 import { cn } from "@/lib/utils";
 
 interface Props {
