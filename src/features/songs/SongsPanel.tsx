@@ -61,6 +61,19 @@ export function SongsPanel() {
 
   useEffect(() => { void ensureLoaded(); }, [ensureLoaded]);
 
+  // Distinct author list (built from the loaded library + user songs).
+  const authors = useMemo(() => {
+    if (!loaded) return [] as string[];
+    const songs = getSongs();
+    if (!songs) return [];
+    const set = new Set<string>();
+    for (const s of songs) {
+      const a = (s.artist || "").trim();
+      if (a) set.add(a);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [loaded, userSongs]);
+
   useEffect(() => {
     if (!loaded) return;
     const songs = getSongs();
@@ -68,11 +81,14 @@ export function SongsPanel() {
     const q = query.trim();
     const favIds = new Set(favorites.map((f) => f.id));
     const userIds = new Set(userSongs.map((u) => u.id));
-    const recentIds = recent.map((r) => r.songId);
+    const recentIds = new Set(recent.map((r) => r.songId));
     const applyFilter = (s: Song) => {
       if (filter === "favorites") return favIds.has(s.id);
       if (filter === "mine") return userIds.has(s.id);
-      if (filter === "recent") return recentIds.includes(s.id);
+      if (filter === "recent") return recentIds.has(s.id);
+      if (filter === "added") return userIds.has(s.id);
+      if (filter === "most") return (counts[s.id] ?? 0) > 0;
+      if (filter === "author") return !!authorFilter && (s.artist || "").trim() === authorFilter;
       return true;
     };
 
@@ -84,8 +100,11 @@ export function SongsPanel() {
         out.push({ song: s, score: 0, slideIndex, matched: [] });
         seen.add(s.id);
       };
-      if (filter === "all" || filter === "mine") {
-        for (const u of userSongs) {
+      if (filter === "all" || filter === "mine" || filter === "added") {
+        const list = filter === "added"
+          ? [...userSongs].sort((a, b) => b.id - a.id) // higher id = newer
+          : userSongs;
+        for (const u of list) {
           const s = songs.find((x) => x.id === u.id);
           if (s) push(s);
         }
@@ -96,14 +115,28 @@ export function SongsPanel() {
           if (s) push(s, r.slideIndex);
         }
       }
+      if (filter === "most") {
+        const ranked = Object.entries(counts)
+          .map(([id, n]) => ({ id: Number(id), n }))
+          .sort((a, b) => b.n - a.n);
+        for (const r of ranked) {
+          const s = songs.find((x) => x.id === r.id);
+          if (s) push(s);
+        }
+      }
       if (filter === "favorites") {
         for (const f of favorites) {
           const s = songs.find((x) => x.id === f.id);
           if (s) push(s);
         }
       }
+      if (filter === "author" && authorFilter) {
+        for (const s of songs) push(s);
+      }
       const limit = filter === "all" ? 80 : 500;
-      for (let i = 0; i < songs.length && out.length < limit; i++) push(songs[i]);
+      if (filter === "all") {
+        for (let i = 0; i < songs.length && out.length < limit; i++) push(songs[i]);
+      }
       setResults(out);
       setSearchMs(null);
       setActiveIdx(0);
@@ -114,7 +147,7 @@ export function SongsPanel() {
     setSearchMs(performance.now() - t0);
     setResults(hits);
     setActiveIdx(0);
-  }, [query, loaded, recent, userSongs, favorites, filter]);
+  }, [query, loaded, recent, userSongs, favorites, filter, authorFilter, counts]);
 
   // Live title suggestions while typing.
   useEffect(() => {
