@@ -22,7 +22,7 @@ export type ShortcutCategory =
   | "favorites";
 
 /** Logical scope under which a shortcut is active. */
-export type ShortcutScope = "global" | "workspace" | "playlist-editor" | "service-mode" | "bible";
+export type ShortcutScope = "global" | "workspace" | "playlist-editor" | "service-mode" | "bible" | "songs";
 
 export interface ShortcutDef {
   /** Stable id, e.g. "tabs.media". */
