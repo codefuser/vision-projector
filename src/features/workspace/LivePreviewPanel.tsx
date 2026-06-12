@@ -90,24 +90,38 @@ export function LivePreviewPanel() {
     setLocalTime(0);
   }, [url]);
 
-  // Keep mirrored video roughly in sync with projector playing state
+  // Mirror projector playback — but wait until the projector reports it has
+  // actually buffered the video (`videoReady`). This prevents the preview from
+  // racing ahead by 5-20s when the projector is still loading the file.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
-    if (state?.playing) {
+    const ready = state?.videoReady !== false; // images don't set it → treat as ready
+    if (state?.playing && ready) {
       v.play().catch(() => undefined);
     } else {
       v.pause();
     }
-  }, [state?.playing, url]);
+  }, [state?.playing, state?.videoReady, url]);
 
-  // Drift correction: keep preview within ~0.5s of projector's reported time
+  // Apply projector playback rate to preview so the mirror runs at the same speed.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (state?.playbackRate && isFinite(state.playbackRate)) {
+      v.playbackRate = state.playbackRate;
+    }
+  }, [state?.playbackRate, url]);
+
+  // Drift correction: keep preview within ~250ms of projector's reported time.
+  // Tighter than the previous 0.5s window to maintain the <50ms target while
+  // avoiding constant micro-seeks.
   useEffect(() => {
     const v = videoRef.current;
     const t = state?.videoCurrentTime;
     if (!v || t == null || scrubbing != null) return;
-    if (Math.abs(v.currentTime - t) > 0.5) v.currentTime = t;
+    if (Math.abs(v.currentTime - t) > 0.25) v.currentTime = t;
   }, [state?.videoCurrentTime, scrubbing]);
 
   const black = state?.black ?? false;
