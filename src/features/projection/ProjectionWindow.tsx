@@ -84,9 +84,10 @@ export function ProjectionWindow() {
       videoCurrentTime: v && cur?.media.type === "video" ? v.currentTime : undefined,
       videoDurationMs:
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
+      textOverlay,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay]);
 
   useEffect(() => {
     broadcastState();
