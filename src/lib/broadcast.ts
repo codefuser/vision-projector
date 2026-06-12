@@ -35,9 +35,6 @@ export type ProjectionState = {
   loop?: boolean;
 };
 
-export type ProjectionCommandExtras =
-  | { type: "RATE"; value: number }
-  | { type: "LOOP"; value: boolean };
 
 const CHANNEL = "church-projection";
 
