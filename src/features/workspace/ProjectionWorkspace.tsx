@@ -123,35 +123,40 @@ export function ProjectionWorkspace() {
     }
   }, [textFormatCollapsed, visible.textFormat, visible.preview]);
 
-  useEffect(() => {
-    if (!isDraggingHorizontal) return;
+  const startHorizontalDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDraggingHorizontal(true);
 
-    const onPointerMove = (event: PointerEvent) => {
+    const updateWidth = (clientX: number) => {
       const workspace = workspaceRef.current;
       if (!workspace) return;
       const bounds = workspace.getBoundingClientRect();
       const reservedRightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : visible.tabs ? RIGHT_MIN_WIDTH : 0;
       const maxLeftWidth = Math.max(LEFT_MIN_WIDTH, bounds.width - reservedRightWidth);
-      const nextWidth = Math.min(Math.max(event.clientX - bounds.left, LEFT_MIN_WIDTH), maxLeftWidth);
+      const nextWidth = Math.min(Math.max(clientX - bounds.left, LEFT_MIN_WIDTH), maxLeftWidth);
       setLeftWidthDefault(nextWidth);
       writeLeftWidth(nextWidth);
     };
 
-    const stopDragging = () => setIsDraggingHorizontal(false);
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", stopDragging, { once: true });
-    window.addEventListener("pointercancel", stopDragging, { once: true });
+    updateWidth(event.clientX);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
-    return () => {
+    const onPointerMove = (moveEvent: PointerEvent) => updateWidth(moveEvent.clientX);
+    const stopDragging = () => {
+      setIsDraggingHorizontal(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", stopDragging);
       window.removeEventListener("pointercancel", stopDragging);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
     };
-  }, [isDraggingHorizontal, tabsCollapsed, visible.tabs]);
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stopDragging, { once: true });
+    window.addEventListener("pointercancel", stopDragging, { once: true });
+  };
 
 
 
@@ -249,7 +254,7 @@ export function ProjectionWorkspace() {
                   </Group>
                 </div>
               )}
-              {leftVisible && visible.tabs && <HHandle onPointerDown={() => setIsDraggingHorizontal(true)} active={isDraggingHorizontal} />}
+              {leftVisible && visible.tabs && <HHandle onPointerDown={startHorizontalDrag} active={isDraggingHorizontal} />}
               {visible.tabs && (
                 <div
                   data-workspace-right-panel
