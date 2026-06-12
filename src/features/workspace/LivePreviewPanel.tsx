@@ -25,11 +25,9 @@ import { db } from "@/db/schema";
 import type { MediaRecord } from "@/db/schema";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
-import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
-import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { ProjectionTextStage } from "@/components/ProjectionTextStage";
 import { LogoLayer } from "@/components/LogoLayer";
 import { useLogo } from "@/stores/logo.store";
-import { DEFAULT_TEXT_STYLE, DEFAULT_GROUPED_STYLES } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 
 
@@ -239,21 +237,18 @@ export function LivePreviewPanel() {
           />
         )}
         {!media && !black && state?.textOverlay && (
-          <>
-            <BackgroundLayer background={(state.groupedStyles ?? DEFAULT_GROUPED_STYLES).background} />
-            <TextOverlayRenderer
-              overlay={state.textOverlay}
-              style={state.textStyle ?? DEFAULT_TEXT_STYLE}
-              styles={state.groupedStyles ?? undefined}
-              withBackground={false}
-            />
-          </>
+          <ProjectionTextStage
+            overlay={state.textOverlay}
+            textStyle={state.textStyle}
+            groupedStyles={state.groupedStyles}
+            logo={localLogo}
+          />
         )}
 
         {black && <div className="absolute inset-0 bg-black" />}
 
         {/* Logo overlay — mirror of projector */}
-        {!black && <LogoLayer logo={localLogo} />}
+        {!black && !state?.textOverlay && <LogoLayer logo={localLogo} />}
 
         <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">
           <span
