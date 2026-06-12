@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   BookOpen, Loader2, Star, Send, Languages, Search, Hash,
-  ListOrdered, FolderPlus, Mic, Library, Plus,
+  ListOrdered, FolderPlus, Mic, Library, Plus, Sparkles,
 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useBibleStore, type DisplayMode } from "@/lib/bible/store";
 import { getBible, type BibleLang } from "@/lib/bible/loader";
 import { search, parseReference, getChapterVerses, type VerseHit } from "@/lib/bible/search";
