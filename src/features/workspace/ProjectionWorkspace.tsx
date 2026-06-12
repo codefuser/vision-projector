@@ -86,6 +86,7 @@ export function ProjectionWorkspace() {
   const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
   const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
   const [resetNonce, setResetNonce] = useState(0);
+  const [leftWidthDefault, setLeftWidthDefault] = useState(() => readSavedLeftWidth() ?? LEFT_DEFAULT_WIDTH);
 
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
@@ -95,7 +96,6 @@ export function ProjectionWorkspace() {
     send({ type: "PING" });
   }, [init, send]);
 
-  const savedLeftWidth = useMemo(() => readSavedLeftWidth(), []);
   const savedLeft = useMemo(() => readLayout(LAYOUT_KEYS.left), []);
 
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
@@ -105,10 +105,10 @@ export function ProjectionWorkspace() {
 
   const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
   const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
-  const leftDefaultSize = `${savedLeftWidth ?? LEFT_DEFAULT_WIDTH}px`;
+  const leftDefaultSize = `${leftWidthDefault}px`;
 
   // Drive the bottom panel size from the persisted collapsed flag.
-  const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
+  const textFormatPanelRef = useRef<PanelImperativeHandle | null>(null);
   useEffect(() => {
     const p = textFormatPanelRef.current;
     if (!p) return;
@@ -136,6 +136,7 @@ export function ProjectionWorkspace() {
       textFormatCollapsed: false,
       tabsCollapsed: false,
     });
+    setLeftWidthDefault(LEFT_DEFAULT_WIDTH);
     // Force remount so panels re-read their pixel-based defaults.
     setResetNonce((n: number) => n + 1);
   };
@@ -177,6 +178,7 @@ export function ProjectionWorkspace() {
                   minSize={LEFT_MIN_PX}
                   groupResizeBehavior="preserve-pixel-size"
                   onResize={(size) => {
+                    setLeftWidthDefault(size.inPixels);
                     writeLeftWidth(size.inPixels);
                   }}
                   className="min-h-0 min-w-0"
