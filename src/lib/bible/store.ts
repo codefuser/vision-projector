@@ -85,7 +85,12 @@ export const useBibleStore = create<BibleStore>()(
       addFavorite: (fav) =>
         set((s) => ({
           favorites: [
-            { ...fav, id: `${fav.book}:${fav.chapter}:${fav.verse}`, addedAt: Date.now() },
+            {
+              ...fav,
+              displayMode: fav.displayMode ?? s.displayMode,
+              id: `${fav.book}:${fav.chapter}:${fav.verse}`,
+              addedAt: Date.now(),
+            },
             ...s.favorites.filter(
               (f) => !(f.book === fav.book && f.chapter === fav.chapter && f.verse === fav.verse),
             ),
