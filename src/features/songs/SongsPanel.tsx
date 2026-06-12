@@ -185,28 +185,31 @@ export function SongsPanel() {
     setActiveSlideById((m) => ({ ...m, [song.id]: m[song.id] ?? 0 }));
   };
 
-  // ── shortcuts ──
-  useShortcut({ id: "songs.focus-search", label: "Focus song search", category: "songs", keys: ["/"], scope: "songs", handler: () => inputRef.current?.focus() });
-  useShortcut({ id: "songs.next", label: "Next song", category: "songs", keys: ["ArrowDown"], scope: "songs", allowInInput: true, priority: 20, handler: () => setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1))) });
-  useShortcut({ id: "songs.prev", label: "Previous song", category: "songs", keys: ["ArrowUp"], scope: "songs", allowInInput: true, priority: 20, handler: () => setActiveIdx((i) => Math.max(0, i - 1)) });
-  useShortcut({ id: "songs.open", label: "Open selected song", category: "songs", keys: ["Enter"], scope: "songs", allowInInput: true, priority: 20, handler: () => {
+  // ── shortcuts ── (skipped while the editor dialog is open so the textarea
+  // behaves like a plain editor — Enter / Arrow / Esc are all owned by it).
+  const guarded = <T extends (...a: any[]) => any>(fn: T) =>
+    ((...a: Parameters<T>) => { if (editorOpen) return false; return fn(...a); }) as T;
+  useShortcut({ id: "songs.focus-search", label: "Focus song search", category: "songs", keys: ["/"], scope: "songs", handler: guarded(() => inputRef.current?.focus()) });
+  useShortcut({ id: "songs.next", label: "Next song", category: "songs", keys: ["ArrowDown"], scope: "songs", allowInInput: true, priority: 20, handler: guarded(() => setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1)))) });
+  useShortcut({ id: "songs.prev", label: "Previous song", category: "songs", keys: ["ArrowUp"], scope: "songs", allowInInput: true, priority: 20, handler: guarded(() => setActiveIdx((i) => Math.max(0, i - 1))) });
+  useShortcut({ id: "songs.open", label: "Open selected song", category: "songs", keys: ["Enter"], scope: "songs", allowInInput: true, priority: 20, handler: guarded(() => {
     const h = results[activeIdx]; if (!h) return;
     if (selectedSongId === h.song.id) project(h.song, activeSlideById[h.song.id] ?? 0);
     else openSong(h.song);
-  } });
-  useShortcut({ id: "songs.next-slide", label: "Next slide", category: "songs", keys: ["ArrowRight"], scope: "songs", allowInInput: true, priority: 20, handler: () => {
+  }) });
+  useShortcut({ id: "songs.next-slide", label: "Next slide", category: "songs", keys: ["ArrowRight"], scope: "songs", allowInInput: true, priority: 20, handler: guarded(() => {
     if (!selectedSong) return;
     const cur = activeSlideById[selectedSong.id] ?? 0;
     const next = Math.min(cur + 1, selectedSong.slides.length - 1);
     if (next !== cur) project(selectedSong, next);
-  } });
-  useShortcut({ id: "songs.prev-slide", label: "Previous slide", category: "songs", keys: ["ArrowLeft"], scope: "songs", allowInInput: true, priority: 20, handler: () => {
+  }) });
+  useShortcut({ id: "songs.prev-slide", label: "Previous slide", category: "songs", keys: ["ArrowLeft"], scope: "songs", allowInInput: true, priority: 20, handler: guarded(() => {
     if (!selectedSong) return;
     const cur = activeSlideById[selectedSong.id] ?? 0;
     const prev = Math.max(0, cur - 1);
     if (prev !== cur) project(selectedSong, prev);
-  } });
-  useShortcut({ id: "songs.close", label: "Close song", category: "songs", keys: ["Escape"], scope: "songs", allowInInput: true, handler: () => selectSong(null) });
+  }) });
+  useShortcut({ id: "songs.close", label: "Close song", category: "songs", keys: ["Escape"], scope: "songs", allowInInput: true, handler: guarded(() => selectSong(null)) });
 
   const favSet = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
 
