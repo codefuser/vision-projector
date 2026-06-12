@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   BookOpen, Loader2, Star, Send, Languages, Search, Hash,
-  ListOrdered, FolderPlus, Mic, Library, Plus, Sparkles,
+  ListOrdered, FolderPlus, Library, Plus,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
