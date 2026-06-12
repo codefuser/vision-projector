@@ -81,6 +81,8 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
         case "BLACK": next = { ...cur, black: cmd.value }; break;
         case "MUTE":  next = { ...cur, muted: cmd.value }; break;
         case "VOLUME":next = { ...cur, volume: cmd.value }; break;
+        case "RATE":  next = { ...cur, playbackRate: cmd.value }; break;
+        case "LOOP":  next = { ...cur, loop: cmd.value }; break;
       }
       if (next !== cur) set({ state: next });
     }
