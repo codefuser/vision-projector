@@ -207,7 +207,7 @@ export function ProjectionWorkspace() {
                 <div
                   data-workspace-left-panel
                   style={{ width: leftWidthDefault, minWidth: LEFT_MIN_WIDTH }}
-                  className="min-h-0 min-w-0"
+                  className="min-h-0 min-w-0 shrink-0"
                 >
                   <Group
                     key={leftKey}
@@ -254,7 +254,7 @@ export function ProjectionWorkspace() {
                 <div
                   data-workspace-right-panel
                   style={rightWidth ? { width: rightWidth, minWidth: rightWidth } : { minWidth: RIGHT_MIN_WIDTH }}
-                  className="min-h-0 min-w-0"
+                  className={cn("min-h-0 min-w-0", rightWidth ? "shrink-0" : "flex-1")}
                 >
                   <WorkspaceTabsPanel />
                 </div>
@@ -297,11 +297,22 @@ function DockButton({
   );
 }
 
-function HHandle() {
+function HHandle({ onPointerDown, active }: { onPointerDown: () => void; active: boolean }) {
   return (
-    <Separator className="relative w-1.5 bg-transparent transition data-[separator-state=hover]:bg-primary/40 data-[separator-state=drag]:bg-primary/60 hover:bg-primary/40">
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={(event) => {
+        event.preventDefault();
+        onPointerDown();
+      }}
+      className={cn(
+        "relative w-1.5 shrink-0 cursor-col-resize bg-transparent transition hover:bg-primary/40",
+        active && "bg-primary/60",
+      )}
+    >
       <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-    </Separator>
+    </div>
   );
 }
 function VHandle() {
