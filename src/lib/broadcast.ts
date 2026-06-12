@@ -128,6 +128,21 @@ export interface TextOverlay {
   mode?: "en" | "ta" | "both";
 }
 
+/** Logo overlay payload broadcast to the projector / preview. */
+export interface LogoBroadcast {
+  enabled: boolean;
+  current: { id: string; dataUrl: string; name: string } | null;
+  settings: {
+    widthPct: number;
+    opacity: number;
+    radius: number;
+    shadow: boolean;
+    position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
+    xPct: number;
+    yPct: number;
+  };
+}
+
 export type ProjectionCommand =
   | { type: "LOAD"; mediaId: string; transition?: string }
   | { type: "LOAD_PLAYLIST"; playlistId: string; startIndex?: number; shuffle?: boolean; loop?: string }
@@ -135,6 +150,7 @@ export type ProjectionCommand =
   | { type: "UPDATE_TEXT_STYLE"; style: TextStyle }
   | { type: "UPDATE_STYLES"; styles: GroupedStyles }
   | { type: "UPDATE_BACKGROUND"; background: BackgroundConfig }
+  | { type: "UPDATE_LOGO"; logo: LogoBroadcast }
   | { type: "PLAY" }
   | { type: "PAUSE" }
   | { type: "STOP" }
