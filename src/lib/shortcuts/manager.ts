@@ -111,6 +111,7 @@ class ShortcutManagerImpl {
   private activeScopes = new Set<ShortcutScope>(["global", "workspace"]);
   private installed = false;
   private listeners = new Set<() => void>();
+  private snapshot: ShortcutDef[] = [];
 
   install(): void {
     if (this.installed || typeof window === "undefined") return;
@@ -126,16 +127,16 @@ class ShortcutManagerImpl {
   register(def: ShortcutDef): () => void {
     this.shortcuts.set(def.id, def);
     this.parsed.set(def.id, def.keys.map(parseCombo));
-    this.notify();
+    this.refreshSnapshot();
     return () => this.unregister(def.id);
   }
   unregister(id: string): void {
     this.shortcuts.delete(id);
     this.parsed.delete(id);
-    this.notify();
+    this.refreshSnapshot();
   }
   list(): ShortcutDef[] {
-    return Array.from(this.shortcuts.values());
+    return this.snapshot;
   }
 
   setScopeActive(scope: ShortcutScope, active: boolean): void {
@@ -148,9 +149,12 @@ class ShortcutManagerImpl {
 
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
   }
-  private notify(): void {
+  private refreshSnapshot(): void {
+    this.snapshot = Array.from(this.shortcuts.values());
     for (const l of this.listeners) l();
   }
 
