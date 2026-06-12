@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   BookOpen, Loader2, Star, Send, Languages, Search, Hash,
-  ListOrdered, FolderPlus, Mic, Library, Plus,
+  ListOrdered, FolderPlus, Mic, Library, Plus, Sparkles,
 } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useBibleStore, type DisplayMode } from "@/lib/bible/store";
 import { getBible, type BibleLang } from "@/lib/bible/loader";
 import { search, parseReference, getChapterVerses, type VerseHit } from "@/lib/bible/search";
@@ -24,7 +27,7 @@ import { SermonStatusBar } from "./SermonStatusBar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type SearchMode = "reference" | "verse";
+type SearchMode = "reference" | "verse" | "fuzzy" | "favorites";
 type Tab = "search" | "queue" | "collections";
 
 interface DisplayHit {
@@ -108,6 +111,24 @@ export function BiblePanel() {
     lastQueryRef.current = q;
 
     if (!q) {
+      if (searchMode === "favorites") {
+        const favHits: DisplayHit[] = favorites.map((f) => {
+          const meta = BIBLE_BOOKS[f.book];
+          const hit: VerseHit = {
+            book: f.book, bookName: meta?.name ?? "",
+            bookNameLocal: primary === "ta" ? (meta?.nameTa ?? "") : (meta?.name ?? ""),
+            chapter: f.chapter, verse: f.verse,
+            text: dataPrimary[f.book]?.[f.chapter - 1]?.[f.verse - 1] ?? f.text,
+            score: 100,
+          };
+          return { hit, pair: buildPair(hit) };
+        });
+        setResults(favHits);
+        setSearchMs(null);
+        setChapterCtx(null);
+        if (queryChanged) { setActiveIdx(0); selectedKeyRef.current = null; }
+        return;
+      }
       const fHits = [{ b: 42, c: 3, v: 16 }, { b: 18, c: 23, v: 1 }];
       const featured: DisplayHit[] = [];
       for (const f of fHits) {
@@ -131,7 +152,23 @@ export function BiblePanel() {
     const start = performance.now();
     let primaryHits: VerseHit[];
 
-    if (searchMode === "reference") {
+    if (searchMode === "favorites") {
+      const ql = q.toLowerCase();
+      const favHits: VerseHit[] = favorites
+        .filter((f) => !ql || f.ref.toLowerCase().includes(ql) || f.text.toLowerCase().includes(ql))
+        .map((f) => {
+          const meta = BIBLE_BOOKS[f.book];
+          return {
+            book: f.book, bookName: meta?.name ?? "",
+            bookNameLocal: primary === "ta" ? (meta?.nameTa ?? "") : (meta?.name ?? ""),
+            chapter: f.chapter, verse: f.verse,
+            text: dataPrimary[f.book]?.[f.chapter - 1]?.[f.verse - 1] ?? f.text,
+            score: 100,
+          };
+        });
+      primaryHits = favHits;
+      setChapterCtx(null);
+    } else if (searchMode === "reference") {
       const ref = parseReference(q);
       if (ref && ref.chapter != null && ref.verse == null) {
         primaryHits = getChapterVerses(ref.book.index, ref.chapter, dataPrimary, primary);
@@ -143,6 +180,10 @@ export function BiblePanel() {
         primaryHits = search(q, dataPrimary, primary, 80);
         setChapterCtx(null);
       }
+    } else if (searchMode === "fuzzy") {
+      // Tanglish / Tamil / sound-alike normalized search (handled inside search()).
+      primaryHits = search(q, dataPrimary, primary, 120);
+      setChapterCtx(null);
     } else {
       const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
       const hits: VerseHit[] = [];
@@ -184,7 +225,7 @@ export function BiblePanel() {
       const idx = list.findIndex((d) => favKey(d.hit.book, d.hit.chapter, d.hit.verse) === selectedKeyRef.current);
       if (idx >= 0) setActiveIdx(idx);
     }
-  }, [query, loaded, displayMode, lang, searchMode]);
+  }, [query, loaded, displayMode, lang, searchMode, favorites]);
 
   // ───────── projection ─────────
   const project = (dh: DisplayHit) => {
@@ -400,22 +441,43 @@ export function BiblePanel() {
 
   return (
     <div className="@container flex h-full min-h-0 flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      {/* Header — compact toolbar */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2.5 py-1.5">
         <BookOpen className="h-4 w-4 text-primary" />
         <div className="text-sm font-semibold">Bible</div>
-        <button
-          onClick={toggleSermon}
-          className={cn(
-            "ml-2 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition",
-            sermonMode
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+
+        {/* Sermon / Queue / Collections — icon buttons with counts */}
+        <div className="ml-2 inline-flex items-center gap-0.5 rounded-md border border-border bg-background/60 p-0.5">
+          <ToolIconButton
+            icon={<Mic className="h-3.5 w-3.5" />}
+            active={sermonMode}
+            onClick={toggleSermon}
+            title="Sermon mode (Ctrl+M)"
+          />
+          <ToolIconButton
+            icon={<ListOrdered className="h-3.5 w-3.5" />}
+            active={tab === "queue"}
+            badge={queueItems.length}
+            onClick={() => setTab(tab === "queue" ? "search" : "queue")}
+            title="Verse queue (Ctrl+Q)"
+          />
+          <ToolIconButton
+            icon={<Library className="h-3.5 w-3.5" />}
+            active={tab === "collections"}
+            badge={collections.length}
+            onClick={() => setTab(tab === "collections" ? "search" : "collections")}
+            title="Collections"
+          />
+          {tab !== "search" && (
+            <ToolIconButton
+              icon={<Search className="h-3.5 w-3.5" />}
+              active={false}
+              onClick={() => setTab("search")}
+              title="Back to search"
+            />
           )}
-          title="Toggle Sermon Mode (Ctrl+M)"
-        >
-          <Mic className="h-3 w-3" /> Sermon
-        </button>
+        </div>
+
         <div className="ml-auto inline-flex overflow-hidden rounded-md border border-border bg-background text-[11px]">
           {(["en", "ta", "both"] as DisplayMode[]).map((m) => (
             <button
@@ -439,59 +501,41 @@ export function BiblePanel() {
       {/* Sermon strip */}
       <SermonStatusBar />
 
-      {/* Tabs */}
-      <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-muted/20 px-1.5 py-1 text-[11px]">
-        <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="h-3 w-3" />} label="Search" />
-        <TabButton
-          active={tab === "queue"}
-          onClick={() => setTab("queue")}
-          icon={<ListOrdered className="h-3 w-3" />}
-          label="Queue"
-          badge={queueItems.length || undefined}
-        />
-        <TabButton active={tab === "collections"} onClick={() => setTab("collections")} icon={<Library className="h-3 w-3" />} label="Collections" />
-      </div>
-
       {/* Body */}
       {tab === "queue" && <VerseQueuePanel />}
       {tab === "collections" && <CollectionsPanel />}
       {tab === "search" && (
         <>
-          <div className="space-y-2 border-b border-border p-2">
-            <div className="inline-flex w-full overflow-hidden rounded-md border border-border bg-background text-[11px]">
-              <button
-                onClick={() => setSearchMode("reference")}
-                className={cn(
-                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-                  searchMode === "reference" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                )}
-                title="Reference Search (Alt+R)"
-              >
-                <Hash className="h-3 w-3" /> Reference
-              </button>
-              <button
-                onClick={() => setSearchMode("verse")}
-                className={cn(
-                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-                  searchMode === "verse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                )}
-                title="Verse Content Search (Alt+F)"
-              >
-                <Search className="h-3 w-3" /> Verse Text
-              </button>
+          <div className="space-y-1.5 border-b border-border p-2">
+            <div className="flex items-center gap-1.5">
+              <Select value={searchMode} onValueChange={(v) => setSearchMode(v as SearchMode)}>
+                <SelectTrigger className="h-8 w-[140px] shrink-0 text-[11px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reference"><Hash className="mr-2 inline h-3 w-3" /> Reference</SelectItem>
+                  <SelectItem value="verse"><Search className="mr-2 inline h-3 w-3" /> Verse</SelectItem>
+                  <SelectItem value="fuzzy"><Sparkles className="mr-2 inline h-3 w-3" /> Fuzzy</SelectItem>
+                  <SelectItem value="favorites"><Star className="mr-2 inline h-3 w-3" /> Favorites</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={
+                  searchMode === "reference"
+                    ? "John 3:16, யோவான் 3"
+                    : searchMode === "fuzzy"
+                    ? "yesu, anbu, vaazhvu, ஆதியிலே"
+                    : searchMode === "favorites"
+                    ? "Filter favorites…"
+                    : "grace, love, faith"
+                }
+                className="h-8 min-w-0 flex-1 text-sm"
+                autoFocus
+              />
             </div>
-            <Input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                searchMode === "reference"
-                  ? 'Search Genesis 1:1, John 3:16, யோவான் 3'
-                  : 'Search grace, love, faith, ஆதியிலே'
-              }
-              className="h-8 text-sm"
-              autoFocus
-            />
             <div className="flex items-center justify-between px-1 text-[10px] text-muted-foreground">
               <span>
                 {loading
@@ -520,7 +564,7 @@ export function BiblePanel() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-1.5 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
               {results.map((dh, i) => {
                 const h = dh.hit;
                 const pair = dh.pair;
@@ -535,26 +579,25 @@ export function BiblePanel() {
                 return (
                   <div
                     key={stableKey + ":" + i}
-                    onClick={() => { selectIdx(i); }}
-                    onDoubleClick={() => { selectIdx(i); project(dh); }}
+                    onClick={() => { selectIdx(i); project(dh); }}
                     className={cn(
-                      "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-card/80 backdrop-blur-sm transition-all",
-                      "hover:-translate-y-px hover:border-primary/60 hover:bg-card hover:shadow-lg hover:shadow-primary/5",
-                      isActive && !isProjected && "border-primary/80 ring-1 ring-primary/30",
-                      !isActive && !isProjected && "border-border/60",
-                      isProjected && "border-primary ring-2 ring-primary shadow-md shadow-primary/20",
-                      isQueued && !isProjected && "border-amber-500/40",
+                      "group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border-2 bg-card/80 backdrop-blur-sm transition-all",
+                      "hover:-translate-y-px hover:border-primary/70 hover:bg-card hover:shadow-lg hover:shadow-primary/10",
+                      isProjected
+                        ? "border-primary ring-2 ring-primary/40 shadow-lg shadow-primary/25"
+                        : isActive
+                          ? "border-primary/70 ring-1 ring-primary/20"
+                          : isQueued
+                            ? "border-amber-500/50"
+                            : "border-border",
                     )}
                   >
-                    {/* Header */}
-                    <div className="flex items-center gap-1.5 border-b border-border/40 px-2 py-1">
-                      <span className="text-[10px] font-bold tracking-wide text-primary">
-                        {refPrimary}
+                    {/* Header — single-line bilingual reference */}
+                    <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-2 py-1">
+                      <span className="truncate text-[11px] font-bold tracking-tight text-primary">
+                        {refSecondary ? `${refPrimary} / ${refSecondary}` : refPrimary}
                       </span>
-                      {refSecondary && (
-                        <span className="truncate text-[9px] text-muted-foreground">· {refSecondary}</span>
-                      )}
-                      <div className="ml-auto flex items-center gap-1">
+                      <div className="ml-auto flex shrink-0 items-center gap-1">
                         {isQueued && (
                           <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] font-semibold text-amber-500">
                             Q{queuePos}
@@ -570,15 +613,17 @@ export function BiblePanel() {
                       </div>
                     </div>
 
-                    {/* Verse text */}
-                    <div className="flex-1 px-2 py-1.5">
-                      <p className="line-clamp-3 text-[12.5px] leading-snug text-foreground/90">
+                    {/* Verse text — clear language separation */}
+                    <div className="flex-1 space-y-1.5 px-2.5 py-2">
+                      <p className="line-clamp-3 text-[12.5px] leading-snug text-foreground/95">
                         {h.text}
                       </p>
                       {pair && (
-                        <p className="mt-1 line-clamp-2 border-t border-border/30 pt-1 text-[12px] leading-snug text-muted-foreground">
-                          {pair.text}
-                        </p>
+                        <div className="border-t border-dashed border-border/50 pt-1.5">
+                          <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                            {pair.text}
+                          </p>
+                        </div>
                       )}
                     </div>
 
@@ -695,28 +740,30 @@ export function BiblePanel() {
   );
 }
 
-function TabButton({
-  active, onClick, icon, label, badge,
+function ToolIconButton({
+  icon, active, badge, onClick, title,
 }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: number;
+  icon: React.ReactNode; active: boolean; badge?: number; onClick: () => void; title: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={cn(
-        "inline-flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1 transition",
+        "relative inline-flex h-7 w-7 items-center justify-center rounded transition",
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       {icon}
-      <span>{label}</span>
-      {badge != null && (
+      {badge != null && badge > 0 && (
         <span className={cn(
-          "ml-0.5 rounded px-1 text-[9px] font-bold",
-          active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary",
-        )}>{badge}</span>
+          "absolute -right-1 -top-1 min-w-[14px] rounded-full px-1 text-[9px] font-bold leading-[14px]",
+          active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+        )}>
+          {badge}
+        </span>
       )}
     </button>
   );
