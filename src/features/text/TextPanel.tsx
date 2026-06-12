@@ -83,6 +83,53 @@ export function TextPanel() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
+  const [typingMode, setTypingMode] = useState<TypingMode>("english");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /** Handle textarea input. In Tanglish mode, when the user just typed a
+   *  word boundary, convert all completed words behind the caret to Tamil
+   *  and restore the caret to the correct offset. */
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const next = e.target.value;
+    if (typingMode !== "tanglish") {
+      setDraftContent(next);
+      return;
+    }
+    const caret = e.target.selectionStart ?? next.length;
+    const tailFromCaret = next.length - caret;
+    const justTypedBoundary =
+      caret > 0 && BOUNDARY_RE.test(next.charAt(caret - 1)) &&
+      next.length >= draftContent.length;
+    if (!justTypedBoundary) {
+      setDraftContent(next);
+      return;
+    }
+    // Split at caret. Convert the head (which ends with a boundary char) and
+    // leave the tail untouched so mid-document edits don't re-flow text after
+    // the caret.
+    const head = next.slice(0, caret);
+    const tail = next.slice(caret);
+    const { converted, trailing } = convertCompleted(head);
+    const newHead = converted + trailing;
+    const newValue = newHead + tail;
+    setDraftContent(newValue);
+    // Restore caret at the boundary between converted head and original tail.
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      const pos = newValue.length - tailFromCaret;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  // Live counters
+  const counters = useMemo(() => {
+    const text = draftContent;
+    const chars = text.length;
+    const words = countWords(text);
+    const lines = text === "" ? 0 : text.split("\n").length;
+    return { chars, words, lines, reading: readingTime(words) };
+  }, [draftContent]);
 
   const selected = useMemo(
     () => items.find((it) => it.id === selectedId) ?? null,
