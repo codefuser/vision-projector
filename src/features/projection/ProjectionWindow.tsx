@@ -77,12 +77,15 @@ export function ProjectionWindow() {
       black,
       muted,
       volume,
+      playbackRate,
+      loop,
+      videoReady: cur?.media.type === "video" ? videoReady : undefined,
       videoCurrentTime: v && cur?.media.type === "video" ? v.currentTime : undefined,
       videoDurationMs:
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady]);
 
   useEffect(() => {
     broadcastState();
