@@ -7,6 +7,9 @@ export type DisplayMode = "en" | "ta" | "both";
 export interface BibleFavorite {
   id: string;
   lang: BibleLang;
+  /** Display mode captured at save time so a favorite restores the same
+   *  Tamil / English / Bilingual context when activated. */
+  displayMode?: DisplayMode;
   book: number;
   chapter: number;
   verse: number;
