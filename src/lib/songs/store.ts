@@ -40,6 +40,8 @@ interface SongStore {
   selectSong: (id: number | null) => void;
   /** Create a new song. Returns the new id. */
   addUserSong: (s: Omit<PersistedUserSong, "id">) => number;
+  /** Create OR override an existing song by id (used to edit library songs). */
+  upsertUserSong: (s: PersistedUserSong) => void;
   updateUserSong: (id: number, patch: Partial<PersistedUserSong>) => void;
   removeUserSong: (id: number) => void;
 }
