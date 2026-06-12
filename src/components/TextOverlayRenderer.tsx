@@ -197,20 +197,14 @@ function VerseBlock({ text, style, flex }: { text: string; style: SectionStyle; 
 function textCss(style: SectionStyle): React.CSSProperties {
   // Read master toggles synchronously — operators flip these in the
   // Layers panel and the projector picks them up via the broadcasted
-  // style update that follows. Falling back to `true` keeps SSR safe.
-  let shadowOn = true;
-  let strokeOn = true;
-  try {
-    // Lazy import to keep this file framework-agnostic in tests.
-
-    const { useBackground } = require("@/stores/background.store") as typeof import("@/stores/background.store");
-    const s = useBackground.getState();
-    shadowOn = s.textShadowEnabled;
-    strokeOn = s.textStrokeEnabled;
-  } catch { /* store unavailable — keep defaults */ }
+  // style update that follows.
+  const s = useBackground.getState();
+  const shadowOn = s.textShadowEnabled;
+  const strokeOn = s.textStrokeEnabled;
   const textShadow = style.shadow && shadowOn
     ? `0 4px ${style.shadowBlur}px ${mixAlpha(style.shadowColor, 0.6)}`
     : "none";
+
   return {
     fontFamily: `"${style.fontFamily}", system-ui, sans-serif`,
     fontWeight: style.fontWeight,
