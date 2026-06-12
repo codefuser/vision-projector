@@ -117,7 +117,7 @@ export function ProjectionWorkspace() {
       tabsCollapsed: false,
     });
     // Force remount so panels re-read their pixel-based defaults.
-    setResetNonce((n) => n + 1);
+    setResetNonce((n: number) => n + 1);
   };
 
   return (
