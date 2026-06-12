@@ -180,16 +180,8 @@ export function SongsPanel() {
     setActiveIdx(0);
   }, [query, loaded, recent, userSongs, favorites, filter, authorFilter, counts]);
 
-  // Live title suggestions while typing.
-  useEffect(() => {
-    if (!loaded) return;
-    const q = query.trim();
-    if (q.length < 1) { setTitleSuggestions([]); return; }
-    const songs = getSongs();
-    if (!songs) return;
-    const hits = searchSongs(q, songs, 8);
-    setTitleSuggestions(hits.map((h) => h.song));
-  }, [query, loaded]);
+  // (Suggestion dropdown removed — results panel is the single source of truth.)
+
 
   const selectedSong: Song | null = useMemo(() => {
     if (!selectedSongId) return null;
