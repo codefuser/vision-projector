@@ -8,13 +8,13 @@ import { GlobalFavoritesDock } from "@/components/GlobalFavoritesDock";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { to: "/library", label: "Library", icon: FolderTree },
-  { to: "/playlists", label: "Playlists", icon: ListVideo },
-  { to: "/project", label: "Project", icon: MonitorPlay },
-  { to: "/shortcuts", label: "Shortcuts", icon: Keyboard },
+  { to: "/library", label: "Library", icon: FolderTree, shortcutId: "nav.library" },
+  { to: "/playlists", label: "Playlists", icon: ListVideo, shortcutId: "nav.playlists" },
+  { to: "/project", label: "Project", icon: MonitorPlay, shortcutId: "nav.project" },
+  { to: "/shortcuts", label: "Shortcuts", icon: Keyboard, shortcutId: "nav.shortcuts" },
 ] as const;
 
-const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon } as const;
+const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon, shortcutId: "nav.settings" } as const;
 
 const SIDEBAR_KEY = "church-media-sidebar-collapsed-v2";
 
