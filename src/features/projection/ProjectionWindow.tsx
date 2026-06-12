@@ -396,11 +396,31 @@ export function ProjectionWindow() {
       )}
 
 
+      {/* Text overlay (Bible / Songs / Text) */}
+      {textOverlay && !black && !cur && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black px-[6vw] text-white">
+          <div className="max-w-[88%] text-center">
+            <div className="whitespace-pre-line text-[5.2vw] font-medium leading-[1.25] tracking-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+              {textOverlay.text}
+            </div>
+            {textOverlay.subtext && (
+              <div className="mt-[3vh] whitespace-pre-line text-[3.4vw] leading-[1.3] text-white/80">
+                {textOverlay.subtext}
+              </div>
+            )}
+            <div className="mt-[4vh] flex items-center justify-center gap-3 text-[2.2vw] uppercase tracking-[0.18em] text-white/70">
+              <span>{textOverlay.reference}</span>
+              {textOverlay.translation && <span className="opacity-60">· {textOverlay.translation}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
 
       {/* Idle */}
-      {!cur && !black && (
+      {!cur && !black && !textOverlay && (
         <div className="flex h-full items-center justify-center text-neutral-700">
           <div className="text-center">
             <div className="text-2xl font-semibold">Church Media — Projector</div>
