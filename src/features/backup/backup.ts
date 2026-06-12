@@ -60,6 +60,7 @@ export async function exportBackup(): Promise<Blob> {
     media: mediaWithRefs,
     playlists,
     settings: settingsRow?.value ?? DEFAULT_SETTINGS,
+    userSongs: useSongsStore.getState().userSongs,
   };
   files["manifest.json"] = strToU8(JSON.stringify(manifest));
 
