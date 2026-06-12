@@ -221,11 +221,28 @@ export function ProjectionWindow() {
       switch (cmd.type) {
         case "LOAD":
           setVideoReady(false);
+          setTextOverlay(null);
           await loadSingle(cmd.mediaId);
           break;
         case "LOAD_PLAYLIST":
           setVideoReady(false);
+          setTextOverlay(null);
           await loadPlaylist(cmd.playlistId, cmd.startIndex ?? 0);
+          break;
+        case "LOAD_TEXT":
+          // Projecting non-media content. Stop any media playback first so the
+          // overlay owns the screen, then store the overlay payload.
+          setVideoReady(false);
+          if (videoRef.current) videoRef.current.pause();
+          clearTimer();
+          urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+          urlsRef.current = [];
+          setItems([]);
+          setIndex(0);
+          setMode("text");
+          setPlaying(false);
+          setBlack(false);
+          setTextOverlay(cmd.overlay);
           break;
         case "PLAY":
           setPlaying(true);
@@ -247,6 +264,7 @@ export function ProjectionWindow() {
           setItems([]);
           setIndex(0);
           setMode("idle");
+          setTextOverlay(null);
           clearTimer();
           urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
           urlsRef.current = [];
