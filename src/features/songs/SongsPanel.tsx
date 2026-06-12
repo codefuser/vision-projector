@@ -317,13 +317,13 @@ export function SongsPanel() {
       </div>
       {error && <div className="border-b border-border px-2 py-1 text-[11px] text-destructive">{error}</div>}
 
-      {/* Body */}
+      {/* Body — always split: search results on the left, slide preview on the right. */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {loading ? (
           <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading song library…
           </div>
-        ) : selectedSong ? (
+        ) : (
           <div className="grid h-full min-h-0 grid-cols-1 @lg:grid-cols-[minmax(260px,1fr)_1.4fr]">
             <SongList
               results={results}
@@ -336,43 +336,29 @@ export function SongsPanel() {
               addFav={addFavorite}
               removeFav={removeFavorite}
               activeSlideById={activeSlideById}
-              selectedId={selectedSong.id}
+              selectedId={selectedSong?.id ?? null}
               userSongs={userSongs}
               onEdit={(id) => { setEditingId(id); setEditorOpen(true); }}
               onDelete={removeUserSong}
               query={query}
               compact
             />
-            <SlidePane
-              song={selectedSong}
-              activeSlide={activeSlideById[selectedSong.id] ?? 0}
-              onSelect={(i) => setActiveSlideById((m) => ({ ...m, [selectedSong.id]: i }))}
-              onProject={(i) => project(selectedSong, i)}
-              onEdit={() => { setEditingId(selectedSong.id); setEditorOpen(true); }}
-              onClose={() => selectSong(null)}
-              projectedText={projectedRef}
-            />
+            {selectedSong ? (
+              <SlidePane
+                song={selectedSong}
+                activeSlide={activeSlideById[selectedSong.id] ?? 0}
+                onSelect={(i) => setActiveSlideById((m) => ({ ...m, [selectedSong.id]: i }))}
+                onProject={(i) => project(selectedSong, i)}
+                onEdit={() => { setEditingId(selectedSong.id); setEditorOpen(true); }}
+                projectedText={projectedRef}
+              />
+            ) : (
+              <SlideEmptyState />
+            )}
           </div>
-        ) : (
-          <SongList
-            results={results}
-            activeIdx={activeIdx}
-            setActiveIdx={setActiveIdx}
-            onOpen={openSong}
-            onProject={(song) => project(song, activeSlideById[song.id] ?? 0)}
-            projectedText={projectedRef}
-            favSet={favSet}
-            addFav={addFavorite}
-            removeFav={removeFavorite}
-            activeSlideById={activeSlideById}
-            selectedId={null}
-            userSongs={userSongs}
-            onEdit={(id) => { setEditingId(id); setEditorOpen(true); }}
-            onDelete={removeUserSong}
-            query={query}
-          />
         )}
       </div>
+
 
       <SongEditorDialog open={editorOpen} onOpenChange={setEditorOpen} editingId={editingId} />
     </div>
