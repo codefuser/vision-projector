@@ -9,9 +9,9 @@
  *   3. Verse body — Tamil/English/both, each with its own SectionStyle and
  *      auto-fit shrink-to-fit.
  *
- * Auto-fit: each text block independently binary-searches the largest font
- * size that fits its allotted area without overflow. Re-runs on stage
- * resize and on any style/content change.
+ * Auto-fit: body text independently binary-searches the largest font size
+ * that fits its allotted area. All sizing is calculated from this renderer's
+ * own stage width so preview and projector use the same math.
  */
 import { useEffect, useRef } from "react";
 import type { GroupedStyles, SectionStyle, TextOverlay, TextStyle } from "@/lib/broadcast";
@@ -93,18 +93,41 @@ export function TextOverlayRenderer({ overlay, style, styles, withBackground = t
 }
 
 function ReferenceBlock({ lines, style }: { lines: string[]; style: SectionStyle }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const apply = () => {
+      const width = stage.clientWidth;
+      if (!width) return;
+      const fontPx = (style.fontSizeVw / 100) * width;
+      const paddingPx = (style.paddingVw / 100) * width;
+      stage.style.padding = `${paddingPx}px ${paddingPx}px 0 ${paddingPx}px`;
+      for (const el of lineRefs.current) {
+        if (el) el.style.fontSize = `${fontPx}px`;
+      }
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(stage);
+    return () => ro.disconnect();
+  }, [style.fontSizeVw, style.paddingVw]);
+
   return (
     <div
+      ref={stageRef}
       className="shrink-0"
       style={{
-        padding: `${style.paddingVw}% ${style.paddingVw}% 0 ${style.paddingVw}%`,
         textAlign: style.align,
       }}
     >
       {lines.map((l, i) => (
         <div
           key={i}
-          style={{ ...textCss(style), fontSize: `${style.fontSizeVw}vw` }}
+          ref={(el) => { lineRefs.current[i] = el; }}
+          style={{ ...textCss(style), fontSize: 0 }}
         >
           {l}
         </div>
@@ -155,7 +178,7 @@ function VerseBlock({ text, style, flex }: { text: string; style: SectionStyle; 
     <div
       ref={stageRef}
       className={cn("relative flex min-h-0 w-full overflow-hidden", vAlignClass, justifyClass)}
-      style={{ flex, padding: `${style.paddingVw}%` }}
+      style={{ flex }}
     >
       <div
         ref={textRef}
