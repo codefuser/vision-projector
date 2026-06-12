@@ -579,26 +579,25 @@ export function BiblePanel() {
                 return (
                   <div
                     key={stableKey + ":" + i}
-                    onClick={() => { selectIdx(i); }}
-                    onDoubleClick={() => { selectIdx(i); project(dh); }}
+                    onClick={() => { selectIdx(i); project(dh); }}
                     className={cn(
-                      "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-card/80 backdrop-blur-sm transition-all",
-                      "hover:-translate-y-px hover:border-primary/60 hover:bg-card hover:shadow-lg hover:shadow-primary/5",
-                      isActive && !isProjected && "border-primary/80 ring-1 ring-primary/30",
-                      !isActive && !isProjected && "border-border/60",
-                      isProjected && "border-primary ring-2 ring-primary shadow-md shadow-primary/20",
-                      isQueued && !isProjected && "border-amber-500/40",
+                      "group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border-2 bg-card/80 backdrop-blur-sm transition-all",
+                      "hover:-translate-y-px hover:border-primary/70 hover:bg-card hover:shadow-lg hover:shadow-primary/10",
+                      isProjected
+                        ? "border-primary ring-2 ring-primary/40 shadow-lg shadow-primary/25"
+                        : isActive
+                          ? "border-primary/70 ring-1 ring-primary/20"
+                          : isQueued
+                            ? "border-amber-500/50"
+                            : "border-border",
                     )}
                   >
-                    {/* Header */}
-                    <div className="flex items-center gap-1.5 border-b border-border/40 px-2 py-1">
-                      <span className="text-[10px] font-bold tracking-wide text-primary">
-                        {refPrimary}
+                    {/* Header — single-line bilingual reference */}
+                    <div className="flex items-center gap-1.5 border-b border-border/50 bg-muted/30 px-2 py-1">
+                      <span className="truncate text-[11px] font-bold tracking-tight text-primary">
+                        {refSecondary ? `${refPrimary} / ${refSecondary}` : refPrimary}
                       </span>
-                      {refSecondary && (
-                        <span className="truncate text-[9px] text-muted-foreground">· {refSecondary}</span>
-                      )}
-                      <div className="ml-auto flex items-center gap-1">
+                      <div className="ml-auto flex shrink-0 items-center gap-1">
                         {isQueued && (
                           <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] font-semibold text-amber-500">
                             Q{queuePos}
