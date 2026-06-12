@@ -123,7 +123,7 @@ export function GlobalFavoritesDock() {
                   key={f.id}
                   label={f.ref}
                   sub={f.text}
-                  onActivate={() => activateBibleFavorite(navigate, f.book, f.chapter, f.verse)}
+                  onActivate={() => activateBibleFavorite(navigate, f.book, f.chapter, f.verse, f.displayMode)}
                   onRemove={() => removeBibleFav(f.id)}
                 />
               ))}
