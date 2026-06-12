@@ -104,10 +104,11 @@ export function TextFormattingPanel() {
         <div className="flex-1 overflow-y-auto p-3">
           {/* Group selector — wraps on narrow widths so Reset/Visibility never clip. */}
           <div className="mb-3 flex flex-wrap items-center gap-1 rounded-md border border-border bg-background p-0.5">
-            {(Object.keys(GROUP_LABELS) as StyleGroup[]).map((g) => (
+            {visibleGroups.map((g) => (
               <button
                 key={g}
                 onClick={() => setActive(g)}
+                disabled={songsMode}
                 className={cn(
                   "min-w-[60px] flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
                   active === g
@@ -115,7 +116,7 @@ export function TextFormattingPanel() {
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                {GROUP_LABELS[g]}
+                {songsMode ? "Tamil Song" : GROUP_LABELS[g]}
               </button>
             ))}
             <button
