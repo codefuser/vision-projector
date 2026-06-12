@@ -593,13 +593,22 @@ interface SlideProps {
   onSelect: (i: number) => void;
   onProject: (i: number) => void;
   onEdit: () => void;
-  onClose: () => void;
   projectedText: string | null;
 }
 
-function SlidePane({ song, activeSlide, onSelect, onProject, onEdit, onClose, projectedText }: SlideProps) {
+function SlideEmptyState() {
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full flex-col items-center justify-center gap-2 border-l border-border bg-muted/10 p-8 text-center text-muted-foreground">
+      <Music className="h-8 w-8 opacity-40" />
+      <div className="text-sm font-medium text-foreground/70">No song selected</div>
+      <div className="text-xs">Select a song from the list to view its slides.</div>
+    </div>
+  );
+}
+
+function SlidePane({ song, activeSlide, onSelect, onProject, onEdit, projectedText }: SlideProps) {
+  return (
+    <div className="flex h-full min-h-0 flex-col border-l border-border">
       <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-2 py-1.5">
         <Music className="h-3.5 w-3.5 text-primary" />
         <div className="min-w-0 flex-1">
@@ -616,14 +625,8 @@ function SlidePane({ song, activeSlide, onSelect, onProject, onEdit, onClose, pr
         >
           <Pencil className="h-3.5 w-3.5" /> Edit
         </button>
-        <button
-          onClick={onClose}
-          title="Close"
-          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
+
       <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
         {/* Slide grid — never more than 2 columns so each card stays wide
             enough for full lyric content without aggressive truncation. */}
