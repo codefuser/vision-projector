@@ -302,15 +302,12 @@ function DockButton({
   );
 }
 
-function HHandle({ onPointerDown, active }: { onPointerDown: () => void; active: boolean }) {
+function HHandle({ onPointerDown, active }: { onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void; active: boolean }) {
   return (
     <div
       role="separator"
       aria-orientation="vertical"
-      onPointerDown={(event) => {
-        event.preventDefault();
-        onPointerDown();
-      }}
+      onPointerDown={onPointerDown}
       className={cn(
         "relative w-1.5 shrink-0 cursor-col-resize bg-transparent transition hover:bg-primary/40",
         active && "bg-primary/60",
