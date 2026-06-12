@@ -27,7 +27,7 @@ import { SermonStatusBar } from "./SermonStatusBar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type SearchMode = "reference" | "verse";
+type SearchMode = "reference" | "verse" | "fuzzy" | "favorites";
 type Tab = "search" | "queue" | "collections";
 
 interface DisplayHit {
