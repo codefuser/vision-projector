@@ -348,6 +348,37 @@ export function TextFormattingPanel() {
                     <NumberInput value={groups.background.positionY ?? 50} step={1} min={0} max={100} suffix="%"
                                  onChange={(v) => setBackground({ positionY: v })} />
                   </Field>
+                  <Field label="Contrast">
+                    <NumberInput value={Math.round((groups.background.contrast ?? 1) * 100)} step={1} min={0} max={200} suffix="%"
+                                 onChange={(v) => setBackground({ contrast: v / 100 })} />
+                  </Field>
+                </div>
+
+                {/* Overlay tint */}
+                <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2">
+                  <Field label="Overlay Color">
+                    <ColorInput value={groups.background.overlayColor ?? "#000000"}
+                                onChange={(v) => setBackground({ overlayColor: v })} />
+                  </Field>
+                  <Field label="Overlay Opacity">
+                    <NumberInput value={Math.round((groups.background.overlayOpacity ?? 0) * 100)} step={1} min={0} max={100} suffix="%"
+                                 onChange={(v) => setBackground({ overlayOpacity: v / 100 })} />
+                  </Field>
+                </div>
+
+                {/* Video controls — only meaningful for video media. */}
+                <div className="flex flex-wrap items-center gap-3 border-t border-border/60 pt-2">
+                  <SwitchRow label="Loop video"
+                             checked={groups.background.videoLoop ?? true}
+                             onChange={(v) => setBackground({ videoLoop: v })} />
+                  <SwitchRow label="Mute video"
+                             checked={groups.background.videoMuted ?? true}
+                             onChange={(v) => setBackground({ videoMuted: v })} />
+                  <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    Speed
+                    <NumberInput value={groups.background.videoSpeed ?? 1} step={0.25} min={0.25} max={4} suffix="x"
+                                 onChange={(v) => setBackground({ videoSpeed: v })} />
+                  </div>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground">
@@ -355,6 +386,7 @@ export function TextFormattingPanel() {
                 </div>
               </div>
             )}
+
 
             {groups.background.kind === "none" && (
               <div className="rounded border border-dashed border-border bg-background/40 p-2 text-[10px] text-muted-foreground">
