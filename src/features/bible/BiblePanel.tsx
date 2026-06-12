@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   BookOpen, Loader2, Star, Send, Languages, Search, Hash,
-  ListOrdered, FolderPlus, Mic, Library, Plus, Sparkles,
+  ListOrdered, FolderPlus, Library, Plus,
 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -27,7 +27,7 @@ import { SermonStatusBar } from "./SermonStatusBar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type SearchMode = "reference" | "verse" | "fuzzy" | "favorites";
+type SearchMode = "reference" | "verse" | "fuzzy" | "favorites"; // fuzzy/favorites retained for compat; not exposed in UI
 type Tab = "search" | "queue" | "collections";
 
 interface DisplayHit {
@@ -446,37 +446,9 @@ export function BiblePanel() {
         <BookOpen className="h-4 w-4 text-primary" />
         <div className="text-sm font-semibold">Bible</div>
 
-        {/* Sermon / Queue / Collections — icon buttons with counts */}
-        <div className="ml-2 inline-flex items-center gap-0.5 rounded-md border border-border bg-background/60 p-0.5">
-          <ToolIconButton
-            icon={<Mic className="h-3.5 w-3.5" />}
-            active={sermonMode}
-            onClick={toggleSermon}
-            title="Sermon mode (Ctrl+M)"
-          />
-          <ToolIconButton
-            icon={<ListOrdered className="h-3.5 w-3.5" />}
-            active={tab === "queue"}
-            badge={queueItems.length}
-            onClick={() => setTab(tab === "queue" ? "search" : "queue")}
-            title="Verse queue (Ctrl+Q)"
-          />
-          <ToolIconButton
-            icon={<Library className="h-3.5 w-3.5" />}
-            active={tab === "collections"}
-            badge={collections.length}
-            onClick={() => setTab(tab === "collections" ? "search" : "collections")}
-            title="Collections"
-          />
-          {tab !== "search" && (
-            <ToolIconButton
-              icon={<Search className="h-3.5 w-3.5" />}
-              active={false}
-              onClick={() => setTab("search")}
-              title="Back to search"
-            />
-          )}
-        </div>
+        {/* Sermon / Queue / Collections workflow elements removed per
+            final-polish brief — keep only Reference + Verse search. */}
+
 
         <div className="ml-auto inline-flex overflow-hidden rounded-md border border-border bg-background text-[11px]">
           {(["en", "ta", "both"] as DisplayMode[]).map((m) => (
@@ -514,9 +486,7 @@ export function BiblePanel() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="reference"><Hash className="mr-2 inline h-3 w-3" /> Reference</SelectItem>
-                  <SelectItem value="verse"><Search className="mr-2 inline h-3 w-3" /> Verse</SelectItem>
-                  <SelectItem value="fuzzy"><Sparkles className="mr-2 inline h-3 w-3" /> Fuzzy</SelectItem>
-                  <SelectItem value="favorites"><Star className="mr-2 inline h-3 w-3" /> Favorites</SelectItem>
+                  <SelectItem value="verse"><Search className="mr-2 inline h-3 w-3" /> Verse Text</SelectItem>
                 </SelectContent>
               </Select>
               <Input

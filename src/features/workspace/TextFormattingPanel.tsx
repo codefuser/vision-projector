@@ -137,7 +137,7 @@ export function TextFormattingPanel() {
               </Field>
               <Row>
                 <Field label="Size">
-                  <NumberInput value={style.fontSizeVw} step={0.2} min={1} max={20}
+                  <NumberInput value={style.fontSizeVw} step={0.2} min={0.5}
                                suffix="vw" onChange={(v) => setField(active, "fontSizeVw", v)} />
                 </Field>
                 <Field label="Weight">
@@ -386,10 +386,20 @@ function Select({ value, onChange, options }: { value: string; onChange: (v: str
   );
 }
 function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // Browser color-picker extensions (e.g. ColorPick Eyedropper) inject an
+  // <img> overlay into the native color input which trips React's
+  // hydration check. Suppress the warning at the wrapper level and render
+  // the input only on the client so SSR markup stays inert.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   return (
-    <div className="flex h-7 items-center gap-2 rounded border border-border bg-background px-1.5">
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)}
-        className="h-5 w-6 cursor-pointer rounded border-none bg-transparent p-0" />
+    <div className="flex h-7 items-center gap-2 rounded border border-border bg-background px-1.5" suppressHydrationWarning>
+      {mounted ? (
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)}
+          className="h-5 w-6 cursor-pointer rounded border-none bg-transparent p-0" suppressHydrationWarning />
+      ) : (
+        <span className="inline-block h-5 w-6 rounded" style={{ background: value }} />
+      )}
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)}
         className="w-full bg-transparent text-xs outline-none" />
     </div>
