@@ -21,6 +21,43 @@ export interface SongHit {
 export function searchSongs(query: string, songs: Song[], limit = 80): SongHit[] {
   const q = query.trim();
   if (!q) return [];
+  const hits = runSearch(q, songs, limit);
+  if (hits.length > 0) return hits;
+
+  // Typo-tolerance fallback. If nothing matched, try variants of every token
+  // with one character dropped at each position. The skeleton-based matcher
+  // tolerates voicing / vowel mistakes already; this layer adds resilience to
+  // straight-up letter typos (yesuu, yessu, yesuvae, iyesu, esu …).
+  const tokens = q.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
+  const variants = new Set<string>();
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.length < 3) continue;
+    for (let j = 0; j < t.length; j++) {
+      const trimmed = t.slice(0, j) + t.slice(j + 1);
+      const v = [...tokens.slice(0, i), trimmed, ...tokens.slice(i + 1)].join(" ");
+      variants.add(v);
+    }
+  }
+  const seen = new Set<number>();
+  const out: SongHit[] = [];
+  for (const v of variants) {
+    const h = runSearch(v, songs, limit);
+    for (const x of h) {
+      if (seen.has(x.song.id)) continue;
+      seen.add(x.song.id);
+      out.push({ ...x, score: x.score - 50 }); // penalize typo-fallback
+      if (out.length >= limit) break;
+    }
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function runSearch(query: string, songs: Song[], limit: number): SongHit[] {
+  const q = query.trim();
+  if (!q) return [];
   const qLower = songLower(q);
   const qStem = songStem(q);
   const rawTokens = q.toLowerCase().split(/\s+/).filter(Boolean);
