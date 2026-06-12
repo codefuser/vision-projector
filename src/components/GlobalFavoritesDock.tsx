@@ -66,7 +66,7 @@ export function GlobalFavoritesDock() {
 
   const counts = {
     bible: bibleFavorites.length,
-    songs: 0,
+    songs: songFavorites.length,
     media: mediaItems.length,
     text: 0,
   };
