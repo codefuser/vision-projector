@@ -47,8 +47,66 @@ export const DEFAULT_TEXT_STYLE: TextStyle = {
   paddingVw: 6,
 };
 
+/** A SectionStyle wraps a TextStyle with a visibility toggle, used by the
+ *  grouped (Reference / Tamil / English) formatting model. */
+export interface SectionStyle extends TextStyle {
+  visible: boolean;
+}
+
+export const DEFAULT_REFERENCE_STYLE: SectionStyle = {
+  ...DEFAULT_TEXT_STYLE,
+  fontSizeVw: 2.4,
+  fontWeight: 600,
+  letterSpacing: 2,
+  paddingVw: 4,
+  vAlign: "top",
+  visible: true,
+};
+
+export const DEFAULT_TAMIL_STYLE: SectionStyle = {
+  ...DEFAULT_TEXT_STYLE,
+  fontFamily: "Latha",
+  fontSizeVw: 5,
+  visible: true,
+};
+
+export const DEFAULT_ENGLISH_STYLE: SectionStyle = {
+  ...DEFAULT_TEXT_STYLE,
+  visible: true,
+};
+
+/** Background source for the projector stage (sits underneath text). */
+export interface BackgroundConfig {
+  kind: "none" | "color" | "media";
+  color: string;
+  /** Library media id when kind === "media". Resolved on the projector. */
+  mediaId: string | null;
+  fit: "cover" | "contain";
+}
+
+export const DEFAULT_BACKGROUND: BackgroundConfig = {
+  kind: "color",
+  color: "#000000",
+  mediaId: null,
+  fit: "cover",
+};
+
+export interface GroupedStyles {
+  reference: SectionStyle;
+  tamil: SectionStyle;
+  english: SectionStyle;
+  background: BackgroundConfig;
+}
+
+export const DEFAULT_GROUPED_STYLES: GroupedStyles = {
+  reference: DEFAULT_REFERENCE_STYLE,
+  tamil: DEFAULT_TAMIL_STYLE,
+  english: DEFAULT_ENGLISH_STYLE,
+  background: DEFAULT_BACKGROUND,
+};
+
 export interface TextOverlay {
-  /** e.g. "John 3:16" */
+  /** Combined / legacy reference string. */
   reference: string;
   /** Main body. Newlines preserved. */
   text: string;
@@ -60,13 +118,23 @@ export interface TextOverlay {
   subtranslation?: string;
   /** Logical content kind so future renderers can branch. */
   kind?: "bible_verse" | "song_slide" | "live_text" | "announcement";
+
+  // ── Bible-bilingual extension (optional, populated only by Bible adapter)
+  referenceEn?: string;
+  referenceTa?: string;
+  textEn?: string;
+  textTa?: string;
+  /** "en" | "ta" | "both" — controls which sections render. */
+  mode?: "en" | "ta" | "both";
 }
 
 export type ProjectionCommand =
   | { type: "LOAD"; mediaId: string; transition?: string }
   | { type: "LOAD_PLAYLIST"; playlistId: string; startIndex?: number; shuffle?: boolean; loop?: string }
-  | { type: "LOAD_TEXT"; overlay: TextOverlay; style?: TextStyle }
+  | { type: "LOAD_TEXT"; overlay: TextOverlay; style?: TextStyle; styles?: GroupedStyles }
   | { type: "UPDATE_TEXT_STYLE"; style: TextStyle }
+  | { type: "UPDATE_STYLES"; styles: GroupedStyles }
+  | { type: "UPDATE_BACKGROUND"; background: BackgroundConfig }
   | { type: "PLAY" }
   | { type: "PAUSE" }
   | { type: "STOP" }
@@ -97,6 +165,7 @@ export type ProjectionState = {
   loop?: boolean;
   textOverlay?: TextOverlay | null;
   textStyle?: TextStyle | null;
+  groupedStyles?: GroupedStyles | null;
 };
 
 const CHANNEL = "church-projection";
