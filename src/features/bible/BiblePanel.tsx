@@ -613,15 +613,17 @@ export function BiblePanel() {
                       </div>
                     </div>
 
-                    {/* Verse text */}
-                    <div className="flex-1 px-2 py-1.5">
-                      <p className="line-clamp-3 text-[12.5px] leading-snug text-foreground/90">
+                    {/* Verse text — clear language separation */}
+                    <div className="flex-1 space-y-1.5 px-2.5 py-2">
+                      <p className="line-clamp-3 text-[12.5px] leading-snug text-foreground/95">
                         {h.text}
                       </p>
                       {pair && (
-                        <p className="mt-1 line-clamp-2 border-t border-border/30 pt-1 text-[12px] leading-snug text-muted-foreground">
-                          {pair.text}
-                        </p>
+                        <div className="border-t border-dashed border-border/50 pt-1.5">
+                          <p className="line-clamp-2 text-[12px] leading-snug text-muted-foreground">
+                            {pair.text}
+                          </p>
+                        </div>
                       )}
                     </div>
 
