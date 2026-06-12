@@ -525,34 +525,44 @@ function TimelineScrubber({
         />
       )}
 
-      {/* Hover preview popover */}
-      {hover && src && (
-        <div
-          className="pointer-events-none absolute bottom-full mb-2 flex -translate-x-1/2 flex-col items-center"
-          style={{ left: `calc(${hover.x}px + 3rem + 0.5rem)` }}
-        >
-          <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg">
-            <video
-              src={src}
-              muted
-              playsInline
-              className="h-20 w-36 object-contain"
-              ref={(el) => {
-                if (el && isFinite(hover.t)) {
-                  try {
-                    el.currentTime = hover.t;
-                  } catch {
-                    /* ignore */
+      {/* Hover preview popover.
+          Fixed dimensions (144x80 thumb). The popup is anchored to the row and
+          its horizontal position is CLAMPED inside the row so it never gets
+          shrunk or clipped by the viewport edge near the end of long videos. */}
+      {hover && src && (() => {
+        const POPUP_WIDTH = 152; // thumb 144 + 8 border/padding
+        const rowWidth = rowRef.current?.getBoundingClientRect().width ?? 0;
+        const half = POPUP_WIDTH / 2;
+        const clampedX = Math.max(half, Math.min(rowWidth - half, hover.x + 56));
+        return (
+          <div
+            className="pointer-events-none absolute bottom-full mb-2 flex flex-col items-center"
+            style={{ left: clampedX, transform: "translateX(-50%)", width: POPUP_WIDTH }}
+          >
+            <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg" style={{ width: 144, height: 80 }}>
+              <video
+                src={src}
+                muted
+                playsInline
+                className="h-full w-full object-contain"
+                style={{ width: 144, height: 80 }}
+                ref={(el) => {
+                  if (el && isFinite(hover.t)) {
+                    try {
+                      el.currentTime = hover.t;
+                    } catch {
+                      /* ignore */
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            </div>
+            <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
+              {fmtTime(hover.t)}
+            </div>
           </div>
-          <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
-            {fmtTime(hover.t)}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
