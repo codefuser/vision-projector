@@ -48,13 +48,18 @@ export function TextFormattingPanel() {
   const focus = useFocusZone("text-format");
   const collapsed = useWorkspace((s) => s.textFormatCollapsed);
   const toggle = useWorkspace((s) => s.toggleTextFormatCollapsed);
+  const activeTab = useWorkspace((s) => s.activeTab);
   const groups = useTextFormat((s) => s.groups);
   const setField = useTextFormat((s) => s.setField);
   const patchGroup = useTextFormat((s) => s.patchGroup);
   const setBackground = useTextFormat((s) => s.setBackground);
   const resetGroup = useTextFormat((s) => s.resetGroup);
   const reset = useTextFormat((s) => s.reset);
-  const [active, setActive] = useState<StyleGroup>("reference");
+  // When Songs tab is active, only Tamil + Background are meaningful.
+  const songsMode = activeTab === "songs";
+  const visibleGroups: StyleGroup[] = songsMode ? ["tamil"] : (Object.keys(GROUP_LABELS) as StyleGroup[]);
+  const [activeRaw, setActive] = useState<StyleGroup>("reference");
+  const active: StyleGroup = songsMode ? "tamil" : activeRaw;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bgName, setBgName] = useState<string | null>(null);
 
@@ -74,7 +79,7 @@ export function TextFormattingPanel() {
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <div className="shrink-0 text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
           <div className="hidden truncate text-[10px] text-muted-foreground @sm:block">
-            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / BG / Logo"}
+            {collapsed ? "Collapsed — click to expand" : songsMode ? "Songs · Tamil + Background" : "Per-group · Reference / Tamil / English / BG / Logo"}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -99,10 +104,11 @@ export function TextFormattingPanel() {
         <div className="flex-1 overflow-y-auto p-3">
           {/* Group selector — wraps on narrow widths so Reset/Visibility never clip. */}
           <div className="mb-3 flex flex-wrap items-center gap-1 rounded-md border border-border bg-background p-0.5">
-            {(Object.keys(GROUP_LABELS) as StyleGroup[]).map((g) => (
+            {visibleGroups.map((g) => (
               <button
                 key={g}
                 onClick={() => setActive(g)}
+                disabled={songsMode}
                 className={cn(
                   "min-w-[60px] flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
                   active === g
@@ -110,7 +116,7 @@ export function TextFormattingPanel() {
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
-                {GROUP_LABELS[g]}
+                {songsMode ? "Tamil Song" : GROUP_LABELS[g]}
               </button>
             ))}
             <button

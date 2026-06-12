@@ -1,7 +1,10 @@
 /**
- * Song Adapter — projects a single song slide (stanza) through the shared
- * text-overlay command. Uses the bilingual TextOverlay shape so the existing
- * Tamil / English section renderers light up without changes.
+ * Song Adapter — Tamil-only projection.
+ *
+ * Projection screen shows lyrics only: no title, no metadata, no slide
+ * number. We achieve this by sending the song text as `textTa` and leaving
+ * every reference field empty so `TextOverlayRenderer` skips the reference
+ * block entirely (even if the Reference section is set to visible).
  */
 import { useProjection } from "@/stores/projection.store";
 import { projectionEvents } from "../event-bus";
@@ -16,22 +19,18 @@ export interface ProjectSlideInput {
   totalSlides: number;
   title: string;
   text: string;
-  /** "ta" | "en" | "both". Songs are usually Tamil-only so default "ta". */
-  mode?: "en" | "ta" | "both";
 }
 
 export function projectSongSlide(input: ProjectSlideInput): ProjectionContent<SongSlideBody> {
-  const isTamil = /[\u0B80-\u0BFF]/.test(input.text);
-  const mode = input.mode ?? (isTamil ? "ta" : "en");
   const overlay: TextOverlay = {
-    reference: `${input.title} · ${input.slideIndex + 1}/${input.totalSlides}`,
+    reference: "",
+    referenceEn: "",
+    referenceTa: "",
     text: input.text,
-    translation: isTamil ? "தமிழ்" : "English",
-    referenceEn: input.title,
-    referenceTa: input.title,
-    textEn: mode === "ta" ? "" : input.text,
-    textTa: mode === "en" ? "" : input.text,
-    mode,
+    textEn: "",
+    textTa: input.text,
+    translation: "",
+    mode: "ta",
     kind: "song_slide",
   };
   const groups = useTextFormat.getState().groups;
