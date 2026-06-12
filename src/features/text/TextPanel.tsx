@@ -944,3 +944,18 @@ export function TextPanel() {
     </div>
   );
 }
+
+function ToolbarBtn({
+  icon, title, onClick,
+}: { icon: React.ReactNode; title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground"
+    >
+      {icon}
+    </button>
+  );
+}
