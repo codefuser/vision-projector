@@ -1,15 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose } from "lucide-react";
+import { FolderTree, ListVideo, MonitorPlay, Settings as SettingsIcon, Moon, Sun, Monitor, PanelLeftClose, Keyboard } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
 import { projectionEngine } from "@/projection";
+import { GlobalFavoritesDock } from "@/components/GlobalFavoritesDock";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
   { to: "/library", label: "Library", icon: FolderTree },
   { to: "/playlists", label: "Playlists", icon: ListVideo },
   { to: "/project", label: "Project", icon: MonitorPlay },
+  { to: "/shortcuts", label: "Shortcuts", icon: Keyboard },
 ] as const;
 
 const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon } as const;
@@ -166,6 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 overflow-hidden">{children}</main>
       </div>
+      <GlobalFavoritesDock />
     </div>
   );
 }
