@@ -48,33 +48,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     void update({ theme: next });
   };
 
-  const renderNavItem = (item: { to: string; label: string; icon: typeof FolderTree }) => {
+  const renderNavItem = (item: { to: string; label: string; icon: typeof FolderTree; shortcutId?: string }) => {
     const active = pathname === item.to || pathname.startsWith(item.to + "/");
     const Icon = item.icon;
-    return (
-      <Link
-        key={item.to}
-        to={item.to}
-        title={item.label}
-        aria-label={item.label}
-        className={cn(
-          "relative flex h-9 cursor-pointer items-center gap-3 overflow-hidden rounded-md px-2.5 text-sm transition-colors duration-150",
-          active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate whitespace-nowrap transition-[opacity,transform] duration-200 ease-out",
-            collapsed ? "pointer-events-none -translate-x-1 opacity-0" : "translate-x-0 opacity-100",
-          )}
-        >
-          {item.label}
-        </span>
-      </Link>
-    );
+    return <NavItem key={item.to} item={item} active={active} icon={Icon} collapsed={collapsed} />;
   };
 
 
