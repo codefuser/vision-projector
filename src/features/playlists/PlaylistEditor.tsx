@@ -645,7 +645,16 @@ export function PlaylistEditor({ id }: { id: string }) {
         )}
       </div>
 
-      <MediaPreview media={previewTarget} onClose={() => setPreviewTarget(null)} />
+      {previewTarget && (
+        <MediaPreview
+          media={previewTarget}
+          onClose={() => setPreviewTarget(null)}
+          onProject={() => {
+            void MediaAdapter.projectMedia(previewTarget);
+            setPreviewTarget(null);
+          }}
+        />
+      )}
       <RenameDialog
         open={!!renameTarget}
         initialName={renameTarget?.name ?? ""}
