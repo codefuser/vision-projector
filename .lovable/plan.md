@@ -1,106 +1,109 @@
-# Bible Module Phase 4 — Implementation Plan
+# Church Media — UI Polish & Bible Fix Pass
 
-This phase extends the existing Bible module without redesigning the app. Navigation, theme, and layout primitives stay intact.
+## 1. Logo Manager (in Text Formatting)
 
-## 1. Global Favorites Panel (always-visible)
+New collapsible section **Projection Logo** inside `TextFormattingPanel.tsx`, sibling to Background.
 
-- New component `src/components/GlobalFavoritesDock.tsx` — a slim **right-edge collapsible rail** (default 240px expanded / 28px collapsed icon strip). Mounted once in `src/routes/__root.tsx` so it persists across `/library`, `/playlists`, `/bible tab`, `/settings`, `/service/$id`.
-- Persisted open/closed state in a new store `src/stores/favorites-dock.store.ts`.
-- Compact list, grouped by tabs: **Bible / Songs / Media / Text**. Single-line entries (`John 3:16`, `Amazing Grace`). No previews.
-- Keyboard: `Alt+F` toggles dock visibility.
+New store `src/stores/logo.store.ts` (zustand+persist, key `vision-logo`):
+- `enabled: boolean`
+- `current: LogoItem | null` — `{ id, dataUrl, width, height }`
+- `gallery: LogoItem[]` (max 5, FIFO eviction)
+- `settings: { widthPct, heightPctAuto, opacity, radius, shadow, position, x, y }`
+- Actions: `setEnabled`, `addFromFile(file)`, `addFromMedia(id)`, `selectFromGallery(id)`, `removeFromGallery(id)`, `patch(settings)`. All mutations broadcast a new `UPDATE_LOGO` command.
 
-## 2. Unified Favorites Source
+Storage: logos kept as base64 data-URLs in localStorage (small PNG/SVG only — max 5, capped at 256KB each, downscaled via canvas if larger). Simple, survives refresh, no IDB schema change.
 
-- New module `src/lib/favorites/index.ts` aggregating:
-  - Bible favorites from existing `useBibleStore` (already keyed `book:chapter:verse`).
-  - Media favorites (new store `src/stores/media-favorites.store.ts`, localStorage-backed, ids only).
-  - Song / Text favorites: stub stores returning `[]` until those modules ship — keeps the panel future-proof.
-- Each entry: `{ id, kind: 'bible'|'media'|'song'|'text', label, onActivate() }`.
+New `LogoLayer.tsx` rendered in:
+- `ProjectionWindow.tsx` (above text)
+- `LivePreviewPanel.tsx` (1:1 mirror)
 
-## 3. Click Behaviour
+UI: thumbnails-only gallery grid (5 slots), with select/replace/remove. Position preset buttons + numeric X/Y. Hide all controls when disabled; settings preserved (stored independently of `enabled`).
 
-- **Bible favorite** → navigate to `/library` route with Bible tab active, set `bibleStore` to its book/chapter (chapter mode), select the verse, dispatch a projection command. Implemented via a thin dispatcher in `src/lib/favorites/dispatch.ts` that uses `useBibleStore` setters + `useProjection.send`.
-- **Media favorite** → resolve from `library.store`, build a `LOAD_MEDIA` payload, project immediately.
-- **Song / Text** → no-op for now (button disabled with tooltip "Coming soon") because the modules do not exist yet.
+Broadcast: extend `LogoConfig` interface in `broadcast.ts`; add `UPDATE_LOGO` and `logoConfig` to ProjectionState; persist in `text-format` partner store so other modules (BibleRenderer, ImageRenderer, VideoRenderer, SongRenderer, TextRenderer) just include `<LogoLayer />` once at the projection root → applies globally.
 
-## 4. Verse Card Redesign
+## 2. Background Manager — gallery
 
-- `BiblePanel.tsx` card markup compressed: single row reference + tiny language pill, two-line clamp preview, favorite + project icon buttons. Padding drops from `p-4` to `p-2`. Bilingual cards stack Tamil/English with a `border-l` separator instead of full second card. Target ~2x density.
+Extend background to support a saved gallery:
+- New store `src/stores/background-gallery.store.ts` — `items: BackgroundItem[]` where each is `{ id, kind: "media"|"color", mediaId?, color?, name, thumbDataUrl? }`. Persisted.
+- Upload-from-computer flow: file → save into existing media library via `addMedia()` → push id into gallery.
+- "Select from library" reuses `MediaPickerDialog` and pushes selected media into gallery + sets as current.
+- Gallery grid renders thumbnails (use existing `Thumb` component for media items). Click = select; X = remove; right-click/replace via picker.
 
-## 5. Projection Reference Header
+Enable/Disable toggle = sets `background.kind` to `"none"` when off; restores previous kind+mediaId+color when on (cache last in store).
 
-- `BibleRenderer` (in `src/projection/renderers/BibleRenderer.tsx`) and `TextOverlayRenderer` get an explicit reference line at top:
-  - English mode → English ref only.
-  - Tamil mode → Tamil ref only.
-  - Bilingual → Tamil ref above English ref.
-- `BibleProjectionPayload` extended with `referenceEn`, `referenceTa`, `mode`.
+Existing `BackgroundLayer` already renders identically in preview + projector — no changes needed there.
 
-## 6. Independent Formatting Groups (Reference / Tamil / English)
+## 3. Shortcut system
 
-- Refactor `src/lib/text-format/store.ts`:
-  ```ts
-  type SectionStyle = TextStyle & { visible: boolean };
-  state = { reference: SectionStyle, tamil: SectionStyle, english: SectionStyle, background: BackgroundConfig }
-  ```
-- Existing global `style` kept as a derived alias (`state.english`) so non-Bible callers continue working unchanged.
-- Broadcast extended: `UPDATE_TEXT_STYLE_GROUPED` with full grouped payload; legacy `UPDATE_TEXT_STYLE` still honoured.
-- `TextFormattingPanel.tsx` gets a 3-tab segmented control at the top — **Reference / Tamil / English** — each rendering the existing field set against the active group, plus a Visibility toggle.
+Already in `GlobalShortcuts.tsx`:
+- `1..4` tab switch — keep, but REMOVE the auto-navigate-to-/project side-effect so they only switch tabs (request: "Only switch tabs").
+- Actually: if not on /project, switching tabs is meaningless. Keep navigation but do NOT focus search.
+- `Alt+1..4` focus search — keep as-is (already does navigate + dispatch focus event).
 
-## 7. Background Engine
+Add sidebar shortcuts:
+- `F2` Library, `F3` Playlists, `F4` Project, `F5` Settings (avoid F5 which is reload → use `Mod+,`), `F1` Shortcut Center.
+- Revised: `g l` style is too complex. Use: `Mod+Shift+L` Library, `Mod+Shift+P` Playlists, `Mod+Shift+J` Project, `Mod+Shift+,` Settings, `Mod+/` Shortcut Center.
 
-- New `BackgroundConfig`:
-  ```ts
-  { kind: 'none'|'color'|'media', color?: string, mediaId?: string, fit: 'cover'|'contain' }
-  ```
-- New **Background** group at the bottom of `TextFormattingPanel.tsx` with:
-  - Solid color picker
-  - "Select from Library" button → opens a reuse of the existing `MediaPickerDialog` (filtered to image/video/gif).
-  - "Clear" button.
-- Projection: `ProjectionWindow.tsx` gains a `<div class="bible-bg">` underlay rendering color or `<img>` / `<video autoplay loop muted playsinline>` based on `BackgroundConfig`. Layer order enforced via z-index: `bg (0) → reference (10) → verses (20)`.
-- Library media resolved through existing `library.store` blob URL helpers; URLs revoked on switch like the main renderer already does.
+All registered via `useShortcut` in `GlobalShortcuts.tsx` → auto-listed in Shortcut Center.
 
-## 8. Smart Search Upgrades
+## 4. Shortcut Center
 
-- `src/lib/bible/search.ts`:
-  - Add `normalizeTanglish()` — collapses `aa→a`, `oo→u`, `dh→d`, `th→t`, `v?→v`, strips trailing vowels (`yesuvae→yesu`), removes doubled consonants, lower-cases.
-  - Add `normalizeTamil()` — strips vowel sign variants and pulps (`ஆதியிலே → ஆதியில`).
-  - Full-text search runs against precomputed `normalizedLower` cache keyed per language; rebuilt lazily on first search.
-  - Token scoring: exact phrase > all-tokens-in-order > token coverage > Levenshtein fallback (cap distance 2 per token, only when no exact hits).
-- Verse cards highlight matched substrings via a `<HighlightedText match={tokens} />` helper.
+`src/routes/shortcuts.tsx` already aggregates via `shortcutManager.list()`. Verify the category list includes: navigation, media, bible, songs, text, projector, favorites, playlists, general. Add missing categories to the `ShortcutCategory` union in `manager.ts` (`favorites`, `playlists`).
 
-## 9. Performance
+## 5. Favorites — language mode preserved
 
-- Memoise Bilingual rendering, gate broadcasts behind `requestAnimationFrame` coalescer in text-format store, keep favorites dock as `React.memo` with stable selectors.
+Extend `BibleFavorite` shape in `src/lib/bible/store.ts`:
+- Add `displayMode: "en"|"ta"|"both"` and `lang: BibleLang` captured at save time.
+
+`addFavorite` now records current `displayMode`/`lang`. `activateBibleFavorite` in `src/lib/favorites/dispatch.ts` restores those before projecting (calls `setDisplayMode` and `setLang`, then awaits `ensureLoaded`/`ensureBoth`).
+
+Migration: existing favorites without these fields default to current store mode at activation (back-compat).
+
+## 6. Text Formatting responsiveness + Tamil fonts
+
+`TextFormattingPanel.tsx`:
+- Header row already uses flex; change Reset/Collapse buttons to `shrink-0` and the title block to `min-w-0 truncate`.
+- Group selector strip wraps on narrow widths: use `flex-wrap gap-1`, each button `flex-1 min-w-[64px]`.
+- Replace fixed `grid-cols-4` at `@3xl` with a more conservative grid: `@sm:grid-cols-1 @md:grid-cols-2 @2xl:grid-cols-3` so cells stop clipping.
+
+Add Tamil fonts to `FONT_FAMILIES`:
+- "Noto Sans Tamil", "Noto Serif Tamil", "Mukta Malar", "Catamaran", "Hind Madurai", "Meera Inimai", "Pavanam".
+- Inject Google Fonts `<link>` for these in `__root.tsx` head().
+
+Font preview live: store already broadcasts via RAF; verified working.
+
+## 7. General quality
+
+- Strip the ColorPick browser-extension hydration mismatch warning by gating `<input type="color">` render to client-only with `suppressHydrationWarning` on the wrapper.
+- Verify Reset/Collapse never overlap at narrow widths (covered in §6).
+
+---
 
 ## Files
 
-**New**
-- `src/components/GlobalFavoritesDock.tsx`
-- `src/stores/favorites-dock.store.ts`
-- `src/stores/media-favorites.store.ts`
-- `src/lib/favorites/index.ts`
-- `src/lib/favorites/dispatch.ts`
-- `src/components/HighlightedText.tsx`
+**New:**
+- `src/stores/logo.store.ts`
+- `src/stores/background-gallery.store.ts`
+- `src/components/LogoLayer.tsx`
 
-**Modified**
-- `src/routes/__root.tsx` (mount dock)
-- `src/features/bible/BiblePanel.tsx` (compact cards, highlighting, favorite-driven nav)
-- `src/lib/bible/search.ts` (Tanglish + Tamil normalization, ranking)
-- `src/lib/text-format/store.ts` (grouped styles + background)
-- `src/lib/broadcast.ts` (grouped payload, background, ref fields)
-- `src/features/workspace/TextFormattingPanel.tsx` (group tabs + background section)
-- `src/features/projection/ProjectionWindow.tsx` (background layer, ref header)
-- `src/projection/renderers/BibleRenderer.tsx` (ref header, grouped styles)
-- `src/projection/adapters/bible.adapter.ts` (mode + grouped refs)
-- `src/components/TextOverlayRenderer.tsx` (consume grouped styles)
-- `src/features/library/LibraryPage.tsx` (favorite toggle on media items)
+**Modified:**
+- `src/lib/broadcast.ts` (LogoConfig, UPDATE_LOGO, state field)
+- `src/features/workspace/TextFormattingPanel.tsx` (logo section, bg gallery, responsive layout, fonts)
+- `src/features/workspace/LivePreviewPanel.tsx` (LogoLayer)
+- `src/features/projection/ProjectionWindow.tsx` (LogoLayer, apply logo from state)
+- `src/stores/projection.store.ts` (handle UPDATE_LOGO)
+- `src/components/GlobalShortcuts.tsx` (sidebar shortcuts; remove auto-nav on 1..4? keep but no search focus — already correct)
+- `src/lib/shortcuts/manager.ts` (categories: favorites, playlists)
+- `src/lib/bible/store.ts` (favorite fields)
+- `src/lib/favorites/dispatch.ts` (restore mode/lang)
+- `src/routes/__root.tsx` (Google Fonts link for Tamil fonts)
 
-**Unchanged**
-- Routing, theme tokens, AppShell, sidebar, playlists, service mode, all existing keyboard shortcuts.
+**Untouched:** `BackgroundLayer.tsx`, projection adapters, renderers, route tree.
 
-## Out of Scope (called out so we don't silently add later)
-- Song / Text favorites are surfaced but inert until those modules exist.
-- Lottie/animated backgrounds beyond `<video>` and `<img>` (GIFs work via `<img>`); a true Lottie renderer is not included.
+## Open questions
 
-## Open Questions
-None — defaults above (right-edge collapsible rail, MediaPickerDialog reuse, English as legacy alias) are chosen to minimise risk to existing functionality. Confirm to proceed and I will implement.
+1. Sidebar shortcut keys — proposed `Mod+Shift+L/P/J/,` and `Mod+/`. OK or prefer F-keys (F1–F4)?
+2. Logo storage — base64 in localStorage (5 small logos) is simplest. Move to IDB only if you expect >1MB per logo.
+3. Background gallery: store full media items by id (no duplication) — removing from gallery does NOT delete the media file. Confirm.
+
+Should I proceed with these defaults or adjust first?
