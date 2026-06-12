@@ -13,8 +13,7 @@ import {
   type TextOverlay,
   type TextStyle,
 } from "@/lib/broadcast";
-import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
-import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { ProjectionTextStage } from "@/components/ProjectionTextStage";
 import { LogoLayer } from "@/components/LogoLayer";
 
 
@@ -442,18 +441,13 @@ export function ProjectionWindow() {
       )}
 
 
-      {/* Background layer (text overlay only) — sits beneath the verse text. */}
+      {/* Text overlay (Bible / Songs / Text) — same renderer used by Live Preview. */}
       {textOverlay && !black && !cur && (
-        <BackgroundLayer background={groupedStyles.background} />
-      )}
-
-      {/* Text overlay (Bible / Songs / Text) — unified auto-fit renderer */}
-      {textOverlay && !black && !cur && (
-        <TextOverlayRenderer
+        <ProjectionTextStage
           overlay={textOverlay}
-          style={textStyle}
-          styles={groupedStyles}
-          withBackground={false}
+          textStyle={textStyle}
+          groupedStyles={groupedStyles}
+          logo={logo}
         />
       )}
 
@@ -462,7 +456,7 @@ export function ProjectionWindow() {
       {black && <div className="absolute inset-0 bg-black" />}
 
       {/* Logo — global, always on top, never inside the black overlay. */}
-      {!black && <LogoLayer logo={logo} />}
+      {!black && !textOverlay && <LogoLayer logo={logo} />}
 
       {/* Idle */}
       {!cur && !black && !textOverlay && (
