@@ -8,7 +8,7 @@
  *                         the library and the song's slides at the same time.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Music, Loader2, Star, Send, Search, Plus, X, Pencil, Trash2, Filter } from "lucide-react";
+import { Music, Loader2, Star, Send, Search, Plus, Pencil, Trash2, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
