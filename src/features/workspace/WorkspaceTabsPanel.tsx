@@ -37,29 +37,14 @@ export function WorkspaceTabsPanel() {
         >
           <PanelRightOpen className="h-4 w-4" />
         </button>
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = t.id === activeTab;
-          return (
-            <button
-              key={t.id}
-              onClick={() => {
-                setActiveTab(t.id);
-                toggleCollapsed();
-              }}
-              title={t.label}
-              aria-label={t.label}
-              className={cn(
-                "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md transition",
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </button>
-          );
-        })}
+        {TABS.map((t) => (
+          <TabRailButton
+            key={t.id}
+            tab={t}
+            isActive={t.id === activeTab}
+            onClick={() => { setActiveTab(t.id); toggleCollapsed(); }}
+          />
+        ))}
       </div>
     );
   }
