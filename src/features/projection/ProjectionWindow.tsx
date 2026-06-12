@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "@/db/schema";
 import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "@/db/schema";
 import { getMedia, getPlaylist, getSettings, touchMedia } from "@/db/repo";
-import { getChannel, type ProjectionCommand, type ProjectionState, type TextOverlay } from "@/lib/broadcast";
+import { getChannel, DEFAULT_TEXT_STYLE, type ProjectionCommand, type ProjectionState, type TextOverlay, type TextStyle } from "@/lib/broadcast";
+import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
 
 type Mode = "idle" | "single" | "slideshow" | "text";
 
@@ -29,6 +30,7 @@ export function ProjectionWindow() {
   const [prevItem, setPrevItem] = useState<RuntimeItem | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
+  const [textStyle, setTextStyle] = useState<TextStyle>(DEFAULT_TEXT_STYLE);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
   const urlsRef = useRef<string[]>([]);
@@ -85,9 +87,10 @@ export function ProjectionWindow() {
       videoDurationMs:
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
       textOverlay,
+      textStyle,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle]);
 
   useEffect(() => {
     broadcastState();
@@ -232,17 +235,30 @@ export function ProjectionWindow() {
         case "LOAD_TEXT":
           // Projecting non-media content. Stop any media playback first so the
           // overlay owns the screen, then store the overlay payload.
+          // CRITICAL: We also clear prevItem and revoke all blob URLs so no
+          // background media can ever silently resume while the operator is
+          // working inside the Bible / Songs / Text tabs.
           setVideoReady(false);
-          if (videoRef.current) videoRef.current.pause();
+          if (videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.removeAttribute("src");
+            videoRef.current.load();
+          }
           clearTimer();
           urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
           urlsRef.current = [];
           setItems([]);
+          setPrevItem(null);
+          setTransitioning(false);
           setIndex(0);
           setMode("text");
           setPlaying(false);
           setBlack(false);
           setTextOverlay(cmd.overlay);
+          if (cmd.style) setTextStyle(cmd.style);
+          break;
+        case "UPDATE_TEXT_STYLE":
+          setTextStyle(cmd.style);
           break;
         case "PLAY":
           setPlaying(true);
@@ -396,24 +412,9 @@ export function ProjectionWindow() {
       )}
 
 
-      {/* Text overlay (Bible / Songs / Text) */}
+      {/* Text overlay (Bible / Songs / Text) — unified auto-fit renderer */}
       {textOverlay && !black && !cur && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black px-[6vw] text-white">
-          <div className="max-w-[88%] text-center">
-            <div className="whitespace-pre-line text-[5.2vw] font-medium leading-[1.25] tracking-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
-              {textOverlay.text}
-            </div>
-            {textOverlay.subtext && (
-              <div className="mt-[3vh] whitespace-pre-line text-[3.4vw] leading-[1.3] text-white/80">
-                {textOverlay.subtext}
-              </div>
-            )}
-            <div className="mt-[4vh] flex items-center justify-center gap-3 text-[2.2vw] uppercase tracking-[0.18em] text-white/70">
-              <span>{textOverlay.reference}</span>
-              {textOverlay.translation && <span className="opacity-60">· {textOverlay.translation}</span>}
-            </div>
-          </div>
-        </div>
+        <TextOverlayRenderer overlay={textOverlay} style={textStyle} withBackground />
       )}
 
       {/* Black */}
