@@ -111,8 +111,19 @@ export function ProjectionWorkspace() {
   const rightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : undefined;
 
   // Drive the bottom panel size from the persisted collapsed flag.
+  // CRITICAL: skip the very first reconcile pass. On mount, react-resizable-panels
+  // applies our saved `defaultLayout` (e.g. preview 50%, text-format 50%). If we
+  // immediately call expand()/collapse() here we override that saved geometry and
+  // snap to defaultSize (text-format 40 / preview 60) — which manifested as
+  // "Preview collapses, Text Formatting expands" on reload. We only act on
+  // subsequent user-initiated toggles.
   const textFormatPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const didHydrateRef = useRef(false);
   useEffect(() => {
+    if (!didHydrateRef.current) {
+      didHydrateRef.current = true;
+      return;
+    }
     const p = textFormatPanelRef.current;
     if (!p) return;
     try {

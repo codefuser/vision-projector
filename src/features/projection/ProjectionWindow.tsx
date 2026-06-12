@@ -23,6 +23,9 @@ export function ProjectionWindow() {
   const [black, setBlack] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.8);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [loop, setLoop] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const [prevItem, setPrevItem] = useState<RuntimeItem | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -74,12 +77,15 @@ export function ProjectionWindow() {
       black,
       muted,
       volume,
+      playbackRate,
+      loop,
+      videoReady: cur?.media.type === "video" ? videoReady : undefined,
       videoCurrentTime: v && cur?.media.type === "video" ? v.currentTime : undefined,
       videoDurationMs:
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady]);
 
   useEffect(() => {
     broadcastState();
@@ -212,9 +218,11 @@ export function ProjectionWindow() {
       if (!cmd?.type) return;
       switch (cmd.type) {
         case "LOAD":
+          setVideoReady(false);
           await loadSingle(cmd.mediaId);
           break;
         case "LOAD_PLAYLIST":
+          setVideoReady(false);
           await loadPlaylist(cmd.playlistId, cmd.startIndex ?? 0);
           break;
         case "PLAY":
@@ -251,6 +259,14 @@ export function ProjectionWindow() {
         case "MUTE":
           setMuted(cmd.value);
           if (videoRef.current) videoRef.current.muted = cmd.value;
+          break;
+        case "RATE":
+          setPlaybackRate(cmd.value);
+          if (videoRef.current) videoRef.current.playbackRate = cmd.value;
+          break;
+        case "LOOP":
+          setLoop(cmd.value);
+          if (videoRef.current) videoRef.current.loop = cmd.value;
           break;
         case "BLACK":
           setBlack(cmd.value);
@@ -330,10 +346,26 @@ export function ProjectionWindow() {
           key={"vid-" + cur.id + "-" + index + "-" + cur.blobUrl}
           src={cur.blobUrl}
           autoPlay={playing}
+          loop={loop}
           onEnded={onVideoEnded}
           onLoadedMetadata={(e) => {
-            // Always start from the beginning on every projection.
-            (e.currentTarget as HTMLVideoElement).currentTime = 0;
+            const v = e.currentTarget as HTMLVideoElement;
+            v.currentTime = 0;
+            v.playbackRate = playbackRate;
+            v.volume = volume;
+            v.muted = muted;
+            broadcastState();
+          }}
+          onCanPlay={() => {
+            setVideoReady(true);
+            broadcastState();
+          }}
+          onPlaying={() => {
+            setVideoReady(true);
+            broadcastState();
+          }}
+          onWaiting={() => {
+            setVideoReady(false);
             broadcastState();
           }}
           onTimeUpdate={() => broadcastState()}

@@ -14,6 +14,10 @@ import {
   Rewind,
   FastForward,
   RotateCcw,
+  Repeat,
+  Maximize2,
+  Minimize2,
+  Gauge,
 } from "lucide-react";
 import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
@@ -34,9 +38,11 @@ export function LivePreviewPanel() {
   const [media, setMedia] = useState<MediaRecord | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [localTime, setLocalTime] = useState(0);
   const [localDuration, setLocalDuration] = useState(0);
   const [scrubbing, setScrubbing] = useState<number | null>(null);
+  const [fullPreview, setFullPreview] = useState(false);
   const focus = useFocusZone("preview");
 
   // Resolve current media metadata
@@ -84,24 +90,38 @@ export function LivePreviewPanel() {
     setLocalTime(0);
   }, [url]);
 
-  // Keep mirrored video roughly in sync with projector playing state
+  // Mirror projector playback — but wait until the projector reports it has
+  // actually buffered the video (`videoReady`). This prevents the preview from
+  // racing ahead by 5-20s when the projector is still loading the file.
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = true;
-    if (state?.playing) {
+    const ready = state?.videoReady !== false; // images don't set it → treat as ready
+    if (state?.playing && ready) {
       v.play().catch(() => undefined);
     } else {
       v.pause();
     }
-  }, [state?.playing, url]);
+  }, [state?.playing, state?.videoReady, url]);
 
-  // Drift correction: keep preview within ~0.5s of projector's reported time
+  // Apply projector playback rate to preview so the mirror runs at the same speed.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (state?.playbackRate && isFinite(state.playbackRate)) {
+      v.playbackRate = state.playbackRate;
+    }
+  }, [state?.playbackRate, url]);
+
+  // Drift correction: keep preview within ~250ms of projector's reported time.
+  // Tighter than the previous 0.5s window to maintain the <50ms target while
+  // avoiding constant micro-seeks.
   useEffect(() => {
     const v = videoRef.current;
     const t = state?.videoCurrentTime;
     if (!v || t == null || scrubbing != null) return;
-    if (Math.abs(v.currentTime - t) > 0.5) v.currentTime = t;
+    if (Math.abs(v.currentTime - t) > 0.25) v.currentTime = t;
   }, [state?.videoCurrentTime, scrubbing]);
 
   const black = state?.black ?? false;
@@ -131,11 +151,25 @@ export function LivePreviewPanel() {
     handleSeek(next);
   };
 
+  const remaining = Math.max(0, (duration || 0) - currentTime);
+  const rate = state?.playbackRate ?? 1;
+  const isLooping = state?.loop ?? false;
+  const cycleRate = () => {
+    const steps = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    const i = steps.findIndex((s) => Math.abs(s - rate) < 0.01);
+    const next = steps[(i + 1) % steps.length];
+    send({ type: "RATE", value: next });
+    const v = videoRef.current;
+    if (v) v.playbackRate = next;
+  };
+
   return (
     <div
+      ref={stageRef}
       className={cn(
         "flex h-full min-h-0 flex-col bg-card",
         focus.isActive && "ring-1 ring-primary/40",
+        fullPreview && "fixed inset-0 z-50",
       )}
       onFocus={focus.onFocus}
       onMouseDown={focus.onFocus}
@@ -233,6 +267,11 @@ export function LivePreviewPanel() {
           <SkipBack className="h-3.5 w-3.5" />
         </IconBtn>
         {isVideo && (
+          <IconBtn onClick={() => jump(-10)} title="Back 10s">
+            <span className="text-[10px] font-semibold">-10</span>
+          </IconBtn>
+        )}
+        {isVideo && (
           <IconBtn onClick={() => jump(-5)} title="Back 5s">
             <Rewind className="h-3.5 w-3.5" />
           </IconBtn>
@@ -251,6 +290,11 @@ export function LivePreviewPanel() {
             <FastForward className="h-3.5 w-3.5" />
           </IconBtn>
         )}
+        {isVideo && (
+          <IconBtn onClick={() => jump(10)} title="Forward 10s">
+            <span className="text-[10px] font-semibold">+10</span>
+          </IconBtn>
+        )}
         <IconBtn onClick={() => send({ type: "NEXT" })} title="Next">
           <SkipForward className="h-3.5 w-3.5" />
         </IconBtn>
@@ -262,6 +306,21 @@ export function LivePreviewPanel() {
             <RotateCcw className="h-3.5 w-3.5" />
           </IconBtn>
         )}
+        {isVideo && (
+          <IconBtn
+            onClick={() => send({ type: "LOOP", value: !isLooping })}
+            title={isLooping ? "Disable loop" : "Loop"}
+            active={isLooping}
+          >
+            <Repeat className="h-3.5 w-3.5" />
+          </IconBtn>
+        )}
+        {isVideo && (
+          <IconBtn onClick={cycleRate} title={`Playback speed (${rate}x)`}>
+            <Gauge className="h-3.5 w-3.5" />
+            <span className="ml-1 text-[10px] font-semibold tabular-nums">{rate}x</span>
+          </IconBtn>
+        )}
 
         <div className="mx-1 h-4 w-px bg-border" />
         <IconBtn
@@ -270,6 +329,13 @@ export function LivePreviewPanel() {
           active={state?.black}
         >
           {state?.black ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+        </IconBtn>
+        <IconBtn
+          onClick={() => setFullPreview((v) => !v)}
+          title={fullPreview ? "Exit full preview" : "Full preview"}
+          active={fullPreview}
+        >
+          {fullPreview ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
         </IconBtn>
         <div className="mx-1 h-4 w-px bg-border" />
         <IconBtn
@@ -288,6 +354,14 @@ export function LivePreviewPanel() {
           className="h-1 w-20 cursor-pointer accent-primary"
           aria-label="Volume"
         />
+        {isVideo && (
+          <div className="ml-1 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted-foreground">
+            <span title="Current">{fmtTime(currentTime)}</span>
+            <span>/</span>
+            <span title="Duration">{fmtTime(duration)}</span>
+            <span className="ml-1 opacity-60" title="Remaining">-{fmtTime(remaining)}</span>
+          </div>
+        )}
         <div className="ml-auto flex items-center gap-2 truncate text-[11px] text-muted-foreground">
           {isVideo && (
             <span
@@ -298,7 +372,7 @@ export function LivePreviewPanel() {
                   : "bg-muted text-muted-foreground",
               )}
             >
-              {state?.playing ? "Playing" : "Paused"}
+              {state?.playing ? (state?.videoReady === false ? "Buffering" : "Playing") : "Paused"}
             </span>
           )}
           <span className="truncate">{media ? media.name : "—"}</span>
@@ -307,6 +381,7 @@ export function LivePreviewPanel() {
     </div>
   );
 }
+
 
 function fmtTime(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
@@ -450,34 +525,44 @@ function TimelineScrubber({
         />
       )}
 
-      {/* Hover preview popover */}
-      {hover && src && (
-        <div
-          className="pointer-events-none absolute bottom-full mb-2 flex -translate-x-1/2 flex-col items-center"
-          style={{ left: `calc(${hover.x}px + 3rem + 0.5rem)` }}
-        >
-          <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg">
-            <video
-              src={src}
-              muted
-              playsInline
-              className="h-20 w-36 object-contain"
-              ref={(el) => {
-                if (el && isFinite(hover.t)) {
-                  try {
-                    el.currentTime = hover.t;
-                  } catch {
-                    /* ignore */
+      {/* Hover preview popover.
+          Fixed dimensions (144x80 thumb). The popup is anchored to the row and
+          its horizontal position is CLAMPED inside the row so it never gets
+          shrunk or clipped by the viewport edge near the end of long videos. */}
+      {hover && src && (() => {
+        const POPUP_WIDTH = 152; // thumb 144 + 8 border/padding
+        const rowWidth = rowRef.current?.getBoundingClientRect().width ?? 0;
+        const half = POPUP_WIDTH / 2;
+        const clampedX = Math.max(half, Math.min(rowWidth - half, hover.x + 56));
+        return (
+          <div
+            className="pointer-events-none absolute bottom-full mb-2 flex flex-col items-center"
+            style={{ left: clampedX, transform: "translateX(-50%)", width: POPUP_WIDTH }}
+          >
+            <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg" style={{ width: 144, height: 80 }}>
+              <video
+                src={src}
+                muted
+                playsInline
+                className="h-full w-full object-contain"
+                style={{ width: 144, height: 80 }}
+                ref={(el) => {
+                  if (el && isFinite(hover.t)) {
+                    try {
+                      el.currentTime = hover.t;
+                    } catch {
+                      /* ignore */
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+            </div>
+            <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
+              {fmtTime(hover.t)}
+            </div>
           </div>
-          <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
-            {fmtTime(hover.t)}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
