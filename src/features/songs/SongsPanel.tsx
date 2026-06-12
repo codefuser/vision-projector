@@ -51,10 +51,12 @@ export function SongsPanel() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [filter, setFilter] = useState<SongFilter>("all");
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [titleSuggestions, setTitleSuggestions] = useState<Song[]>([]);
   const projectedRef = useProjection((s) => s.state?.textOverlay?.text ?? null);
   const recent = useSongsRecent((s) => s.items);
+  const counts = useSongsRecent((s) => s.counts);
   const pushRecent = useSongsRecent((s) => s.push);
 
   useEffect(() => { void ensureLoaded(); }, [ensureLoaded]);
