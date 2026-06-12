@@ -1,7 +1,17 @@
 import { zip, unzip, strToU8, strFromU8 } from "fflate";
 import { db, DEFAULT_SETTINGS, type FolderRecord, type MediaRecord, type PlaylistRecord, type SettingsRecord } from "@/db/schema";
+import { useSongsStore } from "@/lib/songs/store";
 
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
+
+interface UserSongRecord {
+  id: number;
+  title: string;
+  content: string;
+  artist?: string;
+  album?: string;
+  scale?: string;
+}
 
 interface Manifest {
   version: number;
@@ -10,6 +20,8 @@ interface Manifest {
   media: Array<MediaRecord & { blobFile?: string; thumbFile?: string }>;
   playlists: PlaylistRecord[];
   settings: SettingsRecord["value"];
+  /** v2+ — user-created songs persisted by the Songs module. */
+  userSongs?: UserSongRecord[];
 }
 
 export async function exportBackup(): Promise<Blob> {
