@@ -28,13 +28,20 @@ import { cn } from "@/lib/utils";
  *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
-  outer: "church-media-ws-outer-v1",
-  left: "church-media-ws-left-v1",
+  outer: "church-media-ws-outer-v2",
+  left: "church-media-ws-left-v2",
 };
 // Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
 // height (~700px) for the resizable-panels percentage model.
 const TEXT_FORMAT_COLLAPSED_SIZE = 6;
 const TEXT_FORMAT_DEFAULT_SIZE = 40;
+
+// Pixel-based constraints for the left column (Preview + Text Formatting).
+// Operators expect a Visual-Studio-style stable default; the column always
+// opens at 250px on first run and may be dragged anywhere from 200–600px.
+const LEFT_DEFAULT_PX = "250px";
+const LEFT_MIN_PX = "200px";
+const LEFT_MAX_PX = "600px";
 
 function readLayout(key: string): Layout | undefined {
   try {
