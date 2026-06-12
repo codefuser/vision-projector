@@ -1,21 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Loader2, Star, Send, Languages, Search, Hash } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  BookOpen, Loader2, Star, Send, Languages, Search, Hash,
+  ListOrdered, FolderPlus, Mic, Library, Plus,
+} from "lucide-react";
 import { useBibleStore, type DisplayMode } from "@/lib/bible/store";
 import { getBible, type BibleLang } from "@/lib/bible/loader";
 import { search, parseReference, getChapterVerses, type VerseHit } from "@/lib/bible/search";
 import { BIBLE_BOOKS } from "@/lib/bible/books";
 import { projectVerse } from "@/projection/adapters/bible.adapter";
+import { projectVerseAt } from "@/lib/bible/project-ref";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { useProjection } from "@/stores/projection.store";
+import { useBibleQueue } from "@/stores/bible-queue.store";
+import { useBibleCollections } from "@/stores/bible-collections.store";
+import { VerseQueuePanel } from "./VerseQueuePanel";
+import { CollectionsPanel } from "./CollectionsPanel";
+import { SermonStatusBar } from "./SermonStatusBar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 type SearchMode = "reference" | "verse";
+type Tab = "search" | "queue" | "collections";
 
 interface DisplayHit {
   hit: VerseHit;
-  /** Tamil counterpart when displayMode === "both". */
   pair?: VerseHit;
 }
 
@@ -35,10 +48,23 @@ export function BiblePanel() {
   const [searchMs, setSearchMs] = useState<number | null>(null);
   const [chapterCtx, setChapterCtx] = useState<{ book: number; chapter: number } | null>(null);
   const [searchMode, setSearchMode] = useState<SearchMode>("reference");
+  const [tab, setTab] = useState<Tab>("search");
   const projectedRef = useProjection((s) => s.state?.textOverlay?.reference ?? null);
-  // Stable id of the selected verse — survives language / mode switches.
   const selectedKeyRef = useRef<string | null>(null);
   const lastQueryRef = useRef<string>("");
+
+  const queueItems = useBibleQueue((s) => s.items);
+  const queueIndex = useBibleQueue((s) => s.currentIndex);
+  const enqueue = useBibleQueue((s) => s.enqueue);
+  const setQueueIndex = useBibleQueue((s) => s.setCurrentIndex);
+  const sermonMode = useBibleQueue((s) => s.sermonMode);
+  const toggleSermon = useBibleQueue((s) => s.toggleSermon);
+
+  const collections = useBibleCollections((s) => s.collections);
+  const addToCollection = useBibleCollections((s) => s.addVerse);
+  const createCollection = useBibleCollections((s) => s.create);
+
+  const queuedKeys = useMemo(() => new Set(queueItems.map((q) => q.id)), [queueItems]);
 
   // Load required databases for current mode.
   useEffect(() => {
@@ -46,7 +72,7 @@ export function BiblePanel() {
     else void ensureLoaded(displayMode);
   }, [displayMode, ensureBoth, ensureLoaded]);
 
-  // Auto-detect mode from query content (when user types a clear reference, jump to ref mode).
+  // Auto-detect reference mode.
   useEffect(() => {
     const q = query.trim();
     if (!q) return;
@@ -114,12 +140,10 @@ export function BiblePanel() {
         primaryHits = search(q, dataPrimary, primary, 200);
         setChapterCtx(ref.chapter != null ? { book: ref.book.index, chapter: ref.chapter } : null);
       } else {
-        // Fall back to text search so the user always sees something useful.
         primaryHits = search(q, dataPrimary, primary, 80);
         setChapterCtx(null);
       }
     } else {
-      // Pure verse-content search — ignore parseReference.
       const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
       const hits: VerseHit[] = [];
       for (let b = 0; b < dataPrimary.length; b++) {
@@ -153,8 +177,6 @@ export function BiblePanel() {
     setSearchMs(performance.now() - start);
     setResults(list);
 
-    // Restore selection by stable id if possible — keeps the same verse
-    // highlighted when the user only changed language / display mode.
     if (queryChanged) {
       setActiveIdx(0);
       selectedKeyRef.current = list[0] ? favKey(list[0].hit.book, list[0].hit.chapter, list[0].hit.verse) : null;
@@ -188,9 +210,11 @@ export function BiblePanel() {
       book: h.book, chapter: h.chapter, verse: h.verse,
     });
     selectedKeyRef.current = favKey(h.book, h.chapter, h.verse);
+    // Sync queue cursor if the projected verse is in the queue.
+    const qIdx = queueItems.findIndex((q) => q.id === favKey(h.book, h.chapter, h.verse));
+    if (qIdx >= 0) setQueueIndex(qIdx);
     toast.success(`Projecting ${metaPrimary.name} ${h.chapter}:${h.verse}`);
   };
-
 
   const projectAt = (i: number) => {
     const dh = results[i];
@@ -203,30 +227,118 @@ export function BiblePanel() {
     if (dh) selectedKeyRef.current = favKey(dh.hit.book, dh.hit.chapter, dh.hit.verse);
   };
 
-  // ───────── keyboard navigation ─────────
+  const queueVerse = useCallback((dh: DisplayHit) => {
+    const h = dh.hit;
+    const meta = BIBLE_BOOKS[h.book];
+    const id = favKey(h.book, h.chapter, h.verse);
+    if (queuedKeys.has(id)) {
+      toast.info("Already in queue");
+      return;
+    }
+    enqueue({
+      id, book: h.book, chapter: h.chapter, verse: h.verse,
+      text: h.text, ref: `${meta.name} ${h.chapter}:${h.verse}`,
+    });
+    toast.success(`Queued ${meta.name} ${h.chapter}:${h.verse}`);
+  }, [enqueue, queuedKeys]);
+
+  const saveToCollection = (dh: DisplayHit, collectionId: string) => {
+    const h = dh.hit;
+    const meta = BIBLE_BOOKS[h.book];
+    addToCollection(collectionId, {
+      id: favKey(h.book, h.chapter, h.verse),
+      book: h.book, chapter: h.chapter, verse: h.verse,
+      text: h.text, ref: `${meta.name} ${h.chapter}:${h.verse}`,
+    });
+    toast.success(`Saved to "${collections.find((c) => c.id === collectionId)?.name ?? "collection"}"`);
+  };
+
+  // ───────── chapter / queue navigation ─────────
+  const navigateChapter = (delta: number) => {
+    const ctx = chapterCtx;
+    if (!ctx) return;
+    const meta = BIBLE_BOOKS[ctx.book];
+    if (!meta) return;
+    const next = Math.max(1, Math.min(meta.chapters, ctx.chapter + delta));
+    if (next === ctx.chapter) return;
+    setQuery(`${meta.name} ${next}`);
+  };
+
+  /** Advance projected verse within the queue or within the current chapter. */
+  const navigateVerse = (delta: number) => {
+    // Priority 1 — queue navigation (if queue has items and one is current/projected).
+    if (queueItems.length > 0 && queueIndex >= 0) {
+      const ni = queueIndex + delta;
+      if (ni >= 0 && ni < queueItems.length) {
+        const it = queueItems[ni];
+        if (projectVerseAt(it)) {
+          setQueueIndex(ni);
+          toast.success(`Projecting ${it.ref}`);
+        }
+        return;
+      }
+    }
+    // Priority 2 — chapter navigation based on currently projected verse.
+    const projected = useProjection.getState().state?.textOverlay;
+    if (projected?.kind === "bible_verse") {
+      // parse book/chapter/verse from results if active, else parse from English ref
+      const cur = results[activeIdx]?.hit;
+      let book = cur?.book, chapter = cur?.chapter, verse = cur?.verse;
+      if (book == null || chapter == null || verse == null) {
+        // best-effort: pick from chapterCtx + verse 1
+        if (chapterCtx) { book = chapterCtx.book; chapter = chapterCtx.chapter; verse = 1; }
+      }
+      if (book != null && chapter != null && verse != null) {
+        const meta = BIBLE_BOOKS[book];
+        const chData = getBible((displayMode === "ta" ? "ta" : "en"))?.[book]?.[chapter - 1];
+        if (meta && chData) {
+          let nv = verse + delta;
+          let nc = chapter;
+          if (nv < 1) {
+            nc = Math.max(1, chapter - 1);
+            const prevCh = getBible((displayMode === "ta" ? "ta" : "en"))?.[book]?.[nc - 1];
+            nv = prevCh?.length ?? 1;
+          } else if (nv > chData.length) {
+            nc = Math.min(meta.chapters, chapter + 1);
+            nv = 1;
+          }
+          if (projectVerseAt({ book, chapter: nc, verse: nv })) {
+            // also reflect in results list if visible
+            const idx = results.findIndex((r) => r.hit.book === book && r.hit.chapter === nc && r.hit.verse === nv);
+            if (idx >= 0) selectIdx(idx);
+          }
+          return;
+        }
+      }
+    }
+    // Fallback: chapter strip nav.
+    navigateChapter(delta);
+  };
+
+  // ───────── keyboard shortcuts ─────────
   useShortcut({
     id: "bible.focus-search", label: "Focus Bible search", category: "bible",
-    keys: ["/"], scope: "bible", handler: () => inputRef.current?.focus(),
+    keys: ["/"], scope: "bible", handler: () => { setTab("search"); inputRef.current?.focus(); },
   });
   useShortcut({
-    id: "bible.next-verse", label: "Next verse", category: "bible",
+    id: "bible.next-verse", label: "Next verse in list", category: "bible",
     keys: ["ArrowDown"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => selectIdx(Math.min(activeIdx + 1, Math.max(0, results.length - 1))),
   });
   useShortcut({
-    id: "bible.prev-verse", label: "Previous verse", category: "bible",
+    id: "bible.prev-verse", label: "Previous verse in list", category: "bible",
     keys: ["ArrowUp"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => selectIdx(Math.max(0, activeIdx - 1)),
   });
   useShortcut({
-    id: "bible.next-chapter", label: "Next chapter", category: "bible",
+    id: "bible.next", label: "Next (queue / chapter)", category: "bible",
     keys: ["ArrowRight"], scope: "bible", allowInInput: true, priority: 20,
-    handler: () => navigateChapter(+1),
+    handler: () => navigateVerse(+1),
   });
   useShortcut({
-    id: "bible.prev-chapter", label: "Previous chapter", category: "bible",
+    id: "bible.prev", label: "Previous (queue / chapter)", category: "bible",
     keys: ["ArrowLeft"], scope: "bible", allowInInput: true, priority: 20,
-    handler: () => navigateChapter(-1),
+    handler: () => navigateVerse(-1),
   });
   useShortcut({
     id: "bible.project-selected", label: "Project selected verse",
@@ -238,7 +350,21 @@ export function BiblePanel() {
     keys: ["Space"], scope: "bible", allowInInput: false, priority: 20,
     handler: () => projectAt(activeIdx),
   });
-  // Language shortcuts — keep current verse selected.
+  useShortcut({
+    id: "bible.queue.add", label: "Add selected to queue (Q)", category: "bible",
+    keys: ["q", "Q"], scope: "bible", allowInInput: false, priority: 20,
+    handler: () => { const dh = results[activeIdx]; if (dh) queueVerse(dh); },
+  });
+  useShortcut({
+    id: "bible.queue.open", label: "Open queue", category: "bible",
+    keys: ["Mod+Q"], scope: "bible", allowInInput: true, priority: 20,
+    handler: () => setTab((t) => (t === "queue" ? "search" : "queue")),
+  });
+  useShortcut({
+    id: "bible.sermon.toggle", label: "Toggle sermon mode", category: "bible",
+    keys: ["Mod+M"], scope: "bible", allowInInput: true, priority: 20,
+    handler: () => toggleSermon(),
+  });
   useShortcut({
     id: "bible.lang.tamil", label: "Switch to Tamil", category: "bible",
     keys: ["Alt+T"], scope: "bible", allowInInput: true, priority: 15,
@@ -254,7 +380,6 @@ export function BiblePanel() {
     keys: ["Alt+B"], scope: "bible", allowInInput: true, priority: 15,
     handler: () => { void setDisplayMode("both"); },
   });
-  // Search-mode shortcuts.
   useShortcut({
     id: "bible.mode.reference", label: "Reference search mode", category: "bible",
     keys: ["Alt+R"], scope: "bible", allowInInput: true, priority: 15,
@@ -266,16 +391,6 @@ export function BiblePanel() {
     handler: () => { setSearchMode("verse"); inputRef.current?.focus(); },
   });
 
-  const navigateChapter = (delta: number) => {
-    const ctx = chapterCtx;
-    if (!ctx) return;
-    const meta = BIBLE_BOOKS[ctx.book];
-    if (!meta) return;
-    const next = Math.max(1, Math.min(meta.chapters, ctx.chapter + delta));
-    if (next === ctx.chapter) return;
-    setQuery(`${meta.name} ${next}`);
-  };
-
   const fav = useMemo(
     () => new Set(favorites.map((f) => favKey(f.book, f.chapter, f.verse))),
     [favorites],
@@ -285,9 +400,22 @@ export function BiblePanel() {
 
   return (
     <div className="@container flex h-full min-h-0 flex-col">
+      {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <BookOpen className="h-4 w-4 text-primary" />
         <div className="text-sm font-semibold">Bible</div>
+        <button
+          onClick={toggleSermon}
+          className={cn(
+            "ml-2 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition",
+            sermonMode
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+          title="Toggle Sermon Mode (Ctrl+M)"
+        >
+          <Mic className="h-3 w-3" /> Sermon
+        </button>
         <div className="ml-auto inline-flex overflow-hidden rounded-md border border-border bg-background text-[11px]">
           {(["en", "ta", "both"] as DisplayMode[]).map((m) => (
             <button
@@ -308,201 +436,288 @@ export function BiblePanel() {
         </div>
       </div>
 
-      <div className="space-y-2 border-b border-border p-2">
-        {/* Mode toggle */}
-        <div className="inline-flex w-full overflow-hidden rounded-md border border-border bg-background text-[11px]">
-          <button
-            onClick={() => setSearchMode("reference")}
-            className={cn(
-              "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-              searchMode === "reference" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-            )}
-            title="Reference Search (Alt+R)"
-          >
-            <Hash className="h-3 w-3" /> Reference
-          </button>
-          <button
-            onClick={() => setSearchMode("verse")}
-            className={cn(
-              "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-              searchMode === "verse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-            )}
-            title="Verse Content Search (Alt+F)"
-          >
-            <Search className="h-3 w-3" /> Verse Text
-          </button>
-        </div>
-        <Input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={
-            searchMode === "reference"
-              ? 'Search Genesis 1:1, John 3:16, யோவான் 3'
-              : 'Search grace, love, faith, ஆதியிலே'
-          }
-          className="h-8 text-sm"
-          autoFocus
+      {/* Sermon strip */}
+      <SermonStatusBar />
+
+      {/* Tabs */}
+      <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-muted/20 px-1.5 py-1 text-[11px]">
+        <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="h-3 w-3" />} label="Search" />
+        <TabButton
+          active={tab === "queue"}
+          onClick={() => setTab("queue")}
+          icon={<ListOrdered className="h-3 w-3" />}
+          label="Queue"
+          badge={queueItems.length || undefined}
         />
-        <div className="flex items-center justify-between px-1 text-[10px] text-muted-foreground">
-          <span>
-            {loading
-              ? "Loading bible…"
-              : `${results.length} result${results.length === 1 ? "" : "s"}${searchMs != null ? ` · ${searchMs.toFixed(1)}ms` : ""}`}
-            {chapterCtx && <span className="ml-2 opacity-70">· Chapter · ← prev · → next</span>}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Languages className="h-3 w-3" />
-            {displayMode === "both" ? "Bilingual" : primaryLang === "en" ? "KJV" : "தமிழ்"}
-          </span>
-        </div>
-        {error && <div className="text-[11px] text-destructive">{error}</div>}
+        <TabButton active={tab === "collections"} onClick={() => setTab("collections")} icon={<Library className="h-3 w-3" />} label="Collections" />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {loading && (
-          <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading bible…
-          </div>
-        )}
-        {!loading && !results.length && (
-          <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-            No matches. Try a book name, abbreviation, Tamil, or any phrase.
-          </div>
-        )}
-
-        {/* Responsive media-card grid */}
-        <div className="grid grid-cols-1 gap-2 @md:grid-cols-2 @3xl:grid-cols-3">
-          {results.map((dh, i) => {
-            const h = dh.hit;
-            const pair = dh.pair;
-            const stableKey = favKey(h.book, h.chapter, h.verse);
-            const isFav = fav.has(stableKey);
-            // Reference shown at the top of every card, bilingual when applicable.
-            const refPrimary = `${h.bookNameLocal} ${h.chapter}:${h.verse}`;
-            const refSecondary = pair ? `${pair.bookNameLocal} ${pair.chapter}:${pair.verse}` : null;
-            const headerRef = displayMode === "both" && refSecondary
-              ? `${refPrimary} | ${refSecondary}`
-              : refPrimary;
-            const projectedKey = projectedRef ?? "";
-            const isProjected = projectedKey.includes(refPrimary);
-            const isActive = activeIdx === i;
-            return (
-              <div
-                key={stableKey + ":" + i}
-                onClick={() => { selectIdx(i); project(dh); }}
+      {/* Body */}
+      {tab === "queue" && <VerseQueuePanel />}
+      {tab === "collections" && <CollectionsPanel />}
+      {tab === "search" && (
+        <>
+          <div className="space-y-2 border-b border-border p-2">
+            <div className="inline-flex w-full overflow-hidden rounded-md border border-border bg-background text-[11px]">
+              <button
+                onClick={() => setSearchMode("reference")}
                 className={cn(
-                  "group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition hover:shadow-md",
-                  isActive ? "border-primary ring-1 ring-primary/40" : "border-border hover:border-primary/40",
-                  isProjected && "ring-2 ring-primary",
+                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
+                  searchMode === "reference" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
                 )}
+                title="Reference Search (Alt+R)"
               >
-                {/* Header: reference centered, smaller typography */}
-                <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/30 px-2.5 py-1.5">
-                  <span className="inline-flex h-5 items-center rounded bg-primary/15 px-1.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
-                    {displayMode === "both" ? "EN+TA" : primaryLang === "ta" ? "தமிழ்" : "KJV"}
-                  </span>
-                  <div className="min-w-0 flex-1 truncate text-center text-[11px] font-semibold tracking-wide text-primary">
-                    {headerRef}
-                  </div>
-                  {isProjected ? (
-                    <span className="shrink-0 rounded bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary-foreground">
-                      Live
-                    </span>
-                  ) : (
-                    <span className="h-5 w-8" />
-                  )}
-                </div>
+                <Hash className="h-3 w-3" /> Reference
+              </button>
+              <button
+                onClick={() => setSearchMode("verse")}
+                className={cn(
+                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
+                  searchMode === "verse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+                )}
+                title="Verse Content Search (Alt+F)"
+              >
+                <Search className="h-3 w-3" /> Verse Text
+              </button>
+            </div>
+            <Input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                searchMode === "reference"
+                  ? 'Search Genesis 1:1, John 3:16, யோவான் 3'
+                  : 'Search grace, love, faith, ஆதியிலே'
+              }
+              className="h-8 text-sm"
+              autoFocus
+            />
+            <div className="flex items-center justify-between px-1 text-[10px] text-muted-foreground">
+              <span>
+                {loading
+                  ? "Loading bible…"
+                  : `${results.length} result${results.length === 1 ? "" : "s"}${searchMs != null ? ` · ${searchMs.toFixed(1)}ms` : ""}`}
+                {chapterCtx && <span className="ml-2 opacity-70">· Chapter · ← prev · → next</span>}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Languages className="h-3 w-3" />
+                {displayMode === "both" ? "Bilingual" : primaryLang === "en" ? "KJV" : "தமிழ்"}
+              </span>
+            </div>
+            {error && <div className="text-[11px] text-destructive">{error}</div>}
+          </div>
 
-                {/* Verse preview */}
-                <div className="flex-1 px-3 py-2.5">
-                  <p className="text-sm leading-snug text-foreground">{h.text}</p>
-                  {pair && (
-                    <p className="mt-2 border-t border-border/40 pt-2 text-sm leading-snug text-muted-foreground">
-                      {pair.text}
-                    </p>
-                  )}
-                </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {loading && (
+              <div className="flex h-full items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading bible…
+              </div>
+            )}
+            {!loading && !results.length && (
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                No matches. Try a book name, abbreviation, Tamil, or any phrase.
+              </div>
+            )}
 
-                {/* Footer actions */}
-                <div className="flex items-center justify-between border-t border-border/60 bg-muted/20 px-2 py-1.5">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isFav) removeFavorite(stableKey);
-                      else
-                        addFavorite({
-                          lang: primaryLang, book: h.book, chapter: h.chapter, verse: h.verse,
-                          ref: `${h.bookName} ${h.chapter}:${h.verse}`, text: h.text,
-                        });
-                    }}
+            <div className="grid grid-cols-1 gap-1.5 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+              {results.map((dh, i) => {
+                const h = dh.hit;
+                const pair = dh.pair;
+                const stableKey = favKey(h.book, h.chapter, h.verse);
+                const isFav = fav.has(stableKey);
+                const isQueued = queuedKeys.has(stableKey);
+                const queuePos = isQueued ? queueItems.findIndex((q) => q.id === stableKey) + 1 : 0;
+                const refPrimary = `${h.bookNameLocal} ${h.chapter}:${h.verse}`;
+                const refSecondary = pair ? `${pair.bookNameLocal} ${pair.chapter}:${pair.verse}` : null;
+                const isProjected = (projectedRef ?? "").includes(refPrimary);
+                const isActive = activeIdx === i;
+                return (
+                  <div
+                    key={stableKey + ":" + i}
+                    onClick={() => { selectIdx(i); }}
+                    onDoubleClick={() => { selectIdx(i); project(dh); }}
                     className={cn(
-                      "inline-flex h-6 w-6 items-center justify-center rounded transition",
-                      isFav
-                        ? "text-amber-500 hover:bg-amber-500/10"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      "group relative flex cursor-pointer flex-col overflow-hidden rounded-md border bg-card/80 backdrop-blur-sm transition-all",
+                      "hover:-translate-y-px hover:border-primary/60 hover:bg-card hover:shadow-lg hover:shadow-primary/5",
+                      isActive && !isProjected && "border-primary/80 ring-1 ring-primary/30",
+                      !isActive && !isProjected && "border-border/60",
+                      isProjected && "border-primary ring-2 ring-primary shadow-md shadow-primary/20",
+                      isQueued && !isProjected && "border-amber-500/40",
                     )}
-                    title={isFav ? "Remove favorite" : "Add favorite"}
                   >
-                    <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); selectIdx(i); project(dh); }}
-                    className="inline-flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground hover:opacity-90"
-                    title="Project verse (Enter)"
-                  >
-                    <Send className="h-3 w-3" /> Project
-                  </button>
+                    {/* Header */}
+                    <div className="flex items-center gap-1.5 border-b border-border/40 px-2 py-1">
+                      <span className="text-[10px] font-bold tracking-wide text-primary">
+                        {refPrimary}
+                      </span>
+                      {refSecondary && (
+                        <span className="truncate text-[9px] text-muted-foreground">· {refSecondary}</span>
+                      )}
+                      <div className="ml-auto flex items-center gap-1">
+                        {isQueued && (
+                          <span className="rounded bg-amber-500/15 px-1 py-px text-[9px] font-semibold text-amber-500">
+                            Q{queuePos}
+                          </span>
+                        )}
+                        {isFav && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
+                        {isProjected && (
+                          <span className="inline-flex items-center gap-1 rounded bg-primary px-1 py-px text-[9px] font-bold uppercase text-primary-foreground">
+                            <span className="h-1 w-1 animate-pulse rounded-full bg-primary-foreground" />
+                            Live
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Verse text */}
+                    <div className="flex-1 px-2 py-1.5">
+                      <p className="line-clamp-3 text-[12.5px] leading-snug text-foreground/90">
+                        {h.text}
+                      </p>
+                      {pair && (
+                        <p className="mt-1 line-clamp-2 border-t border-border/30 pt-1 text-[12px] leading-snug text-muted-foreground">
+                          {pair.text}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center gap-0.5 border-t border-border/40 bg-muted/20 px-1.5 py-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isFav) removeFavorite(stableKey);
+                          else
+                            addFavorite({
+                              lang: primaryLang, book: h.book, chapter: h.chapter, verse: h.verse,
+                              ref: `${h.bookName} ${h.chapter}:${h.verse}`, text: h.text,
+                            });
+                        }}
+                        className={cn(
+                          "inline-flex h-6 w-6 items-center justify-center rounded transition",
+                          isFav
+                            ? "text-amber-500 hover:bg-amber-500/10"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                        title={isFav ? "Remove favorite" : "Add favorite"}
+                      >
+                        <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); queueVerse(dh); }}
+                        className={cn(
+                          "inline-flex h-6 w-6 items-center justify-center rounded transition",
+                          isQueued
+                            ? "text-amber-500 hover:bg-amber-500/10"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                        title="Add to queue (Q)"
+                      >
+                        <ListOrdered className="h-3.5 w-3.5" />
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                            title="Save to collection"
+                          >
+                            <FolderPlus className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuLabel className="text-[10px]">Save to…</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {collections.length === 0 && (
+                            <DropdownMenuItem disabled>No collections yet</DropdownMenuItem>
+                          )}
+                          {collections.map((c) => (
+                            <DropdownMenuItem
+                              key={c.id}
+                              onClick={() => saveToCollection(dh, c.id)}
+                            >
+                              <Library className="h-3 w-3" />
+                              <span className="truncate">{c.name}</span>
+                              <span className="ml-auto text-[10px] text-muted-foreground">{c.verses.length}</span>
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const name = prompt("New collection name:");
+                              if (name?.trim()) {
+                                const id = createCollection(name.trim());
+                                saveToCollection(dh, id);
+                              }
+                            }}
+                          >
+                            <Plus className="h-3 w-3" /> New collection…
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); selectIdx(i); project(dh); }}
+                        className="ml-auto inline-flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground transition hover:opacity-90"
+                        title="Project verse (Enter)"
+                      >
+                        <Send className="h-3 w-3" /> Project
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {!query.trim() && favorites.length > 0 && (
+              <div className="mt-4 border-t border-border pt-3">
+                <div className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Favorites
+                </div>
+                <div className="grid grid-cols-1 gap-2 @md:grid-cols-2 @3xl:grid-cols-3">
+                  {favorites.slice(0, 30).map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => projectVerseAt({ book: f.book, chapter: f.chapter, verse: f.verse })}
+                      className="flex cursor-pointer flex-col gap-1 rounded-md border border-border bg-card px-2.5 py-2 text-left hover:border-primary/40 hover:bg-accent/40"
+                    >
+                      <div className="text-[11px] font-semibold text-primary">{f.ref}</div>
+                      <div className="line-clamp-2 text-xs text-muted-foreground">{f.text}</div>
+                    </button>
+                  ))}
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {!query.trim() && favorites.length > 0 && (
-          <div className="mt-4 border-t border-border pt-3">
-            <div className="px-1 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Favorites
-            </div>
-            <div className="grid grid-cols-1 gap-2 @md:grid-cols-2 @3xl:grid-cols-3">
-              {favorites.slice(0, 30).map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    const data = getBible(primaryLang);
-                    if (!data) return;
-                    const txt = data[f.book]?.[f.chapter - 1]?.[f.verse - 1];
-                    if (!txt) return;
-                    const meta = BIBLE_BOOKS[f.book];
-                    const hit: VerseHit = {
-                      book: f.book, bookName: meta.name,
-                      bookNameLocal: primaryLang === "ta" ? meta.nameTa : meta.name,
-                      chapter: f.chapter, verse: f.verse, text: txt, score: 0,
-                    };
-                    let pair: VerseHit | undefined;
-                    if (displayMode === "both") {
-                      const other: BibleLang = primaryLang === "en" ? "ta" : "en";
-                      const od = getBible(other);
-                      const pt = od?.[f.book]?.[f.chapter - 1]?.[f.verse - 1];
-                      if (pt) pair = {
-                        book: f.book, bookName: meta.name,
-                        bookNameLocal: other === "ta" ? meta.nameTa : meta.name,
-                        chapter: f.chapter, verse: f.verse, text: pt, score: 0,
-                      };
-                    }
-                    project({ hit, pair });
-                  }}
-                  className="flex cursor-pointer flex-col gap-1 rounded-md border border-border bg-card px-2.5 py-2 text-left hover:border-primary/40 hover:bg-accent/40"
-                >
-                  <div className="text-[11px] font-semibold text-primary">{f.ref}</div>
-                  <div className="line-clamp-2 text-xs text-muted-foreground">{f.text}</div>
-                </button>
-              ))}
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function TabButton({
+  active, onClick, icon, label, badge,
+}: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "inline-flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1 transition",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+    >
+      {icon}
+      <span>{label}</span>
+      {badge != null && (
+        <span className={cn(
+          "ml-0.5 rounded px-1 text-[9px] font-bold",
+          active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary",
+        )}>{badge}</span>
+      )}
+    </button>
   );
 }
