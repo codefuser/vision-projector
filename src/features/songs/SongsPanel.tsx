@@ -256,7 +256,7 @@ export function SongsPanel() {
               )}
             >
               <Filter className="h-3.5 w-3.5" />
-              <span className="hidden @sm:inline">{FILTER_LABELS[filter]}</span>
+              <span className="hidden max-w-[140px] truncate @sm:inline">{filter === "author" && authorFilter ? authorFilter : FILTER_LABELS[filter]}</span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-[70vh] w-56 overflow-y-auto">
