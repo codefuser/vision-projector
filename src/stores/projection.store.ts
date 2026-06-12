@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
+import { DEFAULT_GROUPED_STYLES, getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
 
 interface ProjectionStore {
   projectorOpen: boolean;
@@ -91,7 +91,7 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
           break;
         case "UPDATE_TEXT_STYLE": next = { ...cur, textStyle: cmd.style }; break;
         case "UPDATE_STYLES": next = { ...cur, groupedStyles: cmd.styles }; break;
-        case "UPDATE_BACKGROUND": next = { ...cur, groupedStyles: { ...(cur.groupedStyles ?? {}), background: cmd.background } as NonNullable<ProjectionState["groupedStyles"]> }; break;
+        case "UPDATE_BACKGROUND": next = { ...cur, groupedStyles: { ...(cur.groupedStyles ?? DEFAULT_GROUPED_STYLES), background: cmd.background } }; break;
         case "UPDATE_LOGO": next = { ...cur, logo: cmd.logo }; break;
         case "PLAY":  next = { ...cur, playing: true }; break;
         case "PAUSE": next = { ...cur, playing: false }; break;
