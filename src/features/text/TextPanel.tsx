@@ -7,8 +7,8 @@
  * Uses the same projection pipeline as Bible/Songs so theming, fonts,
  * background and animation render identically on the projector.
  */
-import { useEffect, useMemo, useState } from "react";
-import { Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,6 +18,7 @@ import {
 import { useTextItems, splitTextSlides, type TextItem } from "@/stores/text-items.store";
 import { projectTextSlide } from "@/projection/adapters/text.adapter";
 import { useProjection } from "@/stores/projection.store";
+import { convertCompleted } from "@/lib/text/tanglish";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -27,6 +28,38 @@ const FILTER_LABELS: Record<TextFilter, string> = {
   favorites: "Favorites",
   recent: "Recently Used",
 };
+
+type TypingMode = "english" | "tamil" | "tanglish";
+const MODE_LABELS: Record<TypingMode, string> = {
+  english: "English",
+  tamil: "Tamil",
+  tanglish: "Tanglish → தமிழ்",
+};
+const MODE_SHORT: Record<TypingMode, string> = {
+  english: "EN",
+  tamil: "தமிழ்",
+  tanglish: "Tang→த",
+};
+
+/** Word-boundary trigger characters — when one is typed, convert completed
+ *  Tanglish words behind it. Avoids mid-word interference. */
+const BOUNDARY_RE = /[\s.,;:!?()[\]{}"'\u0964\u0965/\\-]/;
+
+/** Reading time string at ~150 wpm. */
+function readingTime(words: number): string {
+  if (words === 0) return "0 sec";
+  const sec = Math.round((words / 150) * 60);
+  if (sec < 60) return `${sec} sec`;
+  const min = Math.round(sec / 60);
+  return `${min} min`;
+}
+
+/** Count words across mixed Tamil + Latin text. Treats any contiguous
+ *  letter run (Tamil block U+0B80–U+0BFF or A–Z) as one word. */
+function countWords(text: string): number {
+  const matches = text.match(/[A-Za-z\u0B80-\u0BFF']+/g);
+  return matches ? matches.length : 0;
+}
 
 const STARTER_SAMPLES = [
   { title: "Welcome", content: "Welcome to our service\n\nMay God bless you abundantly" },
@@ -50,6 +83,53 @@ export function TextPanel() {
   const [activeSlide, setActiveSlide] = useState(0);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
+  const [typingMode, setTypingMode] = useState<TypingMode>("english");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /** Handle textarea input. In Tanglish mode, when the user just typed a
+   *  word boundary, convert all completed words behind the caret to Tamil
+   *  and restore the caret to the correct offset. */
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const next = e.target.value;
+    if (typingMode !== "tanglish") {
+      setDraftContent(next);
+      return;
+    }
+    const caret = e.target.selectionStart ?? next.length;
+    const tailFromCaret = next.length - caret;
+    const justTypedBoundary =
+      caret > 0 && BOUNDARY_RE.test(next.charAt(caret - 1)) &&
+      next.length >= draftContent.length;
+    if (!justTypedBoundary) {
+      setDraftContent(next);
+      return;
+    }
+    // Split at caret. Convert the head (which ends with a boundary char) and
+    // leave the tail untouched so mid-document edits don't re-flow text after
+    // the caret.
+    const head = next.slice(0, caret);
+    const tail = next.slice(caret);
+    const { converted, trailing } = convertCompleted(head);
+    const newHead = converted + trailing;
+    const newValue = newHead + tail;
+    setDraftContent(newValue);
+    // Restore caret at the boundary between converted head and original tail.
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      const pos = newValue.length - tailFromCaret;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  // Live counters
+  const counters = useMemo(() => {
+    const text = draftContent;
+    const chars = text.length;
+    const words = countWords(text);
+    const lines = text === "" ? 0 : text.split("\n").length;
+    return { chars, words, lines, reading: readingTime(words) };
+  }, [draftContent]);
 
   const selected = useMemo(
     () => items.find((it) => it.id === selectedId) ?? null,
@@ -275,6 +355,38 @@ export function TextPanel() {
                     placeholder="Title"
                     className="h-8 flex-1 text-sm font-semibold"
                   />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        title={`Typing mode: ${MODE_LABELS[typingMode]}`}
+                        className={cn(
+                          "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-border px-2 text-[11px] font-semibold transition hover:bg-accent",
+                          typingMode === "tanglish" && "border-primary/60 bg-primary/10 text-primary",
+                        )}
+                      >
+                        <Languages className="h-3.5 w-3.5" />
+                        <span>{MODE_SHORT[typingMode]}</span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Typing mode
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {(["english", "tamil", "tanglish"] as TypingMode[]).map((m) => (
+                        <DropdownMenuItem
+                          key={m}
+                          onClick={() => setTypingMode(m)}
+                          className={cn("text-xs", typingMode === m && "bg-accent font-semibold text-primary")}
+                        >
+                          {MODE_LABELS[m]}
+                          {m === "tanglish" && (
+                            <span className="ml-auto text-[10px] text-muted-foreground">auto-convert</span>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <button
                     onClick={handleDuplicate}
                     title="Duplicate"
@@ -294,13 +406,27 @@ export function TextPanel() {
                   </button>
                 </div>
                 <Textarea
+                  ref={textareaRef}
                   value={draftContent}
-                  onChange={(e) => setDraftContent(e.target.value)}
-                  placeholder={"Type or paste content…\n\nSeparate slides with a blank line."}
-                  className="flex-1 resize-none rounded-none border-0 font-sans text-[14px] leading-relaxed focus-visible:ring-0"
+                  onChange={handleContentChange}
+                  placeholder={
+                    typingMode === "tanglish"
+                      ? "Type Tanglish — words auto-convert to தமிழ் after space.\n\nBlank line = new slide."
+                      : "Type or paste content…\n\nSeparate slides with a blank line."
+                  }
+                  className={cn(
+                    "flex-1 resize-none rounded-none border-0 font-sans text-[14px] leading-relaxed focus-visible:ring-0",
+                    typingMode === "tamil" && "text-[15px]",
+                  )}
+                  lang={typingMode === "english" ? "en" : "ta"}
                 />
-                <div className="border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
-                  {slides.length} slide{slides.length === 1 ? "" : "s"} · blank line = new slide
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
+                  <span><b className="text-foreground/80">{counters.chars}</b> chars</span>
+                  <span><b className="text-foreground/80">{counters.words}</b> words</span>
+                  <span><b className="text-foreground/80">{counters.lines}</b> lines</span>
+                  <span><b className="text-foreground/80">{slides.length}</b> slide{slides.length === 1 ? "" : "s"}</span>
+                  <span>~{counters.reading} read</span>
+                  <span className="ml-auto opacity-70">blank line = new slide</span>
                 </div>
               </>
             )}
