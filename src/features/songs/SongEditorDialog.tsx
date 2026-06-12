@@ -70,9 +70,17 @@ export function SongEditorDialog({ open, onOpenChange, editingId }: Props) {
     onOpenChange(false);
   };
 
+  // Stop ALL keystrokes inside the editor from bubbling to global shortcut
+  // handlers (Enter, Arrow keys, "/" etc.). The dialog must behave like a
+  // plain text editor — no projection / navigation side-effects.
+  const swallowKeys = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") return; // let Radix close the dialog
+    e.stopPropagation();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-4xl" onKeyDown={swallowKeys} onKeyDownCapture={swallowKeys}>
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Song" : "New Song"}</DialogTitle>
         </DialogHeader>
