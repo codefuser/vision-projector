@@ -151,11 +151,25 @@ export function LivePreviewPanel() {
     handleSeek(next);
   };
 
+  const remaining = Math.max(0, (duration || 0) - currentTime);
+  const rate = state?.playbackRate ?? 1;
+  const isLooping = state?.loop ?? false;
+  const cycleRate = () => {
+    const steps = [0.5, 0.75, 1, 1.25, 1.5, 2];
+    const i = steps.findIndex((s) => Math.abs(s - rate) < 0.01);
+    const next = steps[(i + 1) % steps.length];
+    send({ type: "RATE", value: next });
+    const v = videoRef.current;
+    if (v) v.playbackRate = next;
+  };
+
   return (
     <div
+      ref={stageRef}
       className={cn(
         "flex h-full min-h-0 flex-col bg-card",
         focus.isActive && "ring-1 ring-primary/40",
+        fullPreview && "fixed inset-0 z-50",
       )}
       onFocus={focus.onFocus}
       onMouseDown={focus.onFocus}
