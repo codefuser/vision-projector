@@ -61,36 +61,66 @@ export function SongsPanel() {
     const songs = getSongs();
     if (!songs) return;
     const q = query.trim();
+    const favIds = new Set(favorites.map((f) => f.id));
+    const userIds = new Set(userSongs.map((u) => u.id));
+    const recentIds = recent.map((r) => r.songId);
+    const applyFilter = (s: Song) => {
+      if (filter === "favorites") return favIds.has(s.id);
+      if (filter === "mine") return userIds.has(s.id);
+      if (filter === "recent") return recentIds.includes(s.id);
+      return true;
+    };
+
     if (!q) {
       const out: SongHit[] = [];
       const seen = new Set<number>();
-      for (const u of userSongs) {
-        const s = songs.find((x) => x.id === u.id);
-        if (s && !seen.has(s.id)) {
-          out.push({ song: s, score: 0, slideIndex: 0, matched: [] });
-          seen.add(s.id);
+      const push = (s: Song, slideIndex = 0) => {
+        if (seen.has(s.id) || !applyFilter(s)) return;
+        out.push({ song: s, score: 0, slideIndex, matched: [] });
+        seen.add(s.id);
+      };
+      if (filter === "all" || filter === "mine") {
+        for (const u of userSongs) {
+          const s = songs.find((x) => x.id === u.id);
+          if (s) push(s);
         }
       }
-      for (const r of recent) {
-        if (seen.has(r.songId)) continue;
-        const s = songs.find((x) => x.id === r.songId);
-        if (s) { out.push({ song: s, score: 0, slideIndex: r.slideIndex, matched: [] }); seen.add(s.id); }
+      if (filter === "all" || filter === "recent") {
+        for (const r of recent) {
+          const s = songs.find((x) => x.id === r.songId);
+          if (s) push(s, r.slideIndex);
+        }
       }
-      for (let i = 0; i < songs.length && out.length < 40; i++) {
-        if (seen.has(songs[i].id)) continue;
-        out.push({ song: songs[i], score: 0, slideIndex: 0, matched: [] });
+      if (filter === "favorites") {
+        for (const f of favorites) {
+          const s = songs.find((x) => x.id === f.id);
+          if (s) push(s);
+        }
       }
+      const limit = filter === "all" ? 80 : 500;
+      for (let i = 0; i < songs.length && out.length < limit; i++) push(songs[i]);
       setResults(out);
       setSearchMs(null);
       setActiveIdx(0);
       return;
     }
     const t0 = performance.now();
-    const hits = searchSongs(q, songs, 120);
+    const hits = searchSongs(q, songs, 200).filter((h) => applyFilter(h.song)).slice(0, 120);
     setSearchMs(performance.now() - t0);
     setResults(hits);
     setActiveIdx(0);
-  }, [query, loaded, recent, userSongs]);
+  }, [query, loaded, recent, userSongs, favorites, filter]);
+
+  // Live title suggestions while typing.
+  useEffect(() => {
+    if (!loaded) return;
+    const q = query.trim();
+    if (q.length < 1) { setTitleSuggestions([]); return; }
+    const songs = getSongs();
+    if (!songs) return;
+    const hits = searchSongs(q, songs, 8);
+    setTitleSuggestions(hits.map((h) => h.song));
+  }, [query, loaded]);
 
   const selectedSong: Song | null = useMemo(() => {
     if (!selectedSongId) return null;
