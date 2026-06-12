@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "@/db/schema";
 import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "@/db/schema";
 import { getMedia, getPlaylist, getSettings, touchMedia } from "@/db/repo";
-import { getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
+import { getChannel, type ProjectionCommand, type ProjectionState, type TextOverlay } from "@/lib/broadcast";
 
-type Mode = "idle" | "single" | "slideshow";
+type Mode = "idle" | "single" | "slideshow" | "text";
 
 interface RuntimeItem {
   id: string;
@@ -28,6 +28,7 @@ export function ProjectionWindow() {
   const [videoReady, setVideoReady] = useState(false);
   const [prevItem, setPrevItem] = useState<RuntimeItem | null>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
   const urlsRef = useRef<string[]>([]);
@@ -83,9 +84,10 @@ export function ProjectionWindow() {
       videoCurrentTime: v && cur?.media.type === "video" ? v.currentTime : undefined,
       videoDurationMs:
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
+      textOverlay,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay]);
 
   useEffect(() => {
     broadcastState();
@@ -219,11 +221,28 @@ export function ProjectionWindow() {
       switch (cmd.type) {
         case "LOAD":
           setVideoReady(false);
+          setTextOverlay(null);
           await loadSingle(cmd.mediaId);
           break;
         case "LOAD_PLAYLIST":
           setVideoReady(false);
+          setTextOverlay(null);
           await loadPlaylist(cmd.playlistId, cmd.startIndex ?? 0);
+          break;
+        case "LOAD_TEXT":
+          // Projecting non-media content. Stop any media playback first so the
+          // overlay owns the screen, then store the overlay payload.
+          setVideoReady(false);
+          if (videoRef.current) videoRef.current.pause();
+          clearTimer();
+          urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+          urlsRef.current = [];
+          setItems([]);
+          setIndex(0);
+          setMode("text");
+          setPlaying(false);
+          setBlack(false);
+          setTextOverlay(cmd.overlay);
           break;
         case "PLAY":
           setPlaying(true);
@@ -245,6 +264,7 @@ export function ProjectionWindow() {
           setItems([]);
           setIndex(0);
           setMode("idle");
+          setTextOverlay(null);
           clearTimer();
           urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
           urlsRef.current = [];
@@ -376,11 +396,31 @@ export function ProjectionWindow() {
       )}
 
 
+      {/* Text overlay (Bible / Songs / Text) */}
+      {textOverlay && !black && !cur && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black px-[6vw] text-white">
+          <div className="max-w-[88%] text-center">
+            <div className="whitespace-pre-line text-[5.2vw] font-medium leading-[1.25] tracking-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)]">
+              {textOverlay.text}
+            </div>
+            {textOverlay.subtext && (
+              <div className="mt-[3vh] whitespace-pre-line text-[3.4vw] leading-[1.3] text-white/80">
+                {textOverlay.subtext}
+              </div>
+            )}
+            <div className="mt-[4vh] flex items-center justify-center gap-3 text-[2.2vw] uppercase tracking-[0.18em] text-white/70">
+              <span>{textOverlay.reference}</span>
+              {textOverlay.translation && <span className="opacity-60">· {textOverlay.translation}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
 
       {/* Idle */}
-      {!cur && !black && (
+      {!cur && !black && !textOverlay && (
         <div className="flex h-full items-center justify-center text-neutral-700">
           <div className="text-center">
             <div className="text-2xl font-semibold">Church Media — Projector</div>

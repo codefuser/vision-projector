@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { GlobalShortcuts } from "@/components/GlobalShortcuts";
+import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 
 function NotFoundComponent() {
   return (
@@ -114,9 +116,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Detect projector popup: skip app-wide shortcut handlers there so the
+  // popup window stays a passive renderer (the broadcast channel is the
+  // only command source it should react to).
+  const isProjectorPopup =
+    typeof window !== "undefined" && window.opener != null && window.name === "church-projector";
 
   return (
     <QueryClientProvider client={queryClient}>
+      {!isProjectorPopup && <GlobalShortcuts />}
+      {!isProjectorPopup && <ShortcutsDialog />}
       <Outlet />
       <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>

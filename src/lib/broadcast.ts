@@ -1,7 +1,25 @@
 // Cross-window communication for projection control.
+/**
+ * Generic text-overlay payload used to project non-media content
+ * (Bible verses today; Songs / Text / Announcements in later phases).
+ */
+export interface TextOverlay {
+  /** e.g. "John 3:16" */
+  reference: string;
+  /** Main body. Newlines preserved. */
+  text: string;
+  /** Optional translation/language label, e.g. "KJV" or "தமிழ்". */
+  translation?: string;
+  /** Optional secondary lines (e.g. parallel translation). */
+  subtext?: string;
+  /** Logical content kind so future renderers can branch. */
+  kind?: "bible_verse" | "song_slide" | "live_text" | "announcement";
+}
+
 export type ProjectionCommand =
   | { type: "LOAD"; mediaId: string; transition?: string }
   | { type: "LOAD_PLAYLIST"; playlistId: string; startIndex?: number; shuffle?: boolean; loop?: string }
+  | { type: "LOAD_TEXT"; overlay: TextOverlay }
   | { type: "PLAY" }
   | { type: "PAUSE" }
   | { type: "STOP" }
@@ -17,7 +35,7 @@ export type ProjectionCommand =
 
 export type ProjectionState = {
   type: "STATE";
-  mode: "idle" | "single" | "slideshow";
+  mode: "idle" | "single" | "slideshow" | "text";
   currentMediaId: string | null;
   index: number;
   total: number;
@@ -33,6 +51,8 @@ export type ProjectionState = {
   playbackRate?: number;
   /** True when the projector video is looping. */
   loop?: boolean;
+  /** Currently projected text overlay (Bible / Songs / Text). */
+  textOverlay?: TextOverlay | null;
 };
 
 

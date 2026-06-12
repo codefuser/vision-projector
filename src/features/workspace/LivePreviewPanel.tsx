@@ -198,7 +198,7 @@ export function LivePreviewPanel() {
 
       {/* Stage */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center bg-black">
-        {!media && !black && (
+        {!media && !black && !state?.textOverlay && (
           <div className="text-center text-xs text-muted-foreground">
             <div className="font-medium">No media projecting</div>
             <div className="mt-1 opacity-60">Send media to the projector to preview it here</div>
@@ -227,6 +227,24 @@ export function LivePreviewPanel() {
               setLocalDuration(isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)
             }
           />
+        )}
+        {!media && !black && state?.textOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black px-6 text-white">
+            <div className="max-w-[92%] text-center">
+              <div className="whitespace-pre-line text-[clamp(0.95rem,2.4vw,1.8rem)] font-medium leading-snug">
+                {state.textOverlay.text}
+              </div>
+              {state.textOverlay.subtext && (
+                <div className="mt-3 whitespace-pre-line text-[clamp(0.8rem,1.6vw,1.2rem)] text-white/70">
+                  {state.textOverlay.subtext}
+                </div>
+              )}
+              <div className="mt-3 text-[10px] uppercase tracking-[0.18em] text-white/60">
+                {state.textOverlay.reference}
+                {state.textOverlay.translation ? ` · ${state.textOverlay.translation}` : ""}
+              </div>
+            </div>
+          </div>
         )}
         {black && <div className="absolute inset-0 bg-black" />}
 
