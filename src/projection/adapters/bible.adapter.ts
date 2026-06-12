@@ -1,20 +1,21 @@
 /**
- * Bible Adapter — projects bible verses through the engine's text-overlay
- * wire command. Uses the same broadcast channel as media so the projector
- * window can switch instantly without losing state.
+ * Bible Adapter — projects bible verses (single or bilingual) through the
+ * shared text-overlay wire command. Always includes the current formatting
+ * style so the projector renders identically on first frame.
  */
 import { useProjection } from "@/stores/projection.store";
 import { projectionEvents } from "../event-bus";
 import { projectionHistory } from "../history";
 import type { ProjectionContent, BibleVerseBody } from "../content.types";
 import type { TextOverlay } from "@/lib/broadcast";
+import { useTextFormat } from "@/lib/text-format/store";
 
 export interface ProjectVerseInput {
   reference: string;
   text: string;
   translation: string;
-  /** Optional secondary text (e.g. parallel translation). */
   subtext?: string;
+  subtranslation?: string;
   book?: number;
   chapter?: number;
   verse?: number;
@@ -26,12 +27,13 @@ export function projectVerse(input: ProjectVerseInput): ProjectionContent<BibleV
     text: input.text,
     translation: input.translation,
     subtext: input.subtext,
+    subtranslation: input.subtranslation,
     kind: "bible_verse",
   };
+  const style = useTextFormat.getState().style;
   const store = useProjection.getState();
   if (!store.projectorOpen) store.openProjector();
-  // Send immediately; ProjectionWindow handles whether to delay.
-  const send = () => useProjection.getState().send({ type: "LOAD_TEXT", overlay });
+  const send = () => useProjection.getState().send({ type: "LOAD_TEXT", overlay, style });
   if (store.projectorOpen) send();
   else setTimeout(send, 400);
 
@@ -42,7 +44,7 @@ export function projectVerse(input: ProjectVerseInput): ProjectionContent<BibleV
     title: `${input.reference} (${input.translation})`,
     source: { module: "bible" },
     metadata: { book: input.book, chapter: input.chapter, verse: input.verse },
-    style: { background: "#000", color: "#fff", align: "center", vAlign: "middle" },
+    style: { background: style.background, color: style.color, align: style.align, vAlign: style.vAlign },
     body: { reference: input.reference, text: input.text, translation: input.translation },
     createdAt: now,
     updatedAt: now,
