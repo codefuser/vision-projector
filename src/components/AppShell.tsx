@@ -174,3 +174,23 @@ function NavItem({
     </Link>
   );
 }
+
+function ProjectorToggleButton({ projectorOpen, onToggle }: { projectorOpen: boolean; onToggle: () => void }) {
+  const tooltip = useShortcutTooltip("projector.toggle", projectorOpen ? "Close Projector" : "Open Projector");
+  return (
+    <button
+      onClick={onToggle}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-xs font-medium transition",
+        projectorOpen
+          ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+          : "bg-primary text-primary-foreground hover:opacity-90",
+      )}
+    >
+      <MonitorPlay className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{projectorOpen ? "Close Projector" : "Open Projector"}</span>
+    </button>
+  );
+}
