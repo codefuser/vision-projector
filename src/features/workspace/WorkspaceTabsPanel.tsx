@@ -2,6 +2,7 @@ import { Image as ImageIcon, BookOpen, Music, Type, PanelRightClose, PanelRightO
 import { useWorkspace, type WorkspaceTab } from "./workspace.store";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { BiblePanel } from "@/features/bible/BiblePanel";
+import { SongsPanel } from "@/features/songs/SongsPanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
 import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function WorkspaceTabsPanel() {
   const focus = useFocusZone(active.focus);
   // Activate the "bible" shortcut scope only while the bible tab is showing.
   useShortcutScope("bible", activeTab === "bible");
+  useShortcutScope("songs", activeTab === "songs");
 
   // Collapsed icon-rail
   if (collapsed) {
@@ -114,7 +116,11 @@ export function WorkspaceTabsPanel() {
             <BiblePanel />
           </div>
         )}
-        {activeTab === "songs" && <ComingSoon icon={Music} title="Songs" description="Song lyric projection coming soon." />}
+        {activeTab === "songs" && (
+          <div className="h-full overflow-hidden">
+            <SongsPanel />
+          </div>
+        )}
         {activeTab === "text" && <ComingSoon icon={Type} title="Text" description="Free-form text projection coming soon." />}
       </div>
     </div>

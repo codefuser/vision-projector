@@ -58,7 +58,6 @@ registerWorkspaceModule({
   label: "Songs",
   icon: Music,
   component: null,
-  badge: "Soon",
 });
 registerWorkspaceModule({
   id: "text",
