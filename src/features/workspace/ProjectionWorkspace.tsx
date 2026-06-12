@@ -85,8 +85,8 @@ export function ProjectionWorkspace() {
   const outerLayout = leftVisible && visible.tabs && !tabsCollapsed ? savedOuter : undefined;
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
-  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}`;
-  const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}`;
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
+  const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
 
   // Drive the bottom panel size from the persisted collapsed flag.
   const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
