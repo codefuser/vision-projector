@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages,
   Sparkles, Check, Heading1, Heading2, List, ListOrdered, Quote, Minus,
-  LayoutTemplate, Scissors,
+  LayoutTemplate, Scissors, Eye,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,8 @@ import {
   type QuickCategory, type QuickWord,
 } from "@/lib/text/quick-insert";
 import { splitByRule, SPLIT_LABELS, type SplitRule } from "@/lib/text/split-rules";
+import { expandSlides } from "@/lib/text/reveal";
+import { searchTextItems } from "@/lib/text/search";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -345,27 +347,23 @@ export function TextPanel() {
 
   const visible = useMemo(() => {
     const recentIds = new Set(recents.map((r) => r.itemId));
-    let list = items;
-    if (filter === "favorites") list = list.filter((it) => it.favorite);
-    else if (filter === "recent") list = list.filter((it) => recentIds.has(it.id));
-    const q = query.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (it) =>
-          it.title.toLowerCase().includes(q) || it.content.toLowerCase().includes(q),
-      );
-    }
-    return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
+    let pool = items;
+    if (filter === "favorites") pool = pool.filter((it) => it.favorite);
+    else if (filter === "recent") pool = pool.filter((it) => recentIds.has(it.id));
+    return searchTextItems(pool, query, recentIds).map((h) => h.item);
   }, [items, recents, filter, query]);
 
   const splitRule = useTextPrefs((s) => (selectedId ? s.rules[selectedId] : undefined)) ?? { mode: "blank" } as SplitRule;
   const setSplitRule = useTextPrefs((s) => s.setRule);
+  const revealOn = useTextPrefs((s) => (selectedId ? !!s.reveal[selectedId] : false));
+  const setReveal = useTextPrefs((s) => s.setReveal);
   const vocabCounts = useVocab((s) => s.counts);
   const vocabRecents = useVocab((s) => s.recents);
   const bumpVocab = useVocab((s) => s.bump);
   const [quickTab, setQuickTab] = useState<"most" | "recent" | QuickCategory>("church");
 
-  const slides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+  const baseSlides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+  const slides = useMemo(() => expandSlides(baseSlides, revealOn), [baseSlides, revealOn]);
 
   const quickWords: QuickWord[] = useMemo(() => {
     if (quickTab === "most") return mostUsed(vocabCounts);
@@ -715,6 +713,19 @@ export function TextPanel() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <button
+                      onClick={() => selected && setReveal(selected.id, !revealOn)}
+                      title="Reveal: progressive slides from bulleted/numbered lists"
+                      className={cn(
+                        "inline-flex h-7 cursor-pointer items-center gap-1 rounded border px-2 text-[11px] font-medium transition",
+                        revealOn
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border hover:bg-accent",
+                      )}
+                    >
+                      <Eye className="h-3 w-3" />
+                      Reveal {revealOn ? "on" : "off"}
+                    </button>
                     <Scissors className="h-3 w-3" />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
