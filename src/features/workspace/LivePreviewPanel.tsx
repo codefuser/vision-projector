@@ -38,9 +38,11 @@ export function LivePreviewPanel() {
   const [media, setMedia] = useState<MediaRecord | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [localTime, setLocalTime] = useState(0);
   const [localDuration, setLocalDuration] = useState(0);
   const [scrubbing, setScrubbing] = useState<number | null>(null);
+  const [fullPreview, setFullPreview] = useState(false);
   const focus = useFocusZone("preview");
 
   // Resolve current media metadata
