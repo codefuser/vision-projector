@@ -252,6 +252,24 @@ export function LibraryPage() {
             </div>
           )}
 
+          {/* Favorite star — persistent. Always visible when favorited; appears
+              on hover otherwise. Offset below the video badge when present. */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFav(m.id);
+            }}
+            title={favSet.has(m.id) ? "Unfavorite" : "Favorite"}
+            aria-label={favSet.has(m.id) ? "Unfavorite" : "Favorite"}
+            className={cn(
+              "absolute right-1.5 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-background/90 shadow-sm backdrop-blur transition hover:bg-background",
+              m.type === "video" ? "top-9" : "top-1.5",
+              favSet.has(m.id) ? "text-amber-500 opacity-100" : "text-muted-foreground opacity-0 group-hover:opacity-100",
+            )}
+          >
+            <Star className={cn("h-3.5 w-3.5", favSet.has(m.id) && "fill-current")} />
+          </button>
+
           {/* Hover actions — anchored to the thumbnail bottom-right so they never cover filename/size metadata */}
           {!selectionMode && (
             <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-center justify-end gap-1 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
@@ -272,24 +290,26 @@ export function LibraryPage() {
         </div>
 
         {/* Metadata — slightly taller for breathing room; never covered by hover actions */}
-        <div className="px-2.5 py-2">
-          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+        <div className="px-3 py-2.5">
+          <div className="truncate text-[13px] font-medium text-foreground" title={m.name}>
             {m.name}
           </div>
-          <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <div className="mt-1 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
             {m.type === "video" ? (
               <>
+                <span className="rounded bg-muted px-1 text-[9px] font-bold uppercase tracking-wide">Video</span>
                 <span className="tabular-nums">{formatDuration(m.durationMs)}</span>
                 <span className="tabular-nums">{formatBytes(m.size)}</span>
               </>
             ) : (
               <>
-                <span className="uppercase tracking-wide opacity-70">Image</span>
+                <span className="rounded bg-muted px-1 text-[9px] font-bold uppercase tracking-wide">Image</span>
                 <span className="tabular-nums">{formatBytes(m.size)}</span>
               </>
             )}
           </div>
         </div>
+
       </div>
     );
   };
