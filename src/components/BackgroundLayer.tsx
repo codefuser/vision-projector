@@ -3,6 +3,9 @@
  * text. Resolves library media to a blob URL via the existing acquireUrl
  * ref-counting helpers and releases on unmount / change. Videos always
  * autoplay, loop, and stay muted with no controls.
+ *
+ * Applies the BackgroundConfig visual controls (opacity, blur, brightness,
+ * zoom, position, fit) so Preview and Projector match exactly.
  */
 import { useEffect, useState } from "react";
 import type { BackgroundConfig } from "@/lib/broadcast";
@@ -15,22 +18,38 @@ interface Props {
   background: BackgroundConfig;
 }
 
+function withDefaults(bg: BackgroundConfig): Required<BackgroundConfig> {
+  return {
+    kind: bg.kind,
+    color: bg.color,
+    mediaId: bg.mediaId,
+    fit: bg.fit ?? "cover",
+    opacity: bg.opacity ?? 1,
+    blur: bg.blur ?? 0,
+    brightness: bg.brightness ?? 1,
+    zoom: bg.zoom ?? 1,
+    positionX: bg.positionX ?? 50,
+    positionY: bg.positionY ?? 50,
+  };
+}
+
 export function BackgroundLayer({ background }: Props) {
+  const bg = withDefaults(background);
   const [media, setMedia] = useState<MediaRecord | null>(null);
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    if (background.kind !== "media" || !background.mediaId) {
+    if (bg.kind !== "media" || !bg.mediaId) {
       setMedia(null);
       return;
     }
     (async () => {
-      const m = await getMedia(background.mediaId!);
+      const m = await getMedia(bg.mediaId!);
       if (!cancelled) setMedia(m ?? null);
     })();
     return () => { cancelled = true; };
-  }, [background.kind, background.mediaId]);
+  }, [bg.kind, bg.mediaId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,19 +64,29 @@ export function BackgroundLayer({ background }: Props) {
     return () => { cancelled = true; if (key) releaseUrl(key); };
   }, [media]);
 
-  if (background.kind === "none") return null;
-  if (background.kind === "color") {
-    return <div className="absolute inset-0" style={{ background: background.color }} />;
+  if (bg.kind === "none") return null;
+  if (bg.kind === "color") {
+    return <div className="absolute inset-0" style={{ background: bg.color }} />;
   }
   if (!media || !url) {
-    return <div className="absolute inset-0" style={{ background: background.color }} />;
+    return <div className="absolute inset-0" style={{ background: bg.color }} />;
   }
-  const fitClass = background.fit === "contain" ? "object-contain" : "object-cover";
+  const objectFit: React.CSSProperties["objectFit"] =
+    bg.fit === "contain" ? "contain" : bg.fit === "stretch" ? "fill" : "cover";
+  const style: React.CSSProperties = {
+    objectFit,
+    objectPosition: `${bg.positionX}% ${bg.positionY}%`,
+    opacity: bg.opacity,
+    transform: `scale(${bg.zoom})`,
+    transformOrigin: `${bg.positionX}% ${bg.positionY}%`,
+    filter: `blur(${bg.blur}px) brightness(${bg.brightness})`,
+  };
   if (media.type === "video") {
     return (
       <video
         src={url}
-        className={`absolute inset-0 h-full w-full ${fitClass}`}
+        className="absolute inset-0 h-full w-full"
+        style={style}
         autoPlay
         loop
         muted
@@ -65,5 +94,5 @@ export function BackgroundLayer({ background }: Props) {
       />
     );
   }
-  return <img src={url} alt="" className={`absolute inset-0 h-full w-full ${fitClass}`} draggable={false} />;
+  return <img src={url} alt="" className="absolute inset-0 h-full w-full" style={style} draggable={false} />;
 }

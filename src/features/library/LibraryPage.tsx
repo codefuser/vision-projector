@@ -20,7 +20,6 @@ const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "images", label: "Images" },
   { value: "videos", label: "Videos" },
-  { value: "recent-added", label: "Recently Added" },
   { value: "recent-used", label: "Recently Used" },
 ];
 
@@ -162,18 +161,21 @@ export function LibraryPage() {
     toast.success("Renamed");
   };
 
-  // Group "Recently Added" by upload date (Today / Yesterday / explicit date).
+  // Group "All" and "Recently Added" by upload date (Today / Yesterday / Last Week / explicit date).
   const grouped = useMemo(() => {
-    if (filter !== "recent-added") return null;
+    if (filter !== "all" && filter !== "recent-added") return null;
+    const sorted = [...visible].sort((a, b) => b.createdAt - a.createdAt);
     const groups = new Map<string, MediaRecord[]>();
     const order: string[] = [];
     const today = startOfDay(Date.now());
     const yesterday = today - 86400000;
-    for (const m of visible) {
+    const lastWeekStart = today - 7 * 86400000;
+    for (const m of sorted) {
       const day = startOfDay(m.createdAt);
       let label: string;
       if (day === today) label = "Today";
       else if (day === yesterday) label = "Yesterday";
+      else if (day >= lastWeekStart) label = "Last Week";
       else label = new Date(day).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
       if (!groups.has(label)) {
         groups.set(label, []);

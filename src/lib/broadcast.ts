@@ -81,7 +81,14 @@ export interface BackgroundConfig {
   color: string;
   /** Library media id when kind === "media". Resolved on the projector. */
   mediaId: string | null;
-  fit: "cover" | "contain";
+  fit: "cover" | "contain" | "stretch";
+  /** Visual adjustments — applied to the media layer. */
+  opacity: number;     // 0..1
+  blur: number;        // px
+  brightness: number;  // 0..2 (1 = neutral)
+  zoom: number;        // 1..3 scale multiplier
+  positionX: number;   // 0..100 (%, default 50)
+  positionY: number;   // 0..100 (%, default 50)
 }
 
 export const DEFAULT_BACKGROUND: BackgroundConfig = {
@@ -89,6 +96,12 @@ export const DEFAULT_BACKGROUND: BackgroundConfig = {
   color: "#000000",
   mediaId: null,
   fit: "cover",
+  opacity: 1,
+  blur: 0,
+  brightness: 1,
+  zoom: 1,
+  positionX: 50,
+  positionY: 50,
 };
 
 export interface GroupedStyles {
