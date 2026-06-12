@@ -2,6 +2,7 @@ import { Image as ImageIcon, BookOpen, Music, Type, PanelRightClose, PanelRightO
 import { useWorkspace, type WorkspaceTab } from "./workspace.store";
 import { LibraryPage } from "@/features/library/LibraryPage";
 import { BiblePanel } from "@/features/bible/BiblePanel";
+import { SongsPanel } from "@/features/songs/SongsPanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
 import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
