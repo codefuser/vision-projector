@@ -8,8 +8,11 @@ import { useWorkspace } from "@/features/workspace/workspace.store";
 import { getBible } from "@/lib/bible/loader";
 import { BIBLE_BOOKS } from "@/lib/bible/books";
 import { projectVerse } from "@/projection/adapters/bible.adapter";
+import { projectSongSlide } from "@/projection/adapters/song.adapter";
 import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
+import { getSongs, loadSongs } from "@/lib/songs/loader";
+import { useSongsStore } from "@/lib/songs/store";
 import { toast } from "sonner";
 
 type NavigateFn = (opts: { to: string }) => unknown;
