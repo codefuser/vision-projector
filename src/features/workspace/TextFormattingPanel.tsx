@@ -6,8 +6,8 @@
  * bottom. Every field writes to useTextFormat which broadcasts to the
  * projector + Live Preview in real time.
  */
-import { useState } from "react";
-import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2 } from "lucide-react";
 import { useFocusZone } from "./focus-manager";
 import { useWorkspace } from "./workspace.store";
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
@@ -15,8 +15,17 @@ import type { SectionStyle, TextStyle } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 import { MediaPickerDialog } from "@/features/playlists/MediaPickerDialog";
 import { getMedia } from "@/db/repo";
+import { db } from "@/db/schema";
+import { acquireUrl, releaseUrl } from "@/lib/blob-url";
+import { useLogo, type LogoPosition } from "@/stores/logo.store";
+import { useBackgroundGallery, type BackgroundItem } from "@/stores/background-gallery.store";
 
-const FONT_FAMILIES = ["Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma", "Latha", "Nirmala UI"];
+const FONT_FAMILIES = [
+  "Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma",
+  "Latha", "Nirmala UI",
+  "Noto Sans Tamil", "Noto Serif Tamil", "Mukta Malar", "Catamaran",
+  "Hind Madurai", "Meera Inimai", "Pavanam",
+];
 const WEIGHTS: { label: string; value: number }[] = [
   { label: "Light", value: 300 },
   { label: "Regular", value: 400 },
