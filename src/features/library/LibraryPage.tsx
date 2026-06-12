@@ -20,7 +20,6 @@ const FILTERS: { value: LibraryFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "images", label: "Images" },
   { value: "videos", label: "Videos" },
-  { value: "recent-added", label: "Recently Added" },
   { value: "recent-used", label: "Recently Used" },
 ];
 
