@@ -467,7 +467,7 @@ export function LibraryPage() {
                         </h3>
                         <div
                           className="grid gap-3"
-                          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 130px), 1fr))" }}
+                          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))" }}
                         >
                           {g.items.map((m) => renderCard(m, visible.indexOf(m)))}
                         </div>
@@ -476,7 +476,7 @@ export function LibraryPage() {
                   ) : (
                     <div
                       className="grid gap-3"
-                      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 130px), 1fr))" }}
+                      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))" }}
                     >
                       {visible.map((m, idx) => renderCard(m, idx))}
                     </div>
