@@ -499,7 +499,72 @@ function Toggle({ label, active, onClick }: { label: string; active?: boolean; o
   );
 }
 
+function SwitchRow({ label, checked, onChange, disabled }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <label className={cn(
+      "flex items-center gap-2 text-[11px]",
+      disabled ? "opacity-50" : "cursor-pointer",
+    )}>
+      <Switch checked={checked} onCheckedChange={onChange} disabled={disabled} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+/**
+ * Master toggles for the projection layers. These are deliberately
+ * decoupled from theme styling — toggling "Custom Background" off does NOT
+ * change the active theme's typography. Real <Switch> controls (not text
+ * buttons) per the design spec.
+ */
+function LayerSwitchesPanel() {
+  const bg = useBackground();
+  return (
+    <div className="mt-3 rounded-md border border-border bg-background/60 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Layers className="h-3.5 w-3.5 text-primary" />
+        <div className="text-[11px] font-semibold uppercase tracking-wide">Layers</div>
+        <div className="ml-auto text-[10px] text-muted-foreground">Themes never overwrite layers below</div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 @md:grid-cols-3">
+        <SwitchRow label="Background"
+                   checked={bg.backgroundEnabled}
+                   onChange={(v) => bg.set("backgroundEnabled", v)} />
+        <SwitchRow label="Logo"
+                   checked={bg.logoEnabled}
+                   onChange={(v) => bg.set("logoEnabled", v)} />
+        <SwitchRow label="Theme Background"
+                   checked={bg.themeBackgroundEnabled}
+                   disabled={bg.customBackgroundEnabled}
+                   onChange={(v) => bg.set("themeBackgroundEnabled", v)} />
+        <SwitchRow label="Custom Background"
+                   checked={bg.customBackgroundEnabled}
+                   onChange={(v) => bg.set("customBackgroundEnabled", v)} />
+        <SwitchRow label="Motion Effects"
+                   checked={bg.motionEnabled}
+                   onChange={(v) => bg.set("motionEnabled", v)} />
+        <SwitchRow label="Particles"
+                   checked={bg.particlesEnabled}
+                   disabled={!bg.motionEnabled}
+                   onChange={(v) => bg.set("particlesEnabled", v)} />
+        <SwitchRow label="Text Shadow"
+                   checked={bg.textShadowEnabled}
+                   onChange={(v) => bg.set("textShadowEnabled", v)} />
+        <SwitchRow label="Text Stroke"
+                   checked={bg.textStrokeEnabled}
+                   onChange={(v) => bg.set("textStrokeEnabled", v)} />
+      </div>
+      {bg.customBackgroundEnabled && (
+        <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-300">
+          Custom Background is ON — applying a theme will NOT change your background.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export type { TextStyle, SectionStyle };
+
 
 // ─────────────────────────── Background gallery ────────────────────────────
 function BackgroundGallerySection({ onPickFromLibrary }: { onPickFromLibrary: () => void }) {
