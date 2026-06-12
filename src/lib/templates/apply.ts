@@ -41,6 +41,7 @@ export function applyTemplate(id: string): TemplatePreset | null {
   }
   if (typeof window !== "undefined") {
     try { window.localStorage.setItem("vision-active-template", id); } catch { /* ignore */ }
+    try { useThemeFavorites.getState().pushRecent(id); } catch { /* ignore */ }
   }
   return preset;
 }
