@@ -14,6 +14,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { GlobalShortcuts } from "@/components/GlobalShortcuts";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
+import { GlobalFavoritesDock } from "@/components/GlobalFavoritesDock";
+
 
 function NotFoundComponent() {
   return (
@@ -126,8 +128,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {!isProjectorPopup && <GlobalShortcuts />}
       {!isProjectorPopup && <ShortcutsDialog />}
+      {!isProjectorPopup && <GlobalFavoritesDock />}
       <Outlet />
       <Toaster position="top-right" richColors closeButton />
+
     </QueryClientProvider>
   );
 }

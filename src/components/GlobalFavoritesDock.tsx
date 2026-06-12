@@ -38,9 +38,9 @@ export function GlobalFavoritesDock() {
   useShortcut({
     id: "favorites.toggle-dock",
     label: "Toggle Favorites dock",
-    category: "global",
+    category: "general",
     keys: ["Alt+Shift+F"],
-    scope: "global",
+    scope: "global" as never,
     handler: () => toggle(),
     allowInInput: true,
   });
