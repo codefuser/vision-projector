@@ -330,6 +330,8 @@ export function TextFormattingPanel() {
           const m = await getMedia(id);
           setBackground({ mediaId: id, kind: "media" });
           setBgName(m?.name ?? null);
+          // Also push into the saved gallery for one-click recall.
+          useBackgroundGallery.getState().addMedia(id, m?.name);
           setPickerOpen(false);
         }}
       />
