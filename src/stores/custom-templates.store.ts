@@ -29,7 +29,7 @@ export const useCustomTemplates = create<CustomTemplatesStore>()(
           id,
           name: name.trim() || "Untitled Theme",
           description,
-          category: "Animated",
+          category: "Animated Themes",
           text: { ...groups.english },
           perGroup: {
             reference: { ...groups.reference },
