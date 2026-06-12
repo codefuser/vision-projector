@@ -111,6 +111,24 @@ export function BiblePanel() {
     lastQueryRef.current = q;
 
     if (!q) {
+      if (searchMode === "favorites") {
+        const favHits: DisplayHit[] = favorites.map((f) => {
+          const meta = BIBLE_BOOKS[f.book];
+          const hit: VerseHit = {
+            book: f.book, bookName: meta?.name ?? "",
+            bookNameLocal: primary === "ta" ? (meta?.nameTa ?? "") : (meta?.name ?? ""),
+            chapter: f.chapter, verse: f.verse,
+            text: dataPrimary[f.book]?.[f.chapter - 1]?.[f.verse - 1] ?? f.text,
+            score: 100,
+          };
+          return { hit, pair: buildPair(hit) };
+        });
+        setResults(favHits);
+        setSearchMs(null);
+        setChapterCtx(null);
+        if (queryChanged) { setActiveIdx(0); selectedKeyRef.current = null; }
+        return;
+      }
       const fHits = [{ b: 42, c: 3, v: 16 }, { b: 18, c: 23, v: 1 }];
       const featured: DisplayHit[] = [];
       for (const f of fHits) {
