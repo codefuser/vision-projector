@@ -298,4 +298,111 @@
   animation-duration: 36s; animation-delay: -14s;
 }
 
+/* === Premium animated themes — subtle, never distracting === */
+@keyframes bg-drift-h { 0%{transform:translate3d(-5%,0,0)} 100%{transform:translate3d(5%,0,0)} }
+@keyframes bg-drift-h-slow { 0%{transform:translate3d(-3%,0,0)} 100%{transform:translate3d(3%,0,0)} }
+@keyframes bg-rain { 0%{background-position:0 0,40px 0} 100%{background-position:0 600px,40px 600px} }
+@keyframes bg-flicker { 0%,100%{opacity:.55} 45%{opacity:.85} 55%{opacity:.65} }
+@keyframes bg-aurora { 0%,100%{transform:translateX(-10%) skewX(-8deg);opacity:.45} 50%{transform:translateX(10%) skewX(8deg);opacity:.75} }
+@keyframes bg-sunrise { 0%,100%{opacity:.55;transform:scale(1)} 50%{opacity:.95;transform:scale(1.08)} }
+@keyframes bg-stage-sweep { 0%{transform:rotate(-25deg)} 50%{transform:rotate(25deg)} 100%{transform:rotate(-25deg)} }
+
+.bg-anim-clouds::before,.bg-anim-clouds::after{content:"";position:absolute;inset:-10%;
+  background-image:radial-gradient(ellipse at 20% 40%,rgba(255,255,255,.22) 0,transparent 30%),
+    radial-gradient(ellipse at 70% 60%,rgba(255,255,255,.18) 0,transparent 35%),
+    radial-gradient(ellipse at 50% 20%,rgba(255,255,255,.15) 0,transparent 28%);
+  filter:blur(8px);animation:bg-drift-h 50s ease-in-out infinite alternate}
+.bg-anim-clouds::after{animation-duration:70s;animation-delay:-20s;opacity:.7}
+
+.bg-anim-golden-particles::before,.bg-anim-golden-particles::after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,210,120,.9) 1.4px,transparent 1.8px),
+    radial-gradient(circle,rgba(255,190,80,.65) 1px,transparent 1.4px);
+  background-size:160px 160px,100px 100px;animation:bg-float-up 22s linear infinite}
+.bg-anim-golden-particles::after{background-size:220px 220px,140px 140px;animation-duration:32s;animation-delay:-10s;opacity:.75}
+
+.bg-anim-floating-dust::before,.bg-anim-floating-dust::after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,.45) .8px,transparent 1.2px);
+  background-size:90px 90px;animation:bg-float-up 30s linear infinite;opacity:.6}
+.bg-anim-floating-dust::after{background-size:130px 130px;animation-duration:42s;animation-delay:-15s;opacity:.4}
+
+.bg-anim-fog::before,.bg-anim-fog::after{content:"";position:absolute;inset:-20%;
+  background:radial-gradient(ellipse at 30% 50%,rgba(255,255,255,.18) 0,transparent 50%),
+    radial-gradient(ellipse at 70% 50%,rgba(255,255,255,.15) 0,transparent 55%);
+  filter:blur(20px);animation:bg-drift-h-slow 40s ease-in-out infinite alternate}
+.bg-anim-fog::after{animation-duration:60s;animation-direction:alternate-reverse;opacity:.8}
+
+.bg-anim-fire-glow::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 110%,rgba(255,140,40,.55) 0%,rgba(220,60,20,.25) 30%,transparent 60%);
+  animation:bg-flicker 3.5s ease-in-out infinite;mix-blend-mode:screen}
+.bg-anim-fire-glow::after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,180,80,.85) 1.2px,transparent 1.6px);
+  background-size:120px 120px;animation:bg-float-up 10s linear infinite}
+
+.bg-anim-cross-beam::before{content:"";position:absolute;left:50%;top:-10%;width:14%;height:130%;
+  transform:translateX(-50%) rotate(0deg);
+  background:linear-gradient(180deg,transparent 0%,rgba(255,250,220,.55) 50%,transparent 100%);
+  filter:blur(6px);animation:bg-soft-glow 6s ease-in-out infinite;mix-blend-mode:screen}
+.bg-anim-cross-beam::after{content:"";position:absolute;left:-10%;top:50%;width:130%;height:9%;
+  transform:translateY(-50%);
+  background:linear-gradient(90deg,transparent 0%,rgba(255,250,220,.45) 50%,transparent 100%);
+  filter:blur(6px);animation:bg-soft-glow 7s ease-in-out infinite;mix-blend-mode:screen}
+
+.bg-anim-water::before,.bg-anim-water::after{content:"";position:absolute;inset:-10%;
+  background:linear-gradient(180deg,transparent 50%,rgba(120,180,220,.18) 60%,transparent 70%),
+    linear-gradient(180deg,transparent 60%,rgba(180,210,240,.15) 70%,transparent 80%);
+  background-size:200% 100%;animation:bg-drift-h 18s ease-in-out infinite alternate;mix-blend-mode:screen}
+.bg-anim-water::after{animation-duration:26s;animation-direction:alternate-reverse;opacity:.7}
+
+.bg-anim-sky-motion::before{content:"";position:absolute;inset:-15%;
+  background:linear-gradient(120deg,rgba(135,206,235,.4),rgba(255,200,150,.3),rgba(170,200,255,.35));
+  background-size:300% 100%;animation:bg-gradient-shift 28s ease-in-out infinite;mix-blend-mode:screen}
+
+.bg-anim-stage-lights::before,.bg-anim-stage-lights::after{content:"";position:absolute;left:50%;top:-20%;
+  width:60%;height:160%;transform-origin:top center;
+  background:linear-gradient(180deg,rgba(255,210,120,.4) 0%,transparent 80%);
+  filter:blur(4px);animation:bg-stage-sweep 14s ease-in-out infinite;mix-blend-mode:screen;margin-left:-30%}
+.bg-anim-stage-lights::after{background:linear-gradient(180deg,rgba(120,200,255,.35) 0%,transparent 80%);
+  animation-duration:18s;animation-delay:-7s}
+
+.bg-anim-aurora::before,.bg-anim-aurora::after{content:"";position:absolute;inset:-20%;
+  background:linear-gradient(110deg,transparent 20%,rgba(120,255,200,.35) 40%,rgba(120,180,255,.35) 60%,transparent 80%);
+  filter:blur(30px);animation:bg-aurora 16s ease-in-out infinite;mix-blend-mode:screen}
+.bg-anim-aurora::after{background:linear-gradient(110deg,transparent 30%,rgba(200,140,255,.3) 50%,rgba(255,140,200,.25) 70%,transparent 90%);
+  animation-duration:22s;animation-delay:-8s}
+
+.bg-anim-star-field::before,.bg-anim-star-field::after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,.95) 1px,transparent 1.4px),
+    radial-gradient(circle,rgba(255,255,255,.6) .8px,transparent 1.2px);
+  background-size:220px 220px,140px 140px;background-position:0 0,60px 80px;
+  animation:bg-twinkle 4s ease-in-out infinite}
+.bg-anim-star-field::after{background-size:380px 380px,280px 280px;animation-duration:6s;animation-delay:-2s;opacity:.8}
+
+.bg-anim-rain::before{content:"";position:absolute;inset:-10%;
+  background-image:linear-gradient(180deg,transparent 0,rgba(180,200,230,.45) 50%,transparent 100%),
+    linear-gradient(180deg,transparent 0,rgba(180,200,230,.30) 50%,transparent 100%);
+  background-size:2px 80px,2px 60px;background-position:0 0,40px 0;
+  animation:bg-rain 1.2s linear infinite;opacity:.45}
+
+.bg-anim-candle-glow::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 65%,rgba(255,200,120,.55) 0%,rgba(255,140,60,.25) 25%,transparent 55%);
+  animation:bg-flicker 2.8s ease-in-out infinite;mix-blend-mode:screen}
+
+.bg-anim-sunrise::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 100%,rgba(255,200,120,.7) 0%,rgba(255,140,80,.35) 25%,transparent 55%);
+  animation:bg-sunrise 12s ease-in-out infinite;mix-blend-mode:screen}
+
+.bg-anim-ocean::before,.bg-anim-ocean::after{content:"";position:absolute;inset:-10%;
+  background:linear-gradient(180deg,transparent 40%,rgba(60,130,180,.25) 55%,transparent 70%),
+    linear-gradient(180deg,transparent 55%,rgba(100,170,210,.20) 70%,transparent 85%);
+  background-size:200% 100%;animation:bg-drift-h 22s ease-in-out infinite alternate;mix-blend-mode:screen}
+.bg-anim-ocean::after{animation-duration:34s;animation-direction:alternate-reverse;opacity:.6}
+
+.bg-anim-abstract-worship::before,.bg-anim-abstract-worship::after{content:"";position:absolute;inset:-15%;
+  background:radial-gradient(circle at 30% 40%,rgba(180,120,255,.30) 0,transparent 35%),
+    radial-gradient(circle at 70% 60%,rgba(120,200,255,.30) 0,transparent 40%),
+    radial-gradient(circle at 50% 30%,rgba(255,160,220,.25) 0,transparent 35%);
+  filter:blur(15px);animation:bg-soft-glow 11s ease-in-out infinite;mix-blend-mode:screen}
+.bg-anim-abstract-worship::after{animation-duration:17s;animation-direction:reverse;opacity:.8}
+
+
 

@@ -97,13 +97,12 @@ export interface BackgroundConfig {
 
 export type BackgroundAnimation =
   | "none"
-  | "particles"
-  | "bokeh"
-  | "gradient-shift"
-  | "light-rays"
-  | "floating-cross"
-  | "sparkles"
-  | "soft-glow";
+  | "particles" | "bokeh" | "gradient-shift" | "light-rays"
+  | "floating-cross" | "sparkles" | "soft-glow"
+  | "clouds" | "golden-particles" | "floating-dust" | "fog"
+  | "fire-glow" | "cross-beam" | "water" | "sky-motion"
+  | "stage-lights" | "aurora" | "star-field" | "rain"
+  | "candle-glow" | "sunrise" | "ocean" | "abstract-worship";
 
 export const DEFAULT_BACKGROUND: BackgroundConfig = {
   kind: "color",

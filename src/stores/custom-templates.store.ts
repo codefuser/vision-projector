@@ -13,6 +13,7 @@ import { useLogo } from "@/stores/logo.store";
 interface CustomTemplatesStore {
   templates: TemplatePreset[];
   saveCurrent: (name: string, description?: string) => TemplatePreset;
+  duplicate: (source: TemplatePreset, name?: string) => TemplatePreset;
   remove: (id: string) => void;
   rename: (id: string, name: string) => void;
 }
@@ -29,7 +30,7 @@ export const useCustomTemplates = create<CustomTemplatesStore>()(
           id,
           name: name.trim() || "Untitled Theme",
           description,
-          category: "Animated",
+          category: "Animated Themes",
           text: { ...groups.english },
           perGroup: {
             reference: { ...groups.reference },
@@ -38,6 +39,18 @@ export const useCustomTemplates = create<CustomTemplatesStore>()(
           },
           background: { ...groups.background },
           logo: { enabled: logo.enabled, settings: { ...logo.settings } },
+        };
+        set((s) => ({ templates: [preset, ...s.templates] }));
+        return preset;
+      },
+      duplicate: (source, name) => {
+        const id = `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const preset: TemplatePreset = {
+          ...source,
+          id,
+          name: (name?.trim() || `${source.name} (Copy)`),
+          description: source.description,
+          category: "Animated Themes",
         };
         set((s) => ({ templates: [preset, ...s.templates] }));
         return preset;

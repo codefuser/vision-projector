@@ -7,6 +7,7 @@
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
 import { useLogo } from "@/stores/logo.store";
 import { useCustomTemplates } from "@/stores/custom-templates.store";
+import { useThemeFavorites } from "@/stores/theme-favorites.store";
 import { TEMPLATE_PRESETS, type TemplatePreset } from "./presets";
 
 export function resolvePreset(id: string): TemplatePreset | null {
@@ -40,6 +41,7 @@ export function applyTemplate(id: string): TemplatePreset | null {
   }
   if (typeof window !== "undefined") {
     try { window.localStorage.setItem("vision-active-template", id); } catch { /* ignore */ }
+    try { useThemeFavorites.getState().pushRecent(id); } catch { /* ignore */ }
   }
   return preset;
 }
