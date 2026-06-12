@@ -48,13 +48,18 @@ export function TextFormattingPanel() {
   const focus = useFocusZone("text-format");
   const collapsed = useWorkspace((s) => s.textFormatCollapsed);
   const toggle = useWorkspace((s) => s.toggleTextFormatCollapsed);
+  const activeTab = useWorkspace((s) => s.activeTab);
   const groups = useTextFormat((s) => s.groups);
   const setField = useTextFormat((s) => s.setField);
   const patchGroup = useTextFormat((s) => s.patchGroup);
   const setBackground = useTextFormat((s) => s.setBackground);
   const resetGroup = useTextFormat((s) => s.resetGroup);
   const reset = useTextFormat((s) => s.reset);
-  const [active, setActive] = useState<StyleGroup>("reference");
+  // When Songs tab is active, only Tamil + Background are meaningful.
+  const songsMode = activeTab === "songs";
+  const visibleGroups: StyleGroup[] = songsMode ? ["tamil"] : (Object.keys(GROUP_LABELS) as StyleGroup[]);
+  const [activeRaw, setActive] = useState<StyleGroup>("reference");
+  const active: StyleGroup = songsMode ? "tamil" : activeRaw;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bgName, setBgName] = useState<string | null>(null);
 
