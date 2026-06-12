@@ -105,9 +105,10 @@ export function ProjectionWindow() {
       textOverlay,
       textStyle,
       groupedStyles,
+      logo,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle, groupedStyles]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle, groupedStyles, logo]);
 
 
   useEffect(() => {
