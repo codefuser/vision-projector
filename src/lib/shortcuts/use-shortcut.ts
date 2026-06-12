@@ -27,11 +27,13 @@ export function useShortcutScope(scope: ShortcutScope, active = true) {
   }, [scope, active]);
 }
 
+const EMPTY_SHORTCUTS: ShortcutDef[] = [];
+
 /** Re-render whenever the shortcut registry changes. */
 export function useRegisteredShortcuts() {
   return useSyncExternalStore(
     (cb) => shortcutManager.subscribe(cb),
     () => shortcutManager.list(),
-    () => [] as ShortcutDef[],
+    () => EMPTY_SHORTCUTS,
   );
 }
