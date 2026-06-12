@@ -739,28 +739,30 @@ export function BiblePanel() {
   );
 }
 
-function TabButton({
-  active, onClick, icon, label, badge,
+function ToolIconButton({
+  icon, active, badge, onClick, title,
 }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: number;
+  icon: React.ReactNode; active: boolean; badge?: number; onClick: () => void; title: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={cn(
-        "inline-flex flex-1 items-center justify-center gap-1.5 rounded px-2 py-1 transition",
+        "relative inline-flex h-7 w-7 items-center justify-center rounded transition",
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       {icon}
-      <span>{label}</span>
-      {badge != null && (
+      {badge != null && badge > 0 && (
         <span className={cn(
-          "ml-0.5 rounded px-1 text-[9px] font-bold",
-          active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary/15 text-primary",
-        )}>{badge}</span>
+          "absolute -right-1 -top-1 min-w-[14px] rounded-full px-1 text-[9px] font-bold leading-[14px]",
+          active ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground",
+        )}>
+          {badge}
+        </span>
       )}
     </button>
   );
