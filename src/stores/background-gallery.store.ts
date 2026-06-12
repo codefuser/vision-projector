@@ -28,13 +28,13 @@ export const useBackgroundGallery = create<BgGalleryStore>()(
       items: [],
       addColor: (color) =>
         set((s) => ({
-          items: [{ id: crypto.randomUUID(), kind: "color", color }, ...s.items].slice(0, 50),
+          items: [{ id: crypto.randomUUID(), kind: "color" as const, color }, ...s.items].slice(0, 50),
         })),
       addMedia: (mediaId, name) =>
         set((s) => {
           if (s.items.some((i) => i.kind === "media" && i.mediaId === mediaId)) return s;
           return {
-            items: [{ id: crypto.randomUUID(), kind: "media", mediaId, name }, ...s.items].slice(0, 50),
+            items: [{ id: crypto.randomUUID(), kind: "media" as const, mediaId, name }, ...s.items].slice(0, 50),
           };
         }),
       remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
