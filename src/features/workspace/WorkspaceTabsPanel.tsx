@@ -121,3 +121,47 @@ function ComingSoon({
     </div>
   );
 }
+
+type TabDef = (typeof TABS)[number];
+
+function TabRailButton({ tab, isActive, onClick }: { tab: TabDef; isActive: boolean; onClick: () => void }) {
+  const tooltip = useShortcutTooltip(tab.shortcutId, tab.label);
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md transition",
+        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+function TabBarButton({ tab, isActive, onClick }: { tab: TabDef; isActive: boolean; onClick: () => void }) {
+  const tooltip = useShortcutTooltip(tab.shortcutId, tab.label);
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+        isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {tab.label}
+      {tab.id === "text" && (
+        <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
+          Soon
+        </span>
+      )}
+    </button>
+  );
+}
