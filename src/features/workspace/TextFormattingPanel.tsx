@@ -255,14 +255,19 @@ export function TextFormattingPanel() {
             </Group>
           </div>
 
+          {/* Layer master toggles — themes never overwrite backgrounds when
+              "Custom Background" is on or "Theme Background" is off. */}
+          <LayerSwitchesPanel />
+
           {/* Background engine — global, sits at the bottom. Only relevant
               controls render per selected kind. */}
-          <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3">
+          <div className="mt-3 rounded-md border border-primary/30 bg-primary/5 p-3">
             <div className="mb-2 flex items-center gap-2">
               <ImageIcon className="h-3.5 w-3.5 text-primary" />
               <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Projection Background</div>
               <div className="ml-auto text-[10px] text-muted-foreground">None · Color · Media</div>
             </div>
+
 
             <div className="mb-2 flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
               {(["none", "color", "media"] as const).map((k) => (
