@@ -100,6 +100,7 @@ export const useSongsStore = create<SongStore>()(
           : [...get().userSongs, s];
         set({ userSongs: next });
         syncUserSongs(next);
+      },
       updateUserSong: (id, patch) => {
         const next = get().userSongs.map((u) => (u.id === id ? { ...u, ...patch } : u));
         set({ userSongs: next });
