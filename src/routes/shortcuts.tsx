@@ -20,11 +20,13 @@ const ORDER: { id: ShortcutCategory; label: string; hint: string }[] = [
   { id: "general", label: "General", hint: "App-wide actions" },
   { id: "navigation", label: "Navigation", hint: "Tabs and routes" },
   { id: "media", label: "Media", hint: "Library & playback" },
-  { id: "playlist", label: "Playlist", hint: "Playlist editor" },
-  { id: "projector", label: "Projection", hint: "Projector control" },
   { id: "bible", label: "Bible", hint: "Search & navigate" },
   { id: "songs", label: "Songs", hint: "Lyrics" },
   { id: "text", label: "Text", hint: "Free-form text" },
+  { id: "projector", label: "Projection", hint: "Projector control" },
+  { id: "favorites", label: "Favorites", hint: "Quick recall" },
+  { id: "playlist", label: "Playlist", hint: "Playlist editor" },
+  { id: "playlists", label: "Playlists", hint: "Playlist browser" },
 ];
 
 function ShortcutsPage() {
