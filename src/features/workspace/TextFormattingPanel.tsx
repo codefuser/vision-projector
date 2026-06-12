@@ -27,7 +27,7 @@ const FONT_FAMILIES = [
   "Noto Sans Tamil", "Noto Serif Tamil", "Noto Sans Tamil UI",
   "Mukta Malar", "Catamaran", "Hind Madurai", "Meera Inimai", "Pavanam",
   "Arima Madurai", "Anek Tamil", "Kavivanar", "Pathway Gothic One",
-  "Tiro Tamil", "Mukta", "Baloo Thambi 2", "Pavanam", "Cousine",
+  "Tiro Tamil", "Mukta", "Baloo Thambi 2", "Cousine",
 ];
 const WEIGHTS: { label: string; value: number }[] = [
   { label: "Light", value: 300 },
