@@ -66,6 +66,7 @@ export function ProjectionWorkspace() {
   const textFormatCollapsed = useWorkspace((s) => s.textFormatCollapsed);
   const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
   const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
+  const [resetNonce, setResetNonce] = useState(0);
 
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
