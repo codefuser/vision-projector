@@ -106,4 +106,14 @@ export async function importBackup(file: Blob, opts: { mode: "merge" | "replace"
     for (const p of manifest.playlists) await db().playlists.put(p);
     await db().settings.put({ key: "app", value: manifest.settings });
   });
+
+  // User songs live in localStorage via zustand-persist — restore them
+  // outside the Dexie transaction.
+  if (manifest.userSongs && manifest.userSongs.length) {
+    const store = useSongsStore.getState();
+    if (opts.mode === "replace") {
+      for (const u of store.userSongs) store.removeUserSong(u.id);
+    }
+    for (const u of manifest.userSongs) store.upsertUserSong(u);
+  }
 }
