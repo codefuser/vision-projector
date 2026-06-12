@@ -65,7 +65,7 @@ export function TextFormattingPanel() {
 
       {!collapsed && (
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="grid grid-cols-1 gap-3 @sm:grid-cols-2 @xl:grid-cols-3 @3xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @3xl:grid-cols-4">
             <Group icon={Type} title="Typography">
               <Field label="Font Family">
                 <Select value={style.fontFamily} onChange={(v) => setVal("fontFamily", v)}
