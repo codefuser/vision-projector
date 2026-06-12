@@ -57,30 +57,14 @@ export function WorkspaceTabsPanel() {
       tabIndex={focus.tabIndex}
     >
       <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border bg-muted/30 px-1">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = t.id === activeTab;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
-                isActive
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              {t.id === "text" && (
-                <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
-                  Soon
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {TABS.map((t) => (
+          <TabBarButton
+            key={t.id}
+            tab={t}
+            isActive={t.id === activeTab}
+            onClick={() => setActiveTab(t.id)}
+          />
+        ))}
         <button
           onClick={toggleCollapsed}
           title="Collapse workspace"
