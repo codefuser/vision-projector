@@ -259,16 +259,32 @@ export function SongsPanel() {
               <span className="hidden @sm:inline">{FILTER_LABELS[filter]}</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="max-h-[70vh] w-56 overflow-y-auto">
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Filters</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(["all", "favorites", "recent", "mine"] as SongFilter[]).map((f) => (
+            {(["all", "favorites", "recent", "added", "most", "mine"] as SongFilter[]).map((f) => (
               <DropdownMenuItem
                 key={f}
-                onClick={() => setFilter(f)}
+                onClick={() => { setFilter(f); setAuthorFilter(null); }}
                 className={cn("text-xs", filter === f && "bg-accent font-semibold text-primary")}
               >
                 {FILTER_LABELS[f]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Author {authorFilter ? `· ${authorFilter}` : ""}
+            </DropdownMenuLabel>
+            {authors.length === 0 && (
+              <div className="px-2 py-1.5 text-[11px] text-muted-foreground">No authors</div>
+            )}
+            {authors.slice(0, 200).map((a) => (
+              <DropdownMenuItem
+                key={a}
+                onClick={() => { setFilter("author"); setAuthorFilter(a); }}
+                className={cn("text-xs", filter === "author" && authorFilter === a && "bg-accent font-semibold text-primary")}
+              >
+                <span className="truncate">{a}</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
