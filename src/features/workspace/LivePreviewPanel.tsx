@@ -27,6 +27,8 @@ import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
 import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { LogoLayer } from "@/components/LogoLayer";
+import { useLogo } from "@/stores/logo.store";
 import { DEFAULT_TEXT_STYLE, DEFAULT_GROUPED_STYLES } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 
