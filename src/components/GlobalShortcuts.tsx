@@ -57,19 +57,21 @@ export function GlobalShortcuts() {
   useShortcut({ id: "search.text",  label: "Focus Text search",  category: "navigation", keys: ["Alt+4"], handler: focusSearch("text") });
 
   // ── Sidebar navigation — jump directly to a route from anywhere.
+  // Avoid browser-reserved combos (Mod+P prints, Mod+Shift+P opens private window,
+  // Mod+Shift+L opens downloads in some browsers). Use Alt+Letter + F-keys.
   const goTo = (to: string) => () => { void navigate({ to }); };
-  useShortcut({ id: "nav.library",   label: "Go to Library",   category: "navigation", keys: ["Mod+Shift+L"], handler: goTo("/library") });
-  useShortcut({ id: "nav.playlists", label: "Go to Playlists", category: "navigation", keys: ["Mod+Shift+P"], handler: goTo("/playlists") });
-  useShortcut({ id: "nav.project",   label: "Go to Project",   category: "navigation", keys: ["Mod+Shift+J"], handler: goTo("/project") });
-  useShortcut({ id: "nav.settings",  label: "Go to Settings",  category: "navigation", keys: ["Mod+Shift+,"], handler: goTo("/settings") });
-  useShortcut({ id: "nav.shortcuts", label: "Open Shortcut Center", category: "navigation", keys: ["Mod+/"], handler: goTo("/shortcuts") });
+  useShortcut({ id: "nav.library",   label: "Go to Library",   category: "navigation", keys: ["Alt+L"], handler: goTo("/library") });
+  useShortcut({ id: "nav.playlists", label: "Go to Playlists", category: "navigation", keys: ["Alt+Y"], handler: goTo("/playlists") });
+  useShortcut({ id: "nav.project",   label: "Go to Project",   category: "navigation", keys: ["Alt+J"], handler: goTo("/project") });
+  useShortcut({ id: "nav.settings",  label: "Go to Settings",  category: "navigation", keys: ["Alt+,"], handler: goTo("/settings") });
+  useShortcut({ id: "nav.shortcuts", label: "Open Shortcut Center", category: "navigation", keys: ["F1"], handler: goTo("/shortcuts") });
 
-  // ── Projector lifecycle
+  // ── Projector lifecycle (F9 toggles — Mod+P is reserved for browser print).
   useShortcut({
     id: "projector.toggle",
     label: "Open / Close Projector",
     category: "projector",
-    keys: ["Mod+P"],
+    keys: ["F9"],
     handler: () => (projectorOpen ? closeProjector() : openProjector()),
   });
   useShortcut({
