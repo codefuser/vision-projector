@@ -25,6 +25,8 @@ import { db } from "@/db/schema";
 import type { MediaRecord } from "@/db/schema";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
+import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
+import { DEFAULT_TEXT_STYLE } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 
 
@@ -229,22 +231,11 @@ export function LivePreviewPanel() {
           />
         )}
         {!media && !black && state?.textOverlay && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black px-6 text-white">
-            <div className="max-w-[92%] text-center">
-              <div className="whitespace-pre-line text-[clamp(0.95rem,2.4vw,1.8rem)] font-medium leading-snug">
-                {state.textOverlay.text}
-              </div>
-              {state.textOverlay.subtext && (
-                <div className="mt-3 whitespace-pre-line text-[clamp(0.8rem,1.6vw,1.2rem)] text-white/70">
-                  {state.textOverlay.subtext}
-                </div>
-              )}
-              <div className="mt-3 text-[10px] uppercase tracking-[0.18em] text-white/60">
-                {state.textOverlay.reference}
-                {state.textOverlay.translation ? ` · ${state.textOverlay.translation}` : ""}
-              </div>
-            </div>
-          </div>
+          <TextOverlayRenderer
+            overlay={state.textOverlay}
+            style={state.textStyle ?? DEFAULT_TEXT_STYLE}
+            withBackground
+          />
         )}
         {black && <div className="absolute inset-0 bg-black" />}
 
