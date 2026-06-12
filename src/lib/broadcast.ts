@@ -89,7 +89,21 @@ export interface BackgroundConfig {
   zoom: number;        // 1..3 scale multiplier
   positionX: number;   // 0..100 (%, default 50)
   positionY: number;   // 0..100 (%, default 50)
+  /** Optional CSS gradient string. When set + kind === "color", renders gradient instead of solid. */
+  gradient?: string | null;
+  /** Optional animated decorative overlay rendered above the base. */
+  animation?: BackgroundAnimation;
 }
+
+export type BackgroundAnimation =
+  | "none"
+  | "particles"
+  | "bokeh"
+  | "gradient-shift"
+  | "light-rays"
+  | "floating-cross"
+  | "sparkles"
+  | "soft-glow";
 
 export const DEFAULT_BACKGROUND: BackgroundConfig = {
   kind: "color",
