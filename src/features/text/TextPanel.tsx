@@ -347,27 +347,23 @@ export function TextPanel() {
 
   const visible = useMemo(() => {
     const recentIds = new Set(recents.map((r) => r.itemId));
-    let list = items;
-    if (filter === "favorites") list = list.filter((it) => it.favorite);
-    else if (filter === "recent") list = list.filter((it) => recentIds.has(it.id));
-    const q = query.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (it) =>
-          it.title.toLowerCase().includes(q) || it.content.toLowerCase().includes(q),
-      );
-    }
-    return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
+    let pool = items;
+    if (filter === "favorites") pool = pool.filter((it) => it.favorite);
+    else if (filter === "recent") pool = pool.filter((it) => recentIds.has(it.id));
+    return searchTextItems(pool, query, recentIds).map((h) => h.item);
   }, [items, recents, filter, query]);
 
   const splitRule = useTextPrefs((s) => (selectedId ? s.rules[selectedId] : undefined)) ?? { mode: "blank" } as SplitRule;
   const setSplitRule = useTextPrefs((s) => s.setRule);
+  const revealOn = useTextPrefs((s) => (selectedId ? !!s.reveal[selectedId] : false));
+  const setReveal = useTextPrefs((s) => s.setReveal);
   const vocabCounts = useVocab((s) => s.counts);
   const vocabRecents = useVocab((s) => s.recents);
   const bumpVocab = useVocab((s) => s.bump);
   const [quickTab, setQuickTab] = useState<"most" | "recent" | QuickCategory>("church");
 
-  const slides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+  const baseSlides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+  const slides = useMemo(() => expandSlides(baseSlides, revealOn), [baseSlides, revealOn]);
 
   const quickWords: QuickWord[] = useMemo(() => {
     if (quickTab === "most") return mostUsed(vocabCounts);
