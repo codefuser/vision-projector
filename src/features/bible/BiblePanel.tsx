@@ -147,36 +147,34 @@ export function BiblePanel() {
   });
   useShortcut({
     id: "bible.next-verse", label: "Next verse", category: "bible",
-    keys: ["ArrowDown"], scope: "bible", allowInInput: true,
+    keys: ["ArrowDown"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1))),
   });
   useShortcut({
     id: "bible.prev-verse", label: "Previous verse", category: "bible",
-    keys: ["ArrowUp"], scope: "bible", allowInInput: true,
+    keys: ["ArrowUp"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => setActiveIdx((i) => Math.max(0, i - 1)),
   });
   useShortcut({
     id: "bible.next-chapter", label: "Next chapter", category: "bible",
-    keys: ["ArrowRight"], scope: "bible", allowInInput: true,
+    keys: ["ArrowRight"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => navigateChapter(+1),
   });
   useShortcut({
     id: "bible.prev-chapter", label: "Previous chapter", category: "bible",
-    keys: ["ArrowLeft"], scope: "bible", allowInInput: true,
+    keys: ["ArrowLeft"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => navigateChapter(-1),
   });
   useShortcut({
     id: "bible.project-selected", label: "Project selected verse / Search → project best result",
-    category: "bible", keys: ["Enter"], scope: "bible", allowInInput: true,
+    category: "bible", keys: ["Enter"], scope: "bible", allowInInput: true, priority: 20,
     handler: () => {
-      // If results exist, project the active one. If the query parses to a
-      // specific verse and we have it, project immediately (already at idx 0).
       if (results.length > 0) projectAt(activeIdx);
     },
   });
   useShortcut({
     id: "bible.reproject", label: "Re-project current verse", category: "bible",
-    keys: [" "], scope: "bible", allowInInput: false,
+    keys: ["Space"], scope: "bible", allowInInput: false, priority: 20,
     handler: () => projectAt(activeIdx),
   });
 
