@@ -193,7 +193,20 @@ function VerseBlock({ text, style, flex }: { text: string; style: SectionStyle; 
 }
 
 function textCss(style: SectionStyle): React.CSSProperties {
-  const textShadow = style.shadow
+  // Read master toggles synchronously — operators flip these in the
+  // Layers panel and the projector picks them up via the broadcasted
+  // style update that follows. Falling back to `true` keeps SSR safe.
+  let shadowOn = true;
+  let strokeOn = true;
+  try {
+    // Lazy import to keep this file framework-agnostic in tests.
+
+    const { useBackground } = require("@/stores/background.store") as typeof import("@/stores/background.store");
+    const s = useBackground.getState();
+    shadowOn = s.textShadowEnabled;
+    strokeOn = s.textStrokeEnabled;
+  } catch { /* store unavailable — keep defaults */ }
+  const textShadow = style.shadow && shadowOn
     ? `0 4px ${style.shadowBlur}px ${mixAlpha(style.shadowColor, 0.6)}`
     : "none";
   return {
@@ -206,10 +219,11 @@ function textCss(style: SectionStyle): React.CSSProperties {
     lineHeight: style.lineHeight,
     letterSpacing: `${style.letterSpacing}px`,
     textShadow,
-    WebkitTextStrokeWidth: style.outlineWidth > 0 ? `${style.outlineWidth}px` : undefined,
-    WebkitTextStrokeColor: style.outlineWidth > 0 ? style.outlineColor : undefined,
+    WebkitTextStrokeWidth: strokeOn && style.outlineWidth > 0 ? `${style.outlineWidth}px` : undefined,
+    WebkitTextStrokeColor: strokeOn && style.outlineWidth > 0 ? style.outlineColor : undefined,
   };
 }
+
 
 function mixAlpha(hex: string, alpha: number): string {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex);
