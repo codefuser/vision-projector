@@ -679,6 +679,82 @@ export function TextPanel() {
                   </button>
                 </div>
 
+                {/* Formatting toolbar */}
+                <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-background/40 px-2 py-1">
+                  <ToolbarBtn icon={<Heading1 className="h-3.5 w-3.5" />} title="Heading 1" onClick={() => toggleLinePrefix("# ")} />
+                  <ToolbarBtn icon={<Heading2 className="h-3.5 w-3.5" />} title="Heading 2" onClick={() => toggleLinePrefix("## ")} />
+                  <ToolbarBtn icon={<List className="h-3.5 w-3.5" />} title="Bullet line" onClick={() => toggleLinePrefix("• ")} />
+                  <ToolbarBtn icon={<ListOrdered className="h-3.5 w-3.5" />} title="Numbered line" onClick={() => toggleLinePrefix("1. ")} />
+                  <ToolbarBtn icon={<Quote className="h-3.5 w-3.5" />} title="Quote line" onClick={() => toggleLinePrefix("> ")} />
+                  <ToolbarBtn icon={<Minus className="h-3.5 w-3.5" />} title="Slide break (Ctrl+Alt+N)" onClick={insertSlideBreak} />
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        title="Insert content block"
+                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded px-2 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                      >
+                        <LayoutTemplate className="h-3.5 w-3.5" />
+                        Block
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Content blocks
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {BLOCK_TEMPLATES.map((b) => (
+                        <DropdownMenuItem
+                          key={b.kind}
+                          onClick={() => insertBlock(b.snippet)}
+                          className="text-xs"
+                        >
+                          {b.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Scissors className="h-3 w-3" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border px-2 text-[11px] font-medium hover:bg-accent">
+                          Split: {SPLIT_LABELS[splitRule.mode]}
+                          {splitRule.mode === "lines" || splitRule.mode === "chars"
+                            ? ` (${(splitRule as { n: number }).n})`
+                            : ""}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Slide split rule
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {([
+                          { mode: "blank" },
+                          { mode: "marker", marker: "---" },
+                          { mode: "para" },
+                          { mode: "lines", n: 4 },
+                          { mode: "lines", n: 6 },
+                          { mode: "chars", n: 180 },
+                          { mode: "chars", n: 280 },
+                        ] as SplitRule[]).map((r, i) => (
+                          <DropdownMenuItem
+                            key={i}
+                            onClick={() => selected && setSplitRule(selected.id, r)}
+                            className={cn("text-xs", splitRule.mode === r.mode && "font-semibold text-primary")}
+                          >
+                            {SPLIT_LABELS[r.mode]}
+                            {(r.mode === "lines" || r.mode === "chars") && (
+                              <span className="ml-auto text-[10px] text-muted-foreground">{(r as { n: number }).n}</span>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
                 {/* Editor body + suggestion dropdown */}
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   <Textarea
