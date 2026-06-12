@@ -218,9 +218,11 @@ export function ProjectionWindow() {
       if (!cmd?.type) return;
       switch (cmd.type) {
         case "LOAD":
+          setVideoReady(false);
           await loadSingle(cmd.mediaId);
           break;
         case "LOAD_PLAYLIST":
+          setVideoReady(false);
           await loadPlaylist(cmd.playlistId, cmd.startIndex ?? 0);
           break;
         case "PLAY":
@@ -257,6 +259,14 @@ export function ProjectionWindow() {
         case "MUTE":
           setMuted(cmd.value);
           if (videoRef.current) videoRef.current.muted = cmd.value;
+          break;
+        case "RATE":
+          setPlaybackRate(cmd.value);
+          if (videoRef.current) videoRef.current.playbackRate = cmd.value;
+          break;
+        case "LOOP":
+          setLoop(cmd.value);
+          if (videoRef.current) videoRef.current.loop = cmd.value;
           break;
         case "BLACK":
           setBlack(cmd.value);
