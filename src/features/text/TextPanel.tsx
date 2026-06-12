@@ -15,7 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages,
-  Sparkles, Check,
+  Sparkles, Check, Heading1, Heading2, List, ListOrdered, Quote, Minus,
+  LayoutTemplate, Scissors,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,10 +25,15 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTextItems, splitTextSlides, type TextItem } from "@/stores/text-items.store";
+import { useTextPrefs } from "@/stores/text-prefs.store";
 import { projectTextSlide } from "@/projection/adapters/text.adapter";
 import { useProjection } from "@/stores/projection.store";
 import { convertCompleted, suggestTanglish, type Suggestion } from "@/lib/text/tanglish";
-import { QUICK_INSERT_WORDS } from "@/lib/text/church-dictionary";
+import {
+  QUICK_INSERT, CATEGORY_LABELS, BLOCK_TEMPLATES, useVocab, mostUsed,
+  type QuickCategory, type QuickWord,
+} from "@/lib/text/quick-insert";
+import { splitByRule, SPLIT_LABELS, type SplitRule } from "@/lib/text/split-rules";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
