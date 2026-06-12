@@ -154,7 +154,13 @@ export function ProjectionWorkspace() {
               }}
             >
               {leftVisible && (
-                <Panel id="left" defaultSize={50} minSize={5} className="min-h-0 min-w-0">
+                <Panel
+                  id="left"
+                  defaultSize={LEFT_DEFAULT_PX}
+                  minSize={LEFT_MIN_PX}
+                  maxSize={LEFT_MAX_PX}
+                  className="min-h-0 min-w-0"
+                >
                   <Group
                     key={leftKey}
                     orientation="vertical"
