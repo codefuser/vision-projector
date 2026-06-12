@@ -103,6 +103,22 @@ export function ProjectionWorkspace() {
 
 
 
+  const resetLayout = () => {
+    try {
+      localStorage.removeItem(LAYOUT_KEYS.outer);
+      localStorage.removeItem(LAYOUT_KEYS.left);
+    } catch {
+      /* ignore */
+    }
+    useWorkspace.setState({
+      visible: { preview: true, textFormat: true, tabs: true },
+      textFormatCollapsed: false,
+      tabsCollapsed: false,
+    });
+    // Force remount so panels re-read their pixel-based defaults.
+    setResetNonce((n) => n + 1);
+  };
+
   return (
     <FocusManagerProvider>
       <div className="flex h-full min-h-0 flex-col bg-background">
@@ -111,6 +127,15 @@ export function ProjectionWorkspace() {
           <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
           <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
           <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
+          <div className="ml-auto">
+            <button
+              onClick={resetLayout}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Reset Workspace Layout to defaults"
+            >
+              Reset Layout
+            </button>
+          </div>
         </div>
 
 
