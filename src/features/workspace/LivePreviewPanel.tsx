@@ -448,10 +448,17 @@ function IconBtn({
 }
 
 /**
- * Timeline scrubber with an offscreen hover-preview video that seeks to
- * the cursor's mapped time and displays a frame thumbnail + timestamp,
- * similar to professional media players. Only ever rendered inside the
- * Live Preview — never inside the projector output.
+ * Frame-accurate timeline scrubber.
+ *
+ *  - Custom div-based track so the hover X position and the click/commit
+ *    position use the SAME source. Eliminates the click-vs-hover offset
+ *    that range-input quantisation (step=0.05s) introduces.
+ *  - Single offscreen <video> element (never recreated) that drives a
+ *    canvas thumbnail. Seeks are coalesced through requestAnimationFrame
+ *    and use `fastSeek` when available — keeps hover under ~100ms even
+ *    on hour-long files.
+ *  - Fixed 144x80 popup with edge-clamping; never resizes or distorts.
+ *  - Only rendered inside the Live Preview. Never in projector output.
  */
 function TimelineScrubber({
   src,
@@ -467,53 +474,169 @@ function TimelineScrubber({
   onCommit: (t: number) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingSeekRef = useRef<number | null>(null);
+  const draggingRef = useRef(false);
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
 
-  const updateHover = (clientX: number) => {
-    const row = rowRef.current;
-    if (!row || !duration) return;
-    const rect = row.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const t = ratio * duration;
-    setHover({ x: clientX - rect.left, t });
-    const v = previewVideoRef.current;
-    if (v && isFinite(t)) {
+  // Coalesce hover seeks: only the most-recent target survives each frame.
+  const scheduleSeek = (t: number) => {
+    pendingSeekRef.current = t;
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const v = previewVideoRef.current;
+      const target = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      if (!v || target == null || !isFinite(target)) return;
       try {
-        v.currentTime = t;
+        // fastSeek jumps to the nearest keyframe (snappy for long files).
+        // Hover preview accepts keyframe-snapping; the playhead seek on
+        // click uses exact currentTime for frame accuracy.
+        const anyV = v as HTMLVideoElement & { fastSeek?: (t: number) => void };
+        if (typeof anyV.fastSeek === "function") anyV.fastSeek(target);
+        else v.currentTime = target;
       } catch {
         /* ignore */
       }
+    });
+  };
+
+  const paintFrame = () => {
+    const v = previewVideoRef.current;
+    const c = canvasRef.current;
+    if (!v || !c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    const vw = v.videoWidth || 16;
+    const vh = v.videoHeight || 9;
+    const cw = c.width;
+    const ch = c.height;
+    const scale = Math.min(cw / vw, ch / vh);
+    const dw = vw * scale;
+    const dh = vh * scale;
+    const dx = (cw - dw) / 2;
+    const dy = (ch - dh) / 2;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, cw, ch);
+    try {
+      ctx.drawImage(v, dx, dy, dw, dh);
+    } catch {
+      /* drawing may fail mid-seek; repaint on next seeked */
     }
   };
+
+  useEffect(() => {
+    const v = previewVideoRef.current;
+    if (!v) return;
+    const onSeeked = () => paintFrame();
+    const onLoaded = () => paintFrame();
+    v.addEventListener("seeked", onSeeked);
+    v.addEventListener("loadeddata", onLoaded);
+    return () => {
+      v.removeEventListener("seeked", onSeeked);
+      v.removeEventListener("loadeddata", onLoaded);
+    };
+  }, [src]);
+
+  useEffect(() => () => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  const timeFromClientX = (clientX: number): number => {
+    const track = trackRef.current;
+    if (!track || !duration) return 0;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return ratio * duration;
+  };
+
+  const xWithinRow = (clientX: number): number => {
+    const row = rowRef.current;
+    const track = trackRef.current;
+    if (!row || !track) return 0;
+    const rowRect = row.getBoundingClientRect();
+    const trackRect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - trackRect.left) / trackRect.width));
+    return (trackRect.left - rowRect.left) + ratio * trackRect.width;
+  };
+
+  const handlePointerMove = (clientX: number) => {
+    if (!duration) return;
+    const t = timeFromClientX(clientX);
+    const x = xWithinRow(clientX);
+    setHover({ x, t });
+    scheduleSeek(t);
+    if (draggingRef.current) onScrub(t);
+  };
+
+  const progressRatio = duration > 0 ? Math.min(1, Math.max(0, currentTime / duration)) : 0;
 
   return (
     <div
       ref={rowRef}
-      className="relative flex items-center gap-2 border-t border-border bg-background/60 px-2.5 pt-1.5"
-      onMouseMove={(e) => updateHover(e.clientX)}
+      className="relative flex items-center gap-2 border-t border-border bg-background/60 px-2.5 pt-1.5 pb-1"
       onMouseLeave={() => setHover(null)}
     >
       <span className="w-12 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
         {fmtTime(currentTime)}
       </span>
-      <input
-        type="range"
-        min={0}
-        max={Math.max(0.01, duration)}
-        step={0.05}
-        value={Math.min(currentTime, duration || 0)}
-        onChange={(e) => onScrub(Number(e.target.value))}
-        onMouseUp={(e) => onCommit(Number((e.target as HTMLInputElement).value))}
-        onTouchEnd={(e) => onCommit(Number((e.target as HTMLInputElement).value))}
-        className="h-1 flex-1 cursor-pointer accent-primary"
+
+      {/* Track. Click + drag use the SAME coordinate space as the hover
+          popup so the timestamp in the preview is exactly the timestamp
+          the playhead jumps to on click — frame accurate. */}
+      <div
+        ref={trackRef}
+        className="group relative h-3 flex-1 cursor-pointer"
+        onMouseMove={(e) => handlePointerMove(e.clientX)}
+        onPointerDown={(e) => {
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          draggingRef.current = true;
+          const t = timeFromClientX(e.clientX);
+          onScrub(t);
+        }}
+        onPointerMove={(e) => {
+          if (!draggingRef.current) return;
+          handlePointerMove(e.clientX);
+        }}
+        onPointerUp={(e) => {
+          if (!draggingRef.current) return;
+          draggingRef.current = false;
+          const t = timeFromClientX(e.clientX);
+          onCommit(t);
+        }}
+        role="slider"
         aria-label="Seek"
-      />
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, duration)}
+        aria-valuenow={Math.min(currentTime, duration || 0)}
+      >
+        <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-border" />
+        <div
+          className="pointer-events-none absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"
+          style={{ width: `${progressRatio * 100}%` }}
+        />
+        {hover && duration > 0 && (
+          <div
+            className="pointer-events-none absolute top-1/2 h-3 w-0.5 -translate-y-1/2 bg-primary/60"
+            style={{ left: `${(hover.t / duration) * 100}%` }}
+          />
+        )}
+        <div
+          className="pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary-foreground/40 bg-primary shadow"
+          style={{ left: `${progressRatio * 100}%` }}
+        />
+      </div>
+
       <span className="w-12 font-mono text-[11px] tabular-nums text-muted-foreground">
         {fmtTime(duration)}
       </span>
 
-      {/* Offscreen video that drives the hover thumbnail */}
+      {/* Offscreen video that drives the hover thumbnail. Single element,
+          never recreated — avoids decoder churn on long files. */}
       {src && (
         <video
           ref={previewVideoRef}
@@ -525,36 +648,26 @@ function TimelineScrubber({
         />
       )}
 
-      {/* Hover preview popover.
-          Fixed dimensions (144x80 thumb). The popup is anchored to the row and
-          its horizontal position is CLAMPED inside the row so it never gets
-          shrunk or clipped by the viewport edge near the end of long videos. */}
+      {/* Hover popup — fixed 144x80, edge-clamped, never resized. */}
       {hover && src && (() => {
-        const POPUP_WIDTH = 152; // thumb 144 + 8 border/padding
+        const POPUP_WIDTH = 152;
         const rowWidth = rowRef.current?.getBoundingClientRect().width ?? 0;
         const half = POPUP_WIDTH / 2;
-        const clampedX = Math.max(half, Math.min(rowWidth - half, hover.x + 56));
+        const clampedX = Math.max(half, Math.min(rowWidth - half, hover.x));
         return (
           <div
             className="pointer-events-none absolute bottom-full mb-2 flex flex-col items-center"
             style={{ left: clampedX, transform: "translateX(-50%)", width: POPUP_WIDTH }}
           >
-            <div className="overflow-hidden rounded-md border border-border bg-black shadow-lg" style={{ width: 144, height: 80 }}>
-              <video
-                src={src}
-                muted
-                playsInline
-                className="h-full w-full object-contain"
-                style={{ width: 144, height: 80 }}
-                ref={(el) => {
-                  if (el && isFinite(hover.t)) {
-                    try {
-                      el.currentTime = hover.t;
-                    } catch {
-                      /* ignore */
-                    }
-                  }
-                }}
+            <div
+              className="overflow-hidden rounded-md border border-border bg-black shadow-lg"
+              style={{ width: 144, height: 80 }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={144}
+                height={80}
+                style={{ width: 144, height: 80, display: "block" }}
               />
             </div>
             <div className="mt-1 rounded bg-black/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white">
@@ -566,4 +679,5 @@ function TimelineScrubber({
     </div>
   );
 }
+
 
