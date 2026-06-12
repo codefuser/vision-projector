@@ -173,8 +173,8 @@ export const BIBLE_BOOKS: BibleBookMeta[] = [
     ["3jn","3 jn","3 john","3jo","3 yovan","3yovan","3 யோவா","3 யோ"], "NT"),
   make(64, "JUD", "Jude", "யூதா", 1,
     ["jud","jude","yutha","யூதா"], "NT"),
-  make(65, "REV", "Revelation", "வெளிப்படுத்தின", 22,
-    ["rev","re","rv","apoc","revelation","velipaduthina","velippaduthina","வெளி","வெளிப்"], "NT"),
+  make(65, "REV", "Revelation", "வெளிப்படுத்தின விசேஷம்", 22,
+    ["rev","re","rv","apoc","revelation","velipaduthina","velippaduthina","velipaduthina visesham","வெளி","வெளிப்","வெளிப்படுத்தின"], "NT"),
 ];
 
 export function bookByIndex(i: number): BibleBookMeta | undefined {
