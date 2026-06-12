@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { buildSlides } from "@/lib/songs/loader";
 import { useSongsStore } from "@/lib/songs/store";
+import { getSongs } from "@/lib/songs/loader";
 import { toast } from "sonner";
 
 interface Props {
@@ -21,13 +22,21 @@ interface Props {
 export function SongEditorDialog({ open, onOpenChange, editingId }: Props) {
   const userSongs = useSongsStore((s) => s.userSongs);
   const addUserSong = useSongsStore((s) => s.addUserSong);
-  const updateUserSong = useSongsStore((s) => s.updateUserSong);
+  const upsertUserSong = useSongsStore((s) => s.upsertUserSong);
   const selectSong = useSongsStore((s) => s.selectSong);
 
-  const editing = useMemo(
-    () => (editingId ? userSongs.find((u) => u.id === editingId) ?? null : null),
-    [editingId, userSongs],
-  );
+  // Resolve the editing song from user songs first, fall back to library.
+  const editing = useMemo(() => {
+    if (!editingId) return null;
+    const u = userSongs.find((x) => x.id === editingId);
+    if (u) return { ...u, isUser: true };
+    const lib = getSongs()?.find((s) => s.id === editingId);
+    if (lib) return {
+      id: lib.id, title: lib.title, content: lib.content,
+      artist: lib.artist, album: lib.album, scale: lib.scale, isUser: false,
+    };
+    return null;
+  }, [editingId, userSongs, open]);
 
   const [title, setTitle] = useState("");
   const [lyrics, setLyrics] = useState("");
@@ -48,8 +57,11 @@ export function SongEditorDialog({ open, onOpenChange, editingId }: Props) {
     if (!t) { toast.error("Title is required"); return; }
     if (!c) { toast.error("Lyrics are required"); return; }
     if (editing) {
-      updateUserSong(editing.id, { title: t, content: c, artist: artist.trim() });
-      toast.success("Song updated");
+      upsertUserSong({
+        id: editing.id, title: t, content: c, artist: artist.trim(),
+        album: editing.album, scale: editing.scale,
+      });
+      toast.success(editing.isUser ? "Song updated" : "Library song overridden");
     } else {
       const id = addUserSong({ title: t, content: c, artist: artist.trim() });
       selectSong(id);
