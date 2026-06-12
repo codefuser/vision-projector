@@ -396,6 +396,7 @@ export function SongsPanel() {
             userSongs={userSongs}
             onEdit={(id) => { setEditingId(id); setEditorOpen(true); }}
             onDelete={removeUserSong}
+            query={query}
           />
         )}
       </div>
