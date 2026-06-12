@@ -564,7 +564,7 @@ export function BiblePanel() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-1.5 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4">
               {results.map((dh, i) => {
                 const h = dh.hit;
                 const pair = dh.pair;
