@@ -519,10 +519,12 @@ function SongList(p: ListProps) {
   }
 
 
-  // Full mode → responsive 2-column wide cards.
+  // Full mode → wider responsive cards. Stay single-column longer so each
+  // card has enough width to show first line + matched lyric line without
+  // truncation. Snap to 2 columns only on very wide containers.
   return (
     <div className="min-h-0 overflow-y-auto">
-      <div className="grid grid-cols-1 gap-2 p-2 @2xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 p-2 @4xl:grid-cols-2">
         {p.results.map((h, i) => {
           const song = h.song;
           const slideIdx = p.activeSlideById[song.id] ?? h.slideIndex ?? 0;
@@ -532,31 +534,31 @@ function SongList(p: ListProps) {
           const isProjected = !!p.projectedText && slide && p.projectedText.startsWith(slide.slice(0, 24));
           const isFav = p.favSet.has(song.id);
           const isMine = userIds.has(song.id);
+          const first = firstLineOf(song);
+          const match = matchedLineOf(song, p.query);
+          const showMatch = !!match && match !== first;
           return (
             <div
               key={song.id}
               onClick={() => { p.setActiveIdx(i); p.onOpen(song); }}
               onDoubleClick={(e) => { e.stopPropagation(); p.onProject(song); }}
               className={cn(
-                "group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border bg-card/80 p-2.5 transition-all",
+                "group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border bg-card/80 p-3 transition-all",
                 "hover:-translate-y-px hover:border-primary/60 hover:shadow-md",
                 isProjected ? "border-primary ring-2 ring-primary/40"
                   : isSelected ? "border-primary/60 bg-primary/5"
                   : isActive ? "border-accent" : "border-border",
               )}
             >
-              <div className="mb-1 flex min-w-0 items-start gap-1.5">
+              {/* Header — title + meta */}
+              <div className="mb-1.5 flex min-w-0 items-start gap-1.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className={cn("truncate text-[13px] font-semibold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
+                    <span className={cn("truncate text-[14px] font-semibold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
                       {song.title}
                     </span>
                     {isMine && <span className="shrink-0 rounded bg-emerald-500/15 px-1 text-[9px] font-bold text-emerald-500">MINE</span>}
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                    <span>{song.slides.length || 1} slide{song.slides.length === 1 ? "" : "s"}</span>
-                    {song.artist && <><span>·</span><span className="truncate">{song.artist}</span></>}
-                    {song.scale && <span className="ml-auto rounded bg-muted px-1 text-[9px]">{song.scale}</span>}
+                    {isFav && <Star className="h-3 w-3 shrink-0 fill-amber-500 text-amber-500" />}
                   </div>
                 </div>
                 {isProjected && (
@@ -565,40 +567,55 @@ function SongList(p: ListProps) {
                   </span>
                 )}
               </div>
-              <pre className="line-clamp-3 min-h-[3.6em] whitespace-pre-wrap break-words font-sans text-[12px] leading-snug text-muted-foreground">
-                {slide}
-              </pre>
-              <div className="mt-1.5 flex items-center justify-end gap-0.5">
-                <button
-                  onClick={(e) => { e.stopPropagation(); isFav ? p.removeFav(song.id) : p.addFav({ id: song.id, title: song.title }); }}
-                  title={isFav ? "Unfavorite" : "Favorite"}
-                  className={cn("inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded transition", isFav ? "text-amber-500" : "text-muted-foreground hover:bg-accent")}
-                >
-                  <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); p.onEdit(song.id); }}
-                  title="Edit lyrics"
-                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                {isMine && (
+
+              {/* First lyric line */}
+              <div className="truncate text-[12.5px] leading-snug text-foreground/85">{first}</div>
+
+              {/* Search match preview — only when query matched a non-title line */}
+              {showMatch && (
+                <div className="mt-1 rounded-sm border-l-2 border-primary/60 bg-primary/5 px-2 py-1 text-[11.5px] leading-snug text-primary/90">
+                  <span className="mr-1 text-[9px] font-bold uppercase tracking-wide opacity-70">Match</span>
+                  <span className="opacity-60">…</span>{match}<span className="opacity-60">…</span>
+                </div>
+              )}
+
+              {/* Footer — slide count + actions */}
+              <div className="mt-2 flex items-center gap-2 text-[10.5px] text-muted-foreground">
+                <span className="font-medium">{song.slides.length || 1} Slide{song.slides.length === 1 ? "" : "s"}</span>
+                {song.artist && <><span>·</span><span className="truncate">{song.artist}</span></>}
+                {song.scale && <span className="rounded bg-muted px-1 text-[9px]">{song.scale}</span>}
+                <div className="ml-auto flex items-center gap-0.5">
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${song.title}"?`)) p.onDelete(song.id); }}
-                    title="Delete"
-                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-destructive hover:bg-destructive/10"
+                    onClick={(e) => { e.stopPropagation(); isFav ? p.removeFav(song.id) : p.addFav({ id: song.id, title: song.title }); }}
+                    title={isFav ? "Unfavorite" : "Favorite"}
+                    className={cn("inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded transition", isFav ? "text-amber-500" : "text-muted-foreground hover:bg-accent")}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
                   </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); p.onProject(song); }}
-                  title="Project"
-                  className="ml-1 inline-flex h-7 items-center gap-1 rounded bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition hover:opacity-90"
-                >
-                  <Send className="h-3 w-3" /> Project
-                </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); p.onEdit(song.id); }}
+                    title="Edit lyrics"
+                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  {isMine && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${song.title}"?`)) p.onDelete(song.id); }}
+                      title="Delete"
+                      className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); p.onProject(song); }}
+                    title="Project"
+                    className="ml-1 inline-flex h-7 items-center gap-1 rounded bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    <Send className="h-3 w-3" /> Project
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -607,6 +624,7 @@ function SongList(p: ListProps) {
     </div>
   );
 }
+
 
 /* ───────── Slide pane ───────── */
 
