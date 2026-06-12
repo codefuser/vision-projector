@@ -87,7 +87,7 @@ export function WorkspaceTabsPanel() {
             >
               <Icon className="h-3.5 w-3.5" />
               {t.label}
-              {t.id !== "media" && t.id !== "bible" && (
+              {t.id === "text" && (
                 <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
                   Soon
                 </span>
