@@ -65,10 +65,12 @@ function buildFromRaw(r: RawSong): Song {
   return buildSong({ id: r.id, title: r.t, content: r.c, artist: r.a, album: r.al, scale: r.s });
 }
 
-/** Returns library songs + any user-created songs that were registered. */
+/** Returns library songs + any user-created songs (user overrides win by id). */
 export function getSongs(): Song[] | null {
   if (!cache) return null;
-  return userSongsRef.length ? [...userSongsRef, ...cache] : cache;
+  if (!userSongsRef.length) return cache;
+  const userIds = new Set(userSongsRef.map((u) => u.id));
+  return [...userSongsRef, ...cache.filter((c) => !userIds.has(c.id))];
 }
 
 export function isSongsLoaded(): boolean {

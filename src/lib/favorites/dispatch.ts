@@ -8,8 +8,11 @@ import { useWorkspace } from "@/features/workspace/workspace.store";
 import { getBible } from "@/lib/bible/loader";
 import { BIBLE_BOOKS } from "@/lib/bible/books";
 import { projectVerse } from "@/projection/adapters/bible.adapter";
+import { projectSongSlide } from "@/projection/adapters/song.adapter";
 import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
+import { getSongs, loadSongs } from "@/lib/songs/loader";
+import { useSongsStore } from "@/lib/songs/store";
 import { toast } from "sonner";
 
 type NavigateFn = (opts: { to: string }) => unknown;
@@ -74,4 +77,18 @@ export async function activateMediaFavorite(mediaId: string) {
   if (proj.projectorOpen) send();
   else setTimeout(send, 400);
   toast.success(`Projecting ${m.name}`);
+}
+
+export async function activateSongFavorite(songId: number, slideIndex = 0) {
+  await useSongsStore.getState().ensureLoaded();
+  const song = getSongs()?.find((s) => s.id === songId);
+  if (!song) { toast.error("Song not found"); return; }
+  const text = song.slides[slideIndex] ?? song.content;
+  projectSongSlide({
+    songId: song.id,
+    slideIndex,
+    totalSlides: song.slides.length || 1,
+    title: song.title,
+    text,
+  });
 }

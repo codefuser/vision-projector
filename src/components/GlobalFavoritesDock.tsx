@@ -8,10 +8,11 @@ import { Star, BookOpen, Music, Image as ImageIcon, Type, ChevronRight, ChevronL
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useBibleStore } from "@/lib/bible/store";
+import { useSongsStore } from "@/lib/songs/store";
 import { useMediaFavorites } from "@/stores/media-favorites.store";
 import { useFavoritesDock, type FavoritesGroup } from "@/stores/favorites-dock.store";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
-import { activateBibleFavorite, activateMediaFavorite } from "@/lib/favorites/dispatch";
+import { activateBibleFavorite, activateMediaFavorite, activateSongFavorite } from "@/lib/favorites/dispatch";
 import { getMedia } from "@/db/repo";
 import type { MediaRecord } from "@/db/schema";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,8 @@ export function GlobalFavoritesDock() {
   const navigate = useNavigate();
   const bibleFavorites = useBibleStore((s) => s.favorites);
   const removeBibleFav = useBibleStore((s) => s.removeFavorite);
+  const songFavorites = useSongsStore((s) => s.favorites);
+  const removeSongFav = useSongsStore((s) => s.removeFavorite);
   const mediaFavIds = useMediaFavorites((s) => s.ids);
   const removeMediaFav = useMediaFavorites((s) => s.remove);
   const [mediaItems, setMediaItems] = useState<MediaRecord[]>([]);
@@ -63,7 +66,7 @@ export function GlobalFavoritesDock() {
 
   const counts = {
     bible: bibleFavorites.length,
-    songs: 0,
+    songs: songFavorites.length,
     media: mediaItems.length,
     text: 0,
   };
@@ -147,7 +150,22 @@ export function GlobalFavoritesDock() {
             </ul>
           )
         )}
-        {group === "songs" && <Empty hint="Songs module coming soon." />}
+        {group === "songs" && (
+          songFavorites.length === 0 ? (
+            <Empty hint="Star a song in the Songs tab." />
+          ) : (
+            <ul className="space-y-0.5">
+              {songFavorites.map((f) => (
+                <FavRow
+                  key={f.id}
+                  label={f.title}
+                  onActivate={() => activateSongFavorite(f.id, 0)}
+                  onRemove={() => removeSongFav(f.id)}
+                />
+              ))}
+            </ul>
+          )
+        )}
         {group === "text" && <Empty hint="Text module coming soon." />}
       </div>
     </div>

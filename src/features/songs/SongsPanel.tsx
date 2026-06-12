@@ -8,8 +8,12 @@
  *                         the library and the song's slides at the same time.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Music, Loader2, Star, Send, Search, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Music, Loader2, Star, Send, Search, Plus, X, Pencil, Trash2, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { useSongsStore } from "@/lib/songs/store";
 import { useSongsRecent } from "@/stores/songs-recent.store";
@@ -20,6 +24,14 @@ import { useProjection } from "@/stores/projection.store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SongEditorDialog } from "./SongEditorDialog";
+
+type SongFilter = "all" | "favorites" | "recent" | "mine";
+const FILTER_LABELS: Record<SongFilter, string> = {
+  all: "All Songs",
+  favorites: "Favorites",
+  recent: "Recently Used",
+  mine: "My Songs",
+};
 
 export function SongsPanel() {
   const {
@@ -35,6 +47,9 @@ export function SongsPanel() {
   const [activeSlideById, setActiveSlideById] = useState<Record<number, number>>({});
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<SongFilter>("all");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<Song[]>([]);
   const projectedRef = useProjection((s) => s.state?.textOverlay?.text ?? null);
   const recent = useSongsRecent((s) => s.items);
   const pushRecent = useSongsRecent((s) => s.push);
@@ -46,36 +61,66 @@ export function SongsPanel() {
     const songs = getSongs();
     if (!songs) return;
     const q = query.trim();
+    const favIds = new Set(favorites.map((f) => f.id));
+    const userIds = new Set(userSongs.map((u) => u.id));
+    const recentIds = recent.map((r) => r.songId);
+    const applyFilter = (s: Song) => {
+      if (filter === "favorites") return favIds.has(s.id);
+      if (filter === "mine") return userIds.has(s.id);
+      if (filter === "recent") return recentIds.includes(s.id);
+      return true;
+    };
+
     if (!q) {
       const out: SongHit[] = [];
       const seen = new Set<number>();
-      for (const u of userSongs) {
-        const s = songs.find((x) => x.id === u.id);
-        if (s && !seen.has(s.id)) {
-          out.push({ song: s, score: 0, slideIndex: 0, matched: [] });
-          seen.add(s.id);
+      const push = (s: Song, slideIndex = 0) => {
+        if (seen.has(s.id) || !applyFilter(s)) return;
+        out.push({ song: s, score: 0, slideIndex, matched: [] });
+        seen.add(s.id);
+      };
+      if (filter === "all" || filter === "mine") {
+        for (const u of userSongs) {
+          const s = songs.find((x) => x.id === u.id);
+          if (s) push(s);
         }
       }
-      for (const r of recent) {
-        if (seen.has(r.songId)) continue;
-        const s = songs.find((x) => x.id === r.songId);
-        if (s) { out.push({ song: s, score: 0, slideIndex: r.slideIndex, matched: [] }); seen.add(s.id); }
+      if (filter === "all" || filter === "recent") {
+        for (const r of recent) {
+          const s = songs.find((x) => x.id === r.songId);
+          if (s) push(s, r.slideIndex);
+        }
       }
-      for (let i = 0; i < songs.length && out.length < 40; i++) {
-        if (seen.has(songs[i].id)) continue;
-        out.push({ song: songs[i], score: 0, slideIndex: 0, matched: [] });
+      if (filter === "favorites") {
+        for (const f of favorites) {
+          const s = songs.find((x) => x.id === f.id);
+          if (s) push(s);
+        }
       }
+      const limit = filter === "all" ? 80 : 500;
+      for (let i = 0; i < songs.length && out.length < limit; i++) push(songs[i]);
       setResults(out);
       setSearchMs(null);
       setActiveIdx(0);
       return;
     }
     const t0 = performance.now();
-    const hits = searchSongs(q, songs, 120);
+    const hits = searchSongs(q, songs, 200).filter((h) => applyFilter(h.song)).slice(0, 120);
     setSearchMs(performance.now() - t0);
     setResults(hits);
     setActiveIdx(0);
-  }, [query, loaded, recent, userSongs]);
+  }, [query, loaded, recent, userSongs, favorites, filter]);
+
+  // Live title suggestions while typing.
+  useEffect(() => {
+    if (!loaded) return;
+    const q = query.trim();
+    if (q.length < 1) { setTitleSuggestions([]); return; }
+    const songs = getSongs();
+    if (!songs) return;
+    const hits = searchSongs(q, songs, 8);
+    setTitleSuggestions(hits.map((h) => h.song));
+  }, [query, loaded]);
 
   const selectedSong: Song | null = useMemo(() => {
     if (!selectedSongId) return null;
@@ -137,12 +182,56 @@ export function SongsPanel() {
           <Input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setSuggestionsOpen(true); }}
+            onFocus={() => setSuggestionsOpen(true)}
+            onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
             placeholder="yesu · anbu · vaazhvu · இயேசு · title · lyric…"
             className="h-8 pl-7 text-sm"
             autoFocus
           />
+          {suggestionsOpen && query.trim() && titleSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+              {titleSuggestions.map((s) => (
+                <button
+                  key={s.id}
+                  onMouseDown={(e) => { e.preventDefault(); openSong(s); setQuery(s.title); setSuggestionsOpen(false); }}
+                  className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] hover:bg-accent"
+                >
+                  <Music className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-medium">{s.title}</span>
+                  {s.artist && <span className="ml-auto truncate text-[10px] text-muted-foreground">{s.artist}</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              title="Filter"
+              className={cn(
+                "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-border px-2 text-xs font-medium transition hover:bg-accent",
+                filter !== "all" && "border-primary/50 bg-primary/10 text-primary",
+              )}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span className="hidden @sm:inline">{FILTER_LABELS[filter]}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">Filters</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {(["all", "favorites", "recent", "mine"] as SongFilter[]).map((f) => (
+              <DropdownMenuItem
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn("text-xs", filter === f && "bg-accent font-semibold text-primary")}
+              >
+                {FILTER_LABELS[f]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
           onClick={() => { setEditingId(null); setEditorOpen(true); }}
           title="New song"
@@ -246,14 +335,88 @@ interface ListProps {
 
 function SongList(p: ListProps) {
   const userIds = useMemo(() => new Set(p.userSongs.map((u) => u.id)), [p.userSongs]);
-  return (
-    <div className={cn("min-h-0 overflow-y-auto border-border", p.compact && "border-r")}>
-      {!p.results.length && (
+
+  if (!p.results.length) {
+    return (
+      <div className={cn("min-h-0 overflow-y-auto", p.compact && "border-r border-border")}>
         <div className="px-3 py-8 text-center text-xs text-muted-foreground">
           No matches. Try Tamil, Tanglish, a misspelling, or any lyric.
         </div>
-      )}
-      <ul className="divide-y divide-border/60">
+      </div>
+    );
+  }
+
+  // Compact mode (split-view left column) keeps the dense single-column row list.
+  if (p.compact) {
+    return (
+      <div className="min-h-0 overflow-y-auto border-r border-border">
+        <ul className="divide-y divide-border/60">
+          {p.results.map((h, i) => {
+            const song = h.song;
+            const slideIdx = p.activeSlideById[song.id] ?? h.slideIndex ?? 0;
+            const slide = song.slides[slideIdx] ?? song.content;
+            const isSelected = p.selectedId === song.id;
+            const isActive = p.activeIdx === i;
+            const isProjected = !!p.projectedText && slide && p.projectedText.startsWith(slide.slice(0, 24));
+            const isFav = p.favSet.has(song.id);
+            const isMine = userIds.has(song.id);
+            return (
+              <li
+                key={song.id}
+                onClick={() => { p.setActiveIdx(i); p.onOpen(song); }}
+                onDoubleClick={(e) => { e.stopPropagation(); p.onProject(song); }}
+                className={cn(
+                  "group relative flex cursor-pointer items-start gap-2 px-2.5 py-1.5 transition hover:bg-accent/60",
+                  isSelected ? "bg-primary/10" : isActive ? "bg-accent/40" : "",
+                  isSelected && "border-l-2 border-l-primary",
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("truncate text-[12px] font-semibold", isSelected ? "text-primary" : "text-foreground")}>
+                      {song.title}
+                    </span>
+                    {isMine && <span className="rounded bg-emerald-500/15 px-1 text-[9px] font-bold text-emerald-500">MINE</span>}
+                    {isProjected && (
+                      <span className="ml-auto inline-flex items-center gap-1 rounded bg-primary px-1 py-px text-[9px] font-bold uppercase text-primary-foreground">
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-primary-foreground" /> Live
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span>{song.slides.length || 1} slide{song.slides.length === 1 ? "" : "s"}</span>
+                    {song.artist && <><span>·</span><span className="truncate">{song.artist}</span></>}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); isFav ? p.removeFav(song.id) : p.addFav({ id: song.id, title: song.title }); }}
+                    title={isFav ? "Unfavorite" : "Favorite"}
+                    className={cn("inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded transition", isFav ? "text-amber-500" : "text-muted-foreground hover:bg-accent")}
+                  >
+                    <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); p.onEdit(song.id); }} title="Edit lyrics" className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  {isMine && (
+                    <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${song.title}"?`)) p.onDelete(song.id); }} title="Delete" className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+
+  // Full mode → responsive 2-column wide cards.
+  return (
+    <div className="min-h-0 overflow-y-auto">
+      <div className="grid grid-cols-1 gap-2 p-2 @2xl:grid-cols-2">
         {p.results.map((h, i) => {
           const song = h.song;
           const slideIdx = p.activeSlideById[song.id] ?? h.slideIndex ?? 0;
@@ -264,70 +427,77 @@ function SongList(p: ListProps) {
           const isFav = p.favSet.has(song.id);
           const isMine = userIds.has(song.id);
           return (
-            <li
+            <div
               key={song.id}
               onClick={() => { p.setActiveIdx(i); p.onOpen(song); }}
               onDoubleClick={(e) => { e.stopPropagation(); p.onProject(song); }}
               className={cn(
-                "group relative flex cursor-pointer items-start gap-2 px-2.5 py-1.5 transition",
-                "hover:bg-accent/60",
-                isSelected ? "bg-primary/10" : isActive ? "bg-accent/40" : "",
-                isSelected && "border-l-2 border-l-primary",
+                "group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border bg-card/80 p-2.5 transition-all",
+                "hover:-translate-y-px hover:border-primary/60 hover:shadow-md",
+                isProjected ? "border-primary ring-2 ring-primary/40"
+                  : isSelected ? "border-primary/60 bg-primary/5"
+                  : isActive ? "border-accent" : "border-border",
               )}
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn("truncate text-[12px] font-semibold", isSelected ? "text-primary" : "text-foreground")}>
-                    {song.title}
-                  </span>
-                  {isMine && <span className="rounded bg-emerald-500/15 px-1 text-[9px] font-bold text-emerald-500">MINE</span>}
-                  {song.scale && <span className="rounded bg-muted px-1 text-[9px] text-muted-foreground">{song.scale}</span>}
-                  {isProjected && (
-                    <span className="ml-auto inline-flex items-center gap-1 rounded bg-primary px-1 py-px text-[9px] font-bold uppercase text-primary-foreground">
-                      <span className="h-1 w-1 animate-pulse rounded-full bg-primary-foreground" /> Live
+              <div className="mb-1 flex min-w-0 items-start gap-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn("truncate text-[13px] font-semibold leading-tight", isSelected ? "text-primary" : "text-foreground")}>
+                      {song.title}
                     </span>
-                  )}
+                    {isMine && <span className="shrink-0 rounded bg-emerald-500/15 px-1 text-[9px] font-bold text-emerald-500">MINE</span>}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span>{song.slides.length || 1} slide{song.slides.length === 1 ? "" : "s"}</span>
+                    {song.artist && <><span>·</span><span className="truncate">{song.artist}</span></>}
+                    {song.scale && <span className="ml-auto rounded bg-muted px-1 text-[9px]">{song.scale}</span>}
+                  </div>
                 </div>
-                {!p.compact && (
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
-                    {slide.split("\n")[0]}
-                  </p>
+                {isProjected && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-primary px-1 py-px text-[9px] font-bold uppercase text-primary-foreground">
+                    <span className="h-1 w-1 animate-pulse rounded-full bg-primary-foreground" /> Live
+                  </span>
                 )}
-                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span>{song.slides.length || 1} slide{song.slides.length === 1 ? "" : "s"}</span>
-                  {song.artist && <><span>·</span><span className="truncate">{song.artist}</span></>}
-                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+              <pre className="line-clamp-3 min-h-[3.6em] whitespace-pre-wrap break-words font-sans text-[12px] leading-snug text-muted-foreground">
+                {slide}
+              </pre>
+              <div className="mt-1.5 flex items-center justify-end gap-0.5">
                 <button
                   onClick={(e) => { e.stopPropagation(); isFav ? p.removeFav(song.id) : p.addFav({ id: song.id, title: song.title }); }}
                   title={isFav ? "Unfavorite" : "Favorite"}
-                  className={cn("inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded transition", isFav ? "text-amber-500" : "text-muted-foreground hover:bg-accent")}
+                  className={cn("inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded transition", isFav ? "text-amber-500" : "text-muted-foreground hover:bg-accent")}
                 >
                   <Star className={cn("h-3.5 w-3.5", isFav && "fill-current")} />
                 </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); p.onEdit(song.id); }}
+                  title="Edit lyrics"
+                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
                 {isMine && (
-                  <>
-                    <button onClick={(e) => { e.stopPropagation(); p.onEdit(song.id); }} title="Edit" className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${song.title}"?`)) p.onDelete(song.id); }} title="Delete" className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded text-destructive hover:bg-destructive/10">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${song.title}"?`)) p.onDelete(song.id); }}
+                    title="Delete"
+                    className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); p.onProject(song); }}
-                  title="Project (Enter on selected)"
-                  className="inline-flex h-6 items-center gap-1 rounded bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground transition hover:opacity-90"
+                  title="Project"
+                  className="ml-1 inline-flex h-7 items-center gap-1 rounded bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition hover:opacity-90"
                 >
-                  <Send className="h-3 w-3" />
+                  <Send className="h-3 w-3" /> Project
                 </button>
               </div>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
     </div>
   );
 }

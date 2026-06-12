@@ -40,6 +40,8 @@ interface SongStore {
   selectSong: (id: number | null) => void;
   /** Create a new song. Returns the new id. */
   addUserSong: (s: Omit<PersistedUserSong, "id">) => number;
+  /** Create OR override an existing song by id (used to edit library songs). */
+  upsertUserSong: (s: PersistedUserSong) => void;
   updateUserSong: (id: number, patch: Partial<PersistedUserSong>) => void;
   removeUserSong: (id: number) => void;
 }
@@ -90,6 +92,14 @@ export const useSongsStore = create<SongStore>()(
         set({ userSongs: next });
         syncUserSongs(next);
         return id;
+      },
+      upsertUserSong: (s) => {
+        const exists = get().userSongs.some((u) => u.id === s.id);
+        const next = exists
+          ? get().userSongs.map((u) => (u.id === s.id ? s : u))
+          : [...get().userSongs, s];
+        set({ userSongs: next });
+        syncUserSongs(next);
       },
       updateUserSong: (id, patch) => {
         const next = get().userSongs.map((u) => (u.id === id ? { ...u, ...patch } : u));
