@@ -341,6 +341,7 @@ export function SongsPanel() {
               activeSlide={activeSlideById[selectedSong.id] ?? 0}
               onSelect={(i) => setActiveSlideById((m) => ({ ...m, [selectedSong.id]: i }))}
               onProject={(i) => project(selectedSong, i)}
+              onEdit={() => { setEditingId(selectedSong.id); setEditorOpen(true); }}
               onClose={() => selectSong(null)}
               projectedText={projectedRef}
             />
