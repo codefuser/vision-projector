@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
-  leftWidth: "church-media-ws-left-width-v1",
+  leftWidth: "church-media-ws-left-width-v2",
   left: "church-media-ws-left-v2",
 };
 // Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
