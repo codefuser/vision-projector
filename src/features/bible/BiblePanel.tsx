@@ -225,7 +225,7 @@ export function BiblePanel() {
       const idx = list.findIndex((d) => favKey(d.hit.book, d.hit.chapter, d.hit.verse) === selectedKeyRef.current);
       if (idx >= 0) setActiveIdx(idx);
     }
-  }, [query, loaded, displayMode, lang, searchMode]);
+  }, [query, loaded, displayMode, lang, searchMode, favorites]);
 
   // ───────── projection ─────────
   const project = (dh: DisplayHit) => {
