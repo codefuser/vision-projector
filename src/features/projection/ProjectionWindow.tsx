@@ -4,7 +4,7 @@ import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "
 import { getMedia, getPlaylist, getSettings, touchMedia } from "@/db/repo";
 import { getChannel, type ProjectionCommand, type ProjectionState, type TextOverlay } from "@/lib/broadcast";
 
-type Mode = "idle" | "single" | "slideshow";
+type Mode = "idle" | "single" | "slideshow" | "text";
 
 interface RuntimeItem {
   id: string;
