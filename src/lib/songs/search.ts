@@ -1,16 +1,19 @@
 /**
- * Song full-text search — title + lyric content. Mirrors the Bible search
- * engine: Tanglish + Tamil normalization, multi-token AND match, exact
- * phrase bonus, title-hit bonus. Single pass over 16k songs, no index —
- * fast enough at this scale and avoids large in-memory token tables.
+ * Song search — Tamil + Tanglish + fuzzy + sound-alike + partial word.
+ *
+ * Strategy: every song carries pre-computed consonant skeletons
+ * (titleStem / contentStem / slideStems). A query is reduced to the same
+ * skeleton form, then substring-matched. Because the skeleton normalizes
+ * vowels, voicing (b↔p), aspiration, and Tamil↔Latin spelling, simple
+ * substring matching becomes fuzzy + sound-alike + partial-word matching
+ * in one pass — fast enough to scan 16k+ songs each keystroke.
  */
 import type { Song } from "./loader";
-import { normalizeTanglish, normalizeTamil } from "./normalize";
+import { songLower, songStem } from "./normalize";
 
 export interface SongHit {
   song: Song;
   score: number;
-  /** Which slide best matched the query (for jump-to-slide on projection). */
   slideIndex: number;
   matched: string[];
 }
@@ -18,60 +21,68 @@ export interface SongHit {
 export function searchSongs(query: string, songs: Song[], limit = 80): SongHit[] {
   const q = query.trim();
   if (!q) return [];
-  const qLower = q.toLowerCase();
-  const isTamilQuery = /[\u0B80-\u0BFF]/.test(q);
-  const tokensRaw = qLower.split(/\s+/).filter(Boolean);
-  const tokensNorm = tokensRaw.map((t) =>
-    isTamilQuery ? normalizeTamil(t) : normalizeTanglish(t),
-  );
+  const qLower = songLower(q);
+  const qStem = songStem(q);
+  const rawTokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const tokens = rawTokens.map((t) => ({
+    raw: t,
+    lower: songLower(t),
+    stem: songStem(t),
+  })).filter((t) => t.stem.length >= 1 || t.lower.length >= 2);
+
+  if (!tokens.length) return [];
 
   const hits: SongHit[] = [];
   for (let i = 0; i < songs.length; i++) {
     const s = songs[i];
-    const titleLower = s.titleLower;
-    const contentLower = s.contentLower;
-    const titleNorm = s.titleNorm;
-    const contentNorm = s.contentNorm;
-
     let titleHits = 0;
+    let titleStemHits = 0;
     let contentHits = 0;
-    let normTitleHits = 0;
-    let normContentHits = 0;
+    let contentStemHits = 0;
     const matched: string[] = [];
+    let allMatched = true;
 
-    for (let k = 0; k < tokensRaw.length; k++) {
-      const rt = tokensRaw[k];
-      const nt = tokensNorm[k];
+    for (const tok of tokens) {
       let found = false;
-      if (rt && titleLower.includes(rt)) { titleHits++; found = true; matched.push(rt); }
-      else if (rt && contentLower.includes(rt)) { contentHits++; found = true; matched.push(rt); }
-      else if (nt && nt.length >= 2 && titleNorm.includes(nt)) { normTitleHits++; found = true; matched.push(rt); }
-      else if (nt && nt.length >= 2 && contentNorm.includes(nt)) { normContentHits++; found = true; matched.push(rt); }
-      if (!found) { titleHits = -1; break; }
+      if (tok.lower && s.titleLower.includes(tok.lower)) {
+        titleHits++; matched.push(tok.raw); found = true;
+      } else if (tok.stem.length >= 2 && s.titleStem.includes(tok.stem)) {
+        titleStemHits++; matched.push(tok.raw); found = true;
+      } else if (tok.lower && s.contentLower.includes(tok.lower)) {
+        contentHits++; matched.push(tok.raw); found = true;
+      } else if (tok.stem.length >= 2 && s.contentStem.includes(tok.stem)) {
+        contentStemHits++; matched.push(tok.raw); found = true;
+      }
+      if (!found) { allMatched = false; break; }
     }
-    if (titleHits < 0) continue;
+    if (!allMatched) continue;
 
-    let score = titleHits * 200 + normTitleHits * 120 + contentHits * 25 + normContentHits * 15;
-    if (titleLower.includes(qLower)) score += 300;
-    if (titleLower.startsWith(tokensRaw[0])) score += 60;
-    if (contentLower.includes(qLower)) score += 80;
-    // Prefer shorter / well-structured songs slightly.
+    let score =
+      titleHits * 220 +
+      titleStemHits * 140 +
+      contentHits * 30 +
+      contentStemHits * 18;
+    if (qLower && s.titleLower.includes(qLower)) score += 320;
+    if (qStem && s.titleStem.includes(qStem)) score += 80;
+    if (qLower && s.contentLower.includes(qLower)) score += 90;
     score -= Math.min(40, Math.floor(s.content.length / 400));
 
-    // Pick best slide for jump-to-slide hint.
-    let bestSlide = 0;
-    let bestSlideScore = -1;
+    // Pick best slide (stem-aware) for jump-to-slide.
+    let bestSlide = 0, bestScore = -1;
     for (let j = 0; j < s.slides.length; j++) {
       const sl = s.slides[j].toLowerCase();
+      const st = s.slideStems[j] ?? "";
       let sc = 0;
-      for (const rt of tokensRaw) if (rt && sl.includes(rt)) sc += 5;
-      if (sl.includes(qLower)) sc += 10;
-      if (sc > bestSlideScore) { bestSlideScore = sc; bestSlide = j; }
+      for (const tok of tokens) {
+        if (tok.lower && sl.includes(tok.lower)) sc += 6;
+        else if (tok.stem.length >= 2 && st.includes(tok.stem)) sc += 4;
+      }
+      if (qLower && sl.includes(qLower)) sc += 12;
+      if (sc > bestScore) { bestScore = sc; bestSlide = j; }
     }
 
     hits.push({ song: s, score, slideIndex: bestSlide, matched });
   }
-
   hits.sort((a, b) => b.score - a.score);
   return hits.slice(0, limit);
 }
