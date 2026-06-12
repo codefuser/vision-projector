@@ -22,9 +22,12 @@ import { useBackgroundGallery, type BackgroundItem } from "@/stores/background-g
 
 const FONT_FAMILIES = [
   "Inter", "Roboto", "Georgia", "Times New Roman", "Arial", "Verdana", "Tahoma",
-  "Latha", "Nirmala UI",
-  "Noto Sans Tamil", "Noto Serif Tamil", "Mukta Malar", "Catamaran",
-  "Hind Madurai", "Meera Inimai", "Pavanam",
+  // Tamil presentation fonts
+  "Latha", "Nirmala UI", "Vijaya", "Akshar Unicode",
+  "Noto Sans Tamil", "Noto Serif Tamil", "Noto Sans Tamil UI",
+  "Mukta Malar", "Catamaran", "Hind Madurai", "Meera Inimai", "Pavanam",
+  "Arima Madurai", "Anek Tamil", "Kavivanar", "Pathway Gothic One",
+  "Tiro Tamil", "Mukta", "Baloo Thambi 2", "Pavanam", "Cousine",
 ];
 const WEIGHTS: { label: string; value: number }[] = [
   { label: "Light", value: 300 },
