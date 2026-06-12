@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages,
   Sparkles, Check, Heading1, Heading2, List, ListOrdered, Quote, Minus,
-  LayoutTemplate, Scissors,
+  LayoutTemplate, Scissors, Eye,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,8 @@ import {
   type QuickCategory, type QuickWord,
 } from "@/lib/text/quick-insert";
 import { splitByRule, SPLIT_LABELS, type SplitRule } from "@/lib/text/split-rules";
+import { expandSlides } from "@/lib/text/reveal";
+import { searchTextItems } from "@/lib/text/search";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
