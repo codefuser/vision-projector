@@ -7,7 +7,10 @@
  * projector + Live Preview in real time.
  */
 import { useEffect, useRef, useState } from "react";
-import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2 } from "lucide-react";
+import { Type, Palette, AlignLeft, Bold, Sun, Square as SquareIcon, Move, Sparkles, ChevronDown, ChevronUp, RotateCcw, Eye, EyeOff, ImageIcon, X, Upload, Image as LogoIcon, Trash2, Layers } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useBackground } from "@/stores/background.store";
+
 import { useFocusZone } from "./focus-manager";
 import { useWorkspace } from "./workspace.store";
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
