@@ -134,7 +134,23 @@ export function BiblePanel() {
     const start = performance.now();
     let primaryHits: VerseHit[];
 
-    if (searchMode === "reference") {
+    if (searchMode === "favorites") {
+      const ql = q.toLowerCase();
+      const favHits: VerseHit[] = favorites
+        .filter((f) => !ql || f.ref.toLowerCase().includes(ql) || f.text.toLowerCase().includes(ql))
+        .map((f) => {
+          const meta = BIBLE_BOOKS[f.book];
+          return {
+            book: f.book, bookName: meta?.name ?? "",
+            bookNameLocal: primary === "ta" ? (meta?.nameTa ?? "") : (meta?.name ?? ""),
+            chapter: f.chapter, verse: f.verse,
+            text: dataPrimary[f.book]?.[f.chapter - 1]?.[f.verse - 1] ?? f.text,
+            score: 100,
+          };
+        });
+      primaryHits = favHits;
+      setChapterCtx(null);
+    } else if (searchMode === "reference") {
       const ref = parseReference(q);
       if (ref && ref.chapter != null && ref.verse == null) {
         primaryHits = getChapterVerses(ref.book.index, ref.chapter, dataPrimary, primary);
@@ -146,6 +162,10 @@ export function BiblePanel() {
         primaryHits = search(q, dataPrimary, primary, 80);
         setChapterCtx(null);
       }
+    } else if (searchMode === "fuzzy") {
+      // Tanglish / Tamil / sound-alike normalized search (handled inside search()).
+      primaryHits = search(q, dataPrimary, primary, 120);
+      setChapterCtx(null);
     } else {
       const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
       const hits: VerseHit[] = [];
