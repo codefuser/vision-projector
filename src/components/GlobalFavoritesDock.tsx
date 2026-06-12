@@ -150,7 +150,22 @@ export function GlobalFavoritesDock() {
             </ul>
           )
         )}
-        {group === "songs" && <Empty hint="Songs module coming soon." />}
+        {group === "songs" && (
+          songFavorites.length === 0 ? (
+            <Empty hint="Star a song in the Songs tab." />
+          ) : (
+            <ul className="space-y-0.5">
+              {songFavorites.map((f) => (
+                <FavRow
+                  key={f.id}
+                  label={f.title}
+                  onActivate={() => activateSongFavorite(f.id, 0)}
+                  onRemove={() => removeSongFav(f.id)}
+                />
+              ))}
+            </ul>
+          )
+        )}
         {group === "text" && <Empty hint="Text module coming soon." />}
       </div>
     </div>
