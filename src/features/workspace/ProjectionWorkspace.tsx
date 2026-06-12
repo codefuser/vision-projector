@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
 import { ChevronUp, ChevronDown, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
 import { LivePreviewPanel } from "./LivePreviewPanel";
@@ -28,13 +28,20 @@ import { cn } from "@/lib/utils";
  *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
-  outer: "church-media-ws-outer-v1",
-  left: "church-media-ws-left-v1",
+  outer: "church-media-ws-outer-v2",
+  left: "church-media-ws-left-v2",
 };
 // Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
 // height (~700px) for the resizable-panels percentage model.
 const TEXT_FORMAT_COLLAPSED_SIZE = 6;
 const TEXT_FORMAT_DEFAULT_SIZE = 40;
+
+// Pixel-based constraints for the left column (Preview + Text Formatting).
+// Operators expect a Visual-Studio-style stable default; the column always
+// opens at 250px on first run and may be dragged anywhere from 200–600px.
+const LEFT_DEFAULT_PX = "250px";
+const LEFT_MIN_PX = "200px";
+const LEFT_MAX_PX = "600px";
 
 function readLayout(key: string): Layout | undefined {
   try {
@@ -59,6 +66,7 @@ export function ProjectionWorkspace() {
   const textFormatCollapsed = useWorkspace((s) => s.textFormatCollapsed);
   const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
   const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
+  const [resetNonce, setResetNonce] = useState(0);
 
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
@@ -77,8 +85,8 @@ export function ProjectionWorkspace() {
   const outerLayout = leftVisible && visible.tabs && !tabsCollapsed ? savedOuter : undefined;
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
-  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}`;
-  const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}`;
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
+  const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
 
   // Drive the bottom panel size from the persisted collapsed flag.
   const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
@@ -96,6 +104,22 @@ export function ProjectionWorkspace() {
 
 
 
+  const resetLayout = () => {
+    try {
+      localStorage.removeItem(LAYOUT_KEYS.outer);
+      localStorage.removeItem(LAYOUT_KEYS.left);
+    } catch {
+      /* ignore */
+    }
+    useWorkspace.setState({
+      visible: { preview: true, textFormat: true, tabs: true },
+      textFormatCollapsed: false,
+      tabsCollapsed: false,
+    });
+    // Force remount so panels re-read their pixel-based defaults.
+    setResetNonce((n: number) => n + 1);
+  };
+
   return (
     <FocusManagerProvider>
       <div className="flex h-full min-h-0 flex-col bg-background">
@@ -104,6 +128,15 @@ export function ProjectionWorkspace() {
           <DockButton label="Preview" icon={MonitorPlay} active={visible.preview} onClick={() => togglePanel("preview")} />
           <DockButton label="Text" icon={TypeIcon} active={visible.textFormat} onClick={() => togglePanel("textFormat")} />
           <DockButton label="Tabs" icon={LayoutGrid} active={visible.tabs} onClick={() => togglePanel("tabs")} />
+          <div className="ml-auto">
+            <button
+              onClick={resetLayout}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Reset Workspace Layout to defaults"
+            >
+              Reset Layout
+            </button>
+          </div>
         </div>
 
 
@@ -121,7 +154,13 @@ export function ProjectionWorkspace() {
               }}
             >
               {leftVisible && (
-                <Panel id="left" defaultSize={50} minSize={5} className="min-h-0 min-w-0">
+                <Panel
+                  id="left"
+                  defaultSize={LEFT_DEFAULT_PX}
+                  minSize={LEFT_MIN_PX}
+                  maxSize={LEFT_MAX_PX}
+                  className="min-h-0 min-w-0"
+                >
                   <Group
                     key={leftKey}
                     orientation="vertical"
