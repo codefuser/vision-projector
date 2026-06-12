@@ -1,24 +1,36 @@
 /**
- * BackgroundLayer — renders a color / image / video underlay for projected
- * text. Resolves library media to a blob URL via the existing acquireUrl
- * ref-counting helpers and releases on unmount / change. Videos always
- * autoplay, loop, and stay muted with no controls.
+ * BackgroundLayer — renders a color / gradient / image / video underlay for
+ * projected text, plus an optional animated decorative overlay (particles,
+ * bokeh, light rays, sparkles, floating cross, soft glow, gradient shift).
  *
- * Applies the BackgroundConfig visual controls (opacity, blur, brightness,
- * zoom, position, fit) so Preview and Projector match exactly.
+ * Animations are pure CSS (see styles.css `.bg-anim-*`) so Preview and
+ * Projector render identically without extra runtime cost.
  */
 import { useEffect, useState } from "react";
-import type { BackgroundConfig } from "@/lib/broadcast";
+import type { BackgroundConfig, BackgroundAnimation } from "@/lib/broadcast";
 import { db } from "@/db/schema";
 import type { MediaRecord } from "@/db/schema";
 import { getMedia } from "@/db/repo";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 
-interface Props {
-  background: BackgroundConfig;
+interface Props { background: BackgroundConfig; }
+
+interface Resolved {
+  kind: BackgroundConfig["kind"];
+  color: string;
+  mediaId: string | null;
+  fit: "cover" | "contain" | "stretch";
+  opacity: number;
+  blur: number;
+  brightness: number;
+  zoom: number;
+  positionX: number;
+  positionY: number;
+  gradient: string | null;
+  animation: BackgroundAnimation;
 }
 
-function withDefaults(bg: BackgroundConfig): Required<BackgroundConfig> {
+function withDefaults(bg: BackgroundConfig): Resolved {
   return {
     kind: bg.kind,
     color: bg.color,
@@ -30,6 +42,8 @@ function withDefaults(bg: BackgroundConfig): Required<BackgroundConfig> {
     zoom: bg.zoom ?? 1,
     positionX: bg.positionX ?? 50,
     positionY: bg.positionY ?? 50,
+    gradient: bg.gradient ?? null,
+    animation: bg.animation ?? "none",
   };
 }
 
@@ -40,10 +54,7 @@ export function BackgroundLayer({ background }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    if (bg.kind !== "media" || !bg.mediaId) {
-      setMedia(null);
-      return;
-    }
+    if (bg.kind !== "media" || !bg.mediaId) { setMedia(null); return; }
     (async () => {
       const m = await getMedia(bg.mediaId!);
       if (!cancelled) setMedia(m ?? null);
@@ -64,13 +75,17 @@ export function BackgroundLayer({ background }: Props) {
     return () => { cancelled = true; if (key) releaseUrl(key); };
   }, [media]);
 
-  if (bg.kind === "none") return null;
-  if (bg.kind === "color") {
-    return <div className="absolute inset-0" style={{ background: bg.color }} />;
+  if (bg.kind === "none") return <AnimationOverlay kind={bg.animation} />;
+
+  if (bg.kind === "color" || !media || !url) {
+    return (
+      <>
+        <div className="absolute inset-0" style={{ background: bg.gradient ?? bg.color }} />
+        <AnimationOverlay kind={bg.animation} />
+      </>
+    );
   }
-  if (!media || !url) {
-    return <div className="absolute inset-0" style={{ background: bg.color }} />;
-  }
+
   const objectFit: React.CSSProperties["objectFit"] =
     bg.fit === "contain" ? "contain" : bg.fit === "stretch" ? "fill" : "cover";
   const style: React.CSSProperties = {
@@ -81,18 +96,20 @@ export function BackgroundLayer({ background }: Props) {
     transformOrigin: `${bg.positionX}% ${bg.positionY}%`,
     filter: `blur(${bg.blur}px) brightness(${bg.brightness})`,
   };
-  if (media.type === "video") {
-    return (
-      <video
-        src={url}
-        className="absolute inset-0 h-full w-full"
-        style={style}
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-    );
-  }
-  return <img src={url} alt="" className="absolute inset-0 h-full w-full" style={style} draggable={false} />;
+
+  return (
+    <>
+      {media.type === "video" ? (
+        <video src={url} className="absolute inset-0 h-full w-full" style={style} autoPlay loop muted playsInline />
+      ) : (
+        <img src={url} alt="" className="absolute inset-0 h-full w-full" style={style} draggable={false} />
+      )}
+      <AnimationOverlay kind={bg.animation} />
+    </>
+  );
+}
+
+function AnimationOverlay({ kind }: { kind: BackgroundAnimation }) {
+  if (!kind || kind === "none") return null;
+  return <div className={`pointer-events-none absolute inset-0 overflow-hidden bg-anim-${kind}`} aria-hidden />;
 }
