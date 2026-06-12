@@ -116,7 +116,11 @@ export function WorkspaceTabsPanel() {
             <BiblePanel />
           </div>
         )}
-        {activeTab === "songs" && <ComingSoon icon={Music} title="Songs" description="Song lyric projection coming soon." />}
+        {activeTab === "songs" && (
+          <div className="h-full overflow-hidden">
+            <SongsPanel />
+          </div>
+        )}
         {activeTab === "text" && <ComingSoon icon={Type} title="Text" description="Free-form text projection coming soon." />}
       </div>
     </div>
