@@ -191,17 +191,65 @@ export function TextPanel() {
     });
   };
 
-  /** Insert arbitrary text at caret (quick-insert side panel). */
-  const insertAtCaret = (text: string) => {
+  /** Insert arbitrary text at caret (quick-insert / blocks). */
+  const insertAtCaret = (text: string, opts?: { bumpVocab?: boolean }) => {
     const el = textareaRef.current;
     const value = draftContent;
     const caret = el?.selectionStart ?? value.length;
     const newValue = value.slice(0, caret) + text + value.slice(caret);
     setDraftContent(newValue);
     setSavingPending(true);
+    if (opts?.bumpVocab) useVocab.getState().bump(text);
     requestAnimationFrame(() => {
       if (!el) return;
       const pos = caret + text.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  /** Insert a multi-line block at caret, padding with blank lines so it
+   *  becomes its own slide under the default split rule. */
+  const insertBlock = (snippet: string) => {
+    const el = textareaRef.current;
+    const value = draftContent;
+    const caret = el?.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const after = value.slice(caret);
+    const leading = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+    const trailing = after.length === 0 || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+    const insert = leading + snippet + trailing;
+    const newValue = before + insert + after;
+    setDraftContent(newValue);
+    setSavingPending(true);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const pos = before.length + insert.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  /** Toggle a line prefix (# / ## / > / • / 1.) on the current line. */
+  const toggleLinePrefix = (prefix: string) => {
+    const el = textareaRef.current;
+    const value = draftContent;
+    const caret = el?.selectionStart ?? value.length;
+    const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+    const lineEnd = value.indexOf("\n", caret);
+    const endIdx = lineEnd === -1 ? value.length : lineEnd;
+    const line = value.slice(lineStart, endIdx);
+    // Strip any existing supported prefix first.
+    const stripped = line.replace(/^(\s*)(#{1,4}\s|>\s|•\s|\d+\.\s)/, "$1");
+    const already = line !== stripped && line.startsWith(prefix);
+    const newLine = already ? stripped : prefix + stripped;
+    const newValue = value.slice(0, lineStart) + newLine + value.slice(endIdx);
+    setDraftContent(newValue);
+    setSavingPending(true);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const delta = newLine.length - line.length;
+      const pos = caret + delta;
       el.focus();
       el.setSelectionRange(pos, pos);
     });
