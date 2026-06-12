@@ -22,6 +22,7 @@ export function WorkspaceTabsPanel() {
   const focus = useFocusZone(active.focus);
   // Activate the "bible" shortcut scope only while the bible tab is showing.
   useShortcutScope("bible", activeTab === "bible");
+  useShortcutScope("songs", activeTab === "songs");
 
   // Collapsed icon-rail
   if (collapsed) {
