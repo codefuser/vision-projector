@@ -121,20 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Integrated top bar — projector + theme controls. Compact, anchored, not floating. */}
         <header className="flex h-10 shrink-0 items-center justify-end gap-1 border-b border-border bg-background px-3">
-          <button
-            onClick={projectorOpen ? closeProjector : openProjector}
-            title={projectorOpen ? "Close Projector" : "Open Projector"}
-            aria-label={projectorOpen ? "Close Projector" : "Open Projector"}
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-xs font-medium transition",
-              projectorOpen
-                ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
-                : "bg-primary text-primary-foreground hover:opacity-90",
-            )}
-          >
-            <MonitorPlay className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{projectorOpen ? "Close Projector" : "Open Projector"}</span>
-          </button>
+          <ProjectorToggleButton projectorOpen={projectorOpen} onToggle={projectorOpen ? closeProjector : openProjector} />
           <button
             onClick={cycleTheme}
             className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
