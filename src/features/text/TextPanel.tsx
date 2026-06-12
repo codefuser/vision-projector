@@ -713,6 +713,19 @@ export function TextPanel() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <button
+                      onClick={() => selected && setReveal(selected.id, !revealOn)}
+                      title="Reveal: progressive slides from bulleted/numbered lists"
+                      className={cn(
+                        "inline-flex h-7 cursor-pointer items-center gap-1 rounded border px-2 text-[11px] font-medium transition",
+                        revealOn
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border hover:bg-accent",
+                      )}
+                    >
+                      <Eye className="h-3 w-3" />
+                      Reveal {revealOn ? "on" : "off"}
+                    </button>
                     <Scissors className="h-3 w-3" />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
