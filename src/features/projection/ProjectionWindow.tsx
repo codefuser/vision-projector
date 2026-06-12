@@ -45,6 +45,7 @@ export function ProjectionWindow() {
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [textStyle, setTextStyle] = useState<TextStyle>(DEFAULT_TEXT_STYLE);
   const [groupedStyles, setGroupedStyles] = useState<GroupedStyles>(DEFAULT_GROUPED_STYLES);
+  const [logo, setLogo] = useState<LogoBroadcast | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
