@@ -23,6 +23,9 @@ export function ProjectionWindow() {
   const [black, setBlack] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.8);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [loop, setLoop] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const [prevItem, setPrevItem] = useState<RuntimeItem | null>(null);
   const [transitioning, setTransitioning] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
