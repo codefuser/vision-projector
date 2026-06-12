@@ -40,8 +40,9 @@ const TEXT_FORMAT_DEFAULT_SIZE = 40;
 // The workspace must never auto-balance on load: use the saved operator width
 // or exactly 250px on first run. The right Media workspace consumes the rest.
 const LEFT_DEFAULT_WIDTH = 250;
-const LEFT_MIN_PX = "200px";
-const RIGHT_MIN_PX = "320px";
+const LEFT_MIN_WIDTH = 200;
+const RIGHT_MIN_WIDTH = 320;
+const TABS_COLLAPSED_WIDTH = 48;
 
 function readLayout(key: string): Layout | undefined {
   try {
@@ -87,6 +88,8 @@ export function ProjectionWorkspace() {
   const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
   const [resetNonce, setResetNonce] = useState(0);
   const [leftWidthDefault, setLeftWidthDefault] = useState(() => readSavedLeftWidth() ?? LEFT_DEFAULT_WIDTH);
+  const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
 
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
@@ -103,9 +106,9 @@ export function ProjectionWorkspace() {
 
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
-  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}`;
   const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
-  const leftDefaultSize = `${leftWidthDefault}px`;
+  const rightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : undefined;
 
   // Drive the bottom panel size from the persisted collapsed flag.
   const textFormatPanelRef = useRef<PanelImperativeHandle | null>(null);
@@ -119,6 +122,36 @@ export function ProjectionWorkspace() {
       /* panel handle not ready yet — next layout pass will reconcile */
     }
   }, [textFormatCollapsed, visible.textFormat, visible.preview]);
+
+  useEffect(() => {
+    if (!isDraggingHorizontal) return;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const workspace = workspaceRef.current;
+      if (!workspace) return;
+      const bounds = workspace.getBoundingClientRect();
+      const reservedRightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : visible.tabs ? RIGHT_MIN_WIDTH : 0;
+      const maxLeftWidth = Math.max(LEFT_MIN_WIDTH, bounds.width - reservedRightWidth);
+      const nextWidth = Math.min(Math.max(event.clientX - bounds.left, LEFT_MIN_WIDTH), maxLeftWidth);
+      setLeftWidthDefault(nextWidth);
+      writeLeftWidth(nextWidth);
+    };
+
+    const stopDragging = () => setIsDraggingHorizontal(false);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stopDragging, { once: true });
+    window.addEventListener("pointercancel", stopDragging, { once: true });
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isDraggingHorizontal, tabsCollapsed, visible.tabs]);
 
 
 
@@ -165,22 +198,15 @@ export function ProjectionWorkspace() {
           {allHidden ? (
             <EmptyDock onShow={showPanel} visible={visible} />
           ) : (
-            <Group
+            <div
               key={outerKey}
-              orientation="horizontal"
-              className="h-full"
-              resizeTargetMinimumSize={{ coarse: 28, fine: 8 }}
+              ref={workspaceRef}
+              className="flex h-full min-w-0 overflow-hidden"
             >
               {leftVisible && (
-                <Panel
-                  id="left"
-                  defaultSize={leftDefaultSize}
-                  minSize={LEFT_MIN_PX}
-                  groupResizeBehavior="preserve-pixel-size"
-                  onResize={(size) => {
-                    setLeftWidthDefault(size.inPixels);
-                    writeLeftWidth(size.inPixels);
-                  }}
+                <div
+                  data-workspace-left-panel
+                  style={{ width: leftWidthDefault, minWidth: LEFT_MIN_WIDTH }}
                   className="min-h-0 min-w-0"
                 >
                   <Group
@@ -221,22 +247,20 @@ export function ProjectionWorkspace() {
                       </Panel>
                     )}
                   </Group>
-                </Panel>
+                </div>
               )}
-              {leftVisible && visible.tabs && <HHandle />}
+              {leftVisible && visible.tabs && <HHandle onPointerDown={() => setIsDraggingHorizontal(true)} active={isDraggingHorizontal} />}
               {visible.tabs && (
-                <Panel
-                  id="right"
-                  defaultSize={tabsCollapsed ? "48px" : undefined}
-                  minSize={tabsCollapsed ? "48px" : RIGHT_MIN_PX}
-                  maxSize={tabsCollapsed ? "48px" : undefined}
+                <div
+                  data-workspace-right-panel
+                  style={rightWidth ? { width: rightWidth, minWidth: rightWidth } : { minWidth: RIGHT_MIN_WIDTH }}
                   className="min-h-0 min-w-0"
                 >
                   <WorkspaceTabsPanel />
-                </Panel>
+                </div>
               )}
 
-            </Group>
+            </div>
           )}
         </div>
       </div>
