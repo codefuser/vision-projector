@@ -311,7 +311,13 @@ export function TextFormattingPanel() {
                 No background. The projector stage will be transparent (black) behind text.
               </div>
             )}
+
+            {/* Background gallery — thumbnails of saved backgrounds. */}
+            <BackgroundGallerySection onPickFromLibrary={() => setPickerOpen(true)} />
           </div>
+
+          {/* Logo manager */}
+          <LogoSection />
         </div>
       )}
 
