@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye, PanelLeftClose, FolderTree as FolderTreeIcon } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye, PanelLeftClose, FolderTree as FolderTreeIcon, Star } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
+import { useMediaFavorites } from "@/stores/media-favorites.store";
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
@@ -39,6 +40,9 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
+  const favIds = useMediaFavorites((s) => s.ids);
+  const toggleFav = useMediaFavorites((s) => s.toggle);
+  const favSet = useMemo(() => new Set(favIds), [favIds]);
 
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
@@ -248,6 +252,24 @@ export function LibraryPage() {
             </div>
           )}
 
+          {/* Favorite star — persistent. Always visible when favorited; appears
+              on hover otherwise. Offset below the video badge when present. */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFav(m.id);
+            }}
+            title={favSet.has(m.id) ? "Unfavorite" : "Favorite"}
+            aria-label={favSet.has(m.id) ? "Unfavorite" : "Favorite"}
+            className={cn(
+              "absolute right-1.5 inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-background/90 shadow-sm backdrop-blur transition hover:bg-background",
+              m.type === "video" ? "top-9" : "top-1.5",
+              favSet.has(m.id) ? "text-amber-500 opacity-100" : "text-muted-foreground opacity-0 group-hover:opacity-100",
+            )}
+          >
+            <Star className={cn("h-3.5 w-3.5", favSet.has(m.id) && "fill-current")} />
+          </button>
+
           {/* Hover actions — anchored to the thumbnail bottom-right so they never cover filename/size metadata */}
           {!selectionMode && (
             <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-center justify-end gap-1 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
@@ -268,24 +290,26 @@ export function LibraryPage() {
         </div>
 
         {/* Metadata — slightly taller for breathing room; never covered by hover actions */}
-        <div className="px-2.5 py-2">
-          <div className="truncate text-xs font-medium text-foreground" title={m.name}>
+        <div className="px-3 py-2.5">
+          <div className="truncate text-[13px] font-medium text-foreground" title={m.name}>
             {m.name}
           </div>
-          <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <div className="mt-1 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
             {m.type === "video" ? (
               <>
+                <span className="rounded bg-muted px-1 text-[9px] font-bold uppercase tracking-wide">Video</span>
                 <span className="tabular-nums">{formatDuration(m.durationMs)}</span>
                 <span className="tabular-nums">{formatBytes(m.size)}</span>
               </>
             ) : (
               <>
-                <span className="uppercase tracking-wide opacity-70">Image</span>
+                <span className="rounded bg-muted px-1 text-[9px] font-bold uppercase tracking-wide">Image</span>
                 <span className="tabular-nums">{formatBytes(m.size)}</span>
               </>
             )}
           </div>
         </div>
+
       </div>
     );
   };
@@ -443,7 +467,7 @@ export function LibraryPage() {
                         </h3>
                         <div
                           className="grid gap-3"
-                          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 130px), 1fr))" }}
+                          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))" }}
                         >
                           {g.items.map((m) => renderCard(m, visible.indexOf(m)))}
                         </div>
@@ -452,7 +476,7 @@ export function LibraryPage() {
                   ) : (
                     <div
                       className="grid gap-3"
-                      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 130px), 1fr))" }}
+                      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))" }}
                     >
                       {visible.map((m, idx) => renderCard(m, idx))}
                     </div>
