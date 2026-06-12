@@ -13,6 +13,7 @@ import { useLogo } from "@/stores/logo.store";
 interface CustomTemplatesStore {
   templates: TemplatePreset[];
   saveCurrent: (name: string, description?: string) => TemplatePreset;
+  duplicate: (source: TemplatePreset, name?: string) => TemplatePreset;
   remove: (id: string) => void;
   rename: (id: string, name: string) => void;
 }
