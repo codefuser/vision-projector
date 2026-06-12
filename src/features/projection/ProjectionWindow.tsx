@@ -286,6 +286,9 @@ export function ProjectionWindow() {
         case "UPDATE_BACKGROUND":
           setGroupedStyles((g) => ({ ...g, background: cmd.background }));
           break;
+        case "UPDATE_LOGO":
+          setLogo(cmd.logo);
+          break;
 
         case "PLAY":
           setPlaying(true);
