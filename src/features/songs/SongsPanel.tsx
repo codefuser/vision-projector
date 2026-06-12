@@ -567,11 +567,12 @@ interface SlideProps {
   activeSlide: number;
   onSelect: (i: number) => void;
   onProject: (i: number) => void;
+  onEdit: () => void;
   onClose: () => void;
   projectedText: string | null;
 }
 
-function SlidePane({ song, activeSlide, onSelect, onProject, onClose, projectedText }: SlideProps) {
+function SlidePane({ song, activeSlide, onSelect, onProject, onEdit, onClose, projectedText }: SlideProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border bg-muted/20 px-2 py-1.5">
@@ -584,6 +585,13 @@ function SlidePane({ song, activeSlide, onSelect, onProject, onClose, projectedT
           </div>
         </div>
         <button
+          onClick={onEdit}
+          title="Edit song"
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-border px-2 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </button>
+        <button
           onClick={onClose}
           title="Close"
           className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -591,39 +599,41 @@ function SlidePane({ song, activeSlide, onSelect, onProject, onClose, projectedT
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        <div className="grid grid-cols-1 gap-2 @md:grid-cols-2 @2xl:grid-cols-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2.5">
+        {/* Slide grid — never more than 2 columns so each card stays wide
+            enough for full lyric content without aggressive truncation. */}
+        <div className="grid grid-cols-1 gap-3 @md:grid-cols-2">
           {song.slides.map((s, i) => {
             const isActive = activeSlide === i;
             const isProjected = !!projectedText && projectedText.startsWith(s.slice(0, 24));
+            const lines = s.split("\n").length;
             return (
               <div
                 key={i}
                 onClick={() => { onSelect(i); onProject(i); }}
                 className={cn(
-                  "group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border-2 bg-card/80 transition-all",
+                  "group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-lg border-2 bg-card/80 transition-all",
                   "hover:-translate-y-px hover:border-primary/70 hover:shadow-md",
                   isProjected ? "border-primary ring-2 ring-primary/40" : isActive ? "border-primary/60" : "border-border",
                 )}
               >
-                <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/40 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <div className="flex items-center gap-1.5 border-b border-border/60 bg-muted/40 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                   <span>Slide {i + 1}</span>
+                  <span className="text-muted-foreground/60">· {lines} line{lines === 1 ? "" : "s"}</span>
                   {isProjected && (
-                    <span className="ml-auto inline-flex items-center gap-1 rounded bg-primary px-1 py-px text-[9px] text-primary-foreground">
+                    <span className="ml-auto inline-flex items-center gap-1 rounded bg-primary px-1.5 py-px text-[9px] text-primary-foreground">
                       <span className="h-1 w-1 animate-pulse rounded-full bg-primary-foreground" /> Live
                     </span>
                   )}
                 </div>
-                <pre className="line-clamp-6 flex-1 whitespace-pre-wrap px-2.5 py-2 font-sans text-[13px] leading-snug">
+                {/* No line-clamp — slide must show full lyric content. */}
+                <pre className="flex-1 whitespace-pre-wrap break-words px-3 py-2.5 font-sans text-[14px] leading-relaxed">
                   {s}
                 </pre>
-                <div className="flex items-center justify-between border-t border-border/40 bg-muted/20 px-2 py-1">
-                  <span className="text-[10px] text-muted-foreground">
-                    {s.split("\n").length} line{s.split("\n").length === 1 ? "" : "s"}
-                  </span>
+                <div className="flex items-center justify-end border-t border-border/40 bg-muted/20 px-2 py-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); onProject(i); }}
-                    className="inline-flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground hover:opacity-90"
+                    className="inline-flex items-center gap-1 rounded bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground hover:opacity-90"
                   >
                     <Send className="h-3 w-3" /> Project
                   </button>
