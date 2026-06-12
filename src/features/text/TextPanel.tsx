@@ -358,7 +358,20 @@ export function TextPanel() {
     return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [items, recents, filter, query]);
 
-  const slides = useMemo(() => splitTextSlides(draftContent), [draftContent]);
+  const splitRule = useTextPrefs((s) => (selectedId ? s.rules[selectedId] : undefined)) ?? { mode: "blank" } as SplitRule;
+  const setSplitRule = useTextPrefs((s) => s.setRule);
+  const vocabCounts = useVocab((s) => s.counts);
+  const vocabRecents = useVocab((s) => s.recents);
+  const bumpVocab = useVocab((s) => s.bump);
+  const [quickTab, setQuickTab] = useState<"most" | "recent" | QuickCategory>("church");
+
+  const slides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+
+  const quickWords: QuickWord[] = useMemo(() => {
+    if (quickTab === "most") return mostUsed(vocabCounts);
+    if (quickTab === "recent") return vocabRecents.map((t) => ({ tamil: t, label: "" }));
+    return QUICK_INSERT[quickTab];
+  }, [quickTab, vocabCounts, vocabRecents]);
 
   const handleNew = () => {
     const id = create({ title: "Untitled", content: "" });
