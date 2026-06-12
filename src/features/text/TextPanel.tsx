@@ -355,6 +355,38 @@ export function TextPanel() {
                     placeholder="Title"
                     className="h-8 flex-1 text-sm font-semibold"
                   />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        title={`Typing mode: ${MODE_LABELS[typingMode]}`}
+                        className={cn(
+                          "inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-border px-2 text-[11px] font-semibold transition hover:bg-accent",
+                          typingMode === "tanglish" && "border-primary/60 bg-primary/10 text-primary",
+                        )}
+                      >
+                        <Languages className="h-3.5 w-3.5" />
+                        <span>{MODE_SHORT[typingMode]}</span>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Typing mode
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {(["english", "tamil", "tanglish"] as TypingMode[]).map((m) => (
+                        <DropdownMenuItem
+                          key={m}
+                          onClick={() => setTypingMode(m)}
+                          className={cn("text-xs", typingMode === m && "bg-accent font-semibold text-primary")}
+                        >
+                          {MODE_LABELS[m]}
+                          {m === "tanglish" && (
+                            <span className="ml-auto text-[10px] text-muted-foreground">auto-convert</span>
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <button
                     onClick={handleDuplicate}
                     title="Duplicate"
@@ -374,13 +406,27 @@ export function TextPanel() {
                   </button>
                 </div>
                 <Textarea
+                  ref={textareaRef}
                   value={draftContent}
-                  onChange={(e) => setDraftContent(e.target.value)}
-                  placeholder={"Type or paste content…\n\nSeparate slides with a blank line."}
-                  className="flex-1 resize-none rounded-none border-0 font-sans text-[14px] leading-relaxed focus-visible:ring-0"
+                  onChange={handleContentChange}
+                  placeholder={
+                    typingMode === "tanglish"
+                      ? "Type Tanglish — words auto-convert to தமிழ் after space.\n\nBlank line = new slide."
+                      : "Type or paste content…\n\nSeparate slides with a blank line."
+                  }
+                  className={cn(
+                    "flex-1 resize-none rounded-none border-0 font-sans text-[14px] leading-relaxed focus-visible:ring-0",
+                    typingMode === "tamil" && "text-[15px]",
+                  )}
+                  lang={typingMode === "english" ? "en" : "ta"}
                 />
-                <div className="border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
-                  {slides.length} slide{slides.length === 1 ? "" : "s"} · blank line = new slide
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
+                  <span><b className="text-foreground/80">{counters.chars}</b> chars</span>
+                  <span><b className="text-foreground/80">{counters.words}</b> words</span>
+                  <span><b className="text-foreground/80">{counters.lines}</b> lines</span>
+                  <span><b className="text-foreground/80">{slides.length}</b> slide{slides.length === 1 ? "" : "s"}</span>
+                  <span>~{counters.reading} read</span>
+                  <span className="ml-auto opacity-70">blank line = new slide</span>
                 </div>
               </>
             )}
