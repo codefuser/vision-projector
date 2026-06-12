@@ -1,7 +1,9 @@
 import { Image as ImageIcon, BookOpen, Music, Type, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useWorkspace, type WorkspaceTab } from "./workspace.store";
 import { LibraryPage } from "@/features/library/LibraryPage";
+import { BiblePanel } from "@/features/bible/BiblePanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
+import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null> }[] = [
@@ -17,6 +19,8 @@ export function WorkspaceTabsPanel() {
   const toggleCollapsed = useWorkspace((s) => s.toggleTabsCollapsed);
   const active = TABS.find((t) => t.id === activeTab) ?? TABS[0];
   const focus = useFocusZone(active.focus);
+  // Activate the "bible" shortcut scope only while the bible tab is showing.
+  useShortcutScope("bible", activeTab === "bible");
 
   // Collapsed icon-rail
   if (collapsed) {
@@ -81,7 +85,7 @@ export function WorkspaceTabsPanel() {
             >
               <Icon className="h-3.5 w-3.5" />
               {t.label}
-              {t.id !== "media" && (
+              {t.id !== "media" && t.id !== "bible" && (
                 <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
                   Soon
                 </span>
@@ -105,7 +109,11 @@ export function WorkspaceTabsPanel() {
             <LibraryPage />
           </div>
         )}
-        {activeTab === "bible" && <ComingSoon icon={BookOpen} title="Bible" description="Reference projection coming soon." />}
+        {activeTab === "bible" && (
+          <div className="h-full overflow-hidden">
+            <BiblePanel />
+          </div>
+        )}
         {activeTab === "songs" && <ComingSoon icon={Music} title="Songs" description="Song lyric projection coming soon." />}
         {activeTab === "text" && <ComingSoon icon={Type} title="Text" description="Free-form text projection coming soon." />}
       </div>
