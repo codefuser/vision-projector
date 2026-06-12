@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+
 import { ListOrdered, Play, X, Trash2, ChevronUp, ChevronDown, Send } from "lucide-react";
 import { useBibleQueue } from "@/stores/bible-queue.store";
 import { projectVerseAt } from "@/lib/bible/project-ref";
