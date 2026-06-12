@@ -27,17 +27,34 @@ export function GlobalShortcuts() {
     return () => shortcutManager.uninstall();
   }, []);
 
-  // ── Tab navigation (Alt+1..4) — also navigate to /project so the user sees the panel.
+  // ── Tab navigation (1..4 plain) — also navigate to /project so the user sees the panel.
   const tabShortcut = (id: WorkspaceTab) => () => {
     setActiveTab(id);
     if (router.state.location.pathname !== "/project") {
       void navigate({ to: "/project" });
     }
   };
-  useShortcut({ id: "tab.media",  label: "Open Media tab",  category: "navigation", keys: ["Alt+1"], handler: tabShortcut("media") });
-  useShortcut({ id: "tab.bible",  label: "Open Bible tab",  category: "navigation", keys: ["Alt+2"], handler: tabShortcut("bible") });
-  useShortcut({ id: "tab.songs",  label: "Open Songs tab",  category: "navigation", keys: ["Alt+3"], handler: tabShortcut("songs") });
-  useShortcut({ id: "tab.text",   label: "Open Text tab",   category: "navigation", keys: ["Alt+4"], handler: tabShortcut("text") });
+  useShortcut({ id: "tab.media",  label: "Open Media tab",  category: "navigation", keys: ["1"], handler: tabShortcut("media") });
+  useShortcut({ id: "tab.bible",  label: "Open Bible tab",  category: "navigation", keys: ["2"], handler: tabShortcut("bible") });
+  useShortcut({ id: "tab.songs",  label: "Open Songs tab",  category: "navigation", keys: ["3"], handler: tabShortcut("songs") });
+  useShortcut({ id: "tab.text",   label: "Open Text tab",   category: "navigation", keys: ["4"], handler: tabShortcut("text") });
+
+  // ── Search focus (Alt+1..4) — switches to the tab and emits a focus-search event
+  // that the relevant panel listens for. Operator-friendly: one keypress goes
+  // straight to the search input no matter which module is in front.
+  const focusSearch = (id: WorkspaceTab) => () => {
+    setActiveTab(id);
+    if (router.state.location.pathname !== "/project") {
+      void navigate({ to: "/project" });
+    }
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("workspace:focus-search", { detail: { tab: id } }));
+    }, 60);
+  };
+  useShortcut({ id: "search.media", label: "Focus Media search", category: "navigation", keys: ["Alt+1"], handler: focusSearch("media") });
+  useShortcut({ id: "search.bible", label: "Focus Bible search", category: "navigation", keys: ["Alt+2"], handler: focusSearch("bible") });
+  useShortcut({ id: "search.songs", label: "Focus Songs search", category: "navigation", keys: ["Alt+3"], handler: focusSearch("songs") });
+  useShortcut({ id: "search.text",  label: "Focus Text search",  category: "navigation", keys: ["Alt+4"], handler: focusSearch("text") });
 
   // ── Projector lifecycle
   useShortcut({
