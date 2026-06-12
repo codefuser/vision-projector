@@ -14,6 +14,10 @@ import {
   Rewind,
   FastForward,
   RotateCcw,
+  Repeat,
+  Maximize2,
+  Minimize2,
+  Gauge,
 } from "lucide-react";
 import { useProjection } from "@/stores/projection.store";
 import { getMedia } from "@/db/repo";
