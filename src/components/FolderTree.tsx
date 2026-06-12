@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Folder, FolderOpen, FolderPlus, Home, Pencil, Trash2 } from "lucide-react";
+import { Folder, FolderOpen, FolderPlus, Home, Pencil, Plus, Trash2 } from "lucide-react";
 import { useLibrary } from "@/stores/library.store";
 import { createFolder, renameFolder, deleteFolderDeep, deleteFolderOnly, moveMedia } from "@/db/repo";
 import type { FolderRecord } from "@/db/schema";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RenameDialog } from "@/components/RenameDialog";
+import { FolderCreateDialog } from "@/components/FolderCreateDialog";
 import { FolderDeleteDialog, type FolderDeleteMode } from "@/components/FolderDeleteDialog";
 
 
@@ -39,13 +40,15 @@ export function FolderTree() {
 
   const tree = useMemo(() => buildTree(folders), [folders]);
   const [renameTarget, setRenameTarget] = useState<FolderRecord | null>(null);
-  const [createFor, setCreateFor] = useState<{ parentId: string | null } | null>(null);
+  const [createFor, setCreateFor] = useState<{ parentId: string | null; parentLabel?: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FolderRecord | null>(null);
-
 
   useEffect(() => {
     void refreshFolders();
   }, [refreshFolders]);
+
+  const siblingNamesFor = (parentId: string | null) =>
+    folders.filter((f) => f.parentId === parentId).map((f) => f.name);
 
   const onDropMedia = async (e: React.DragEvent, folderId: string | null) => {
     e.preventDefault();
@@ -79,6 +82,17 @@ export function FolderTree() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setCreateFor({ parentId: n.folder.id, parentLabel: n.folder.name });
+              }}
+              className="cursor-pointer rounded p-0.5 hover:bg-background"
+              aria-label="New subfolder"
+              title="New subfolder"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
                 setRenameTarget(n.folder);
               }}
               className="cursor-pointer rounded p-0.5 hover:bg-background"
@@ -108,15 +122,24 @@ export function FolderTree() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center justify-between px-2 py-1.5">
+      <div className="flex shrink-0 items-center justify-between gap-1 px-2 py-1.5">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Folders</div>
         <button
-          onClick={() => setCreateFor({ parentId: currentFolderId })}
-          className="cursor-pointer rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          onClick={() =>
+            setCreateFor({
+              parentId: currentFolderId,
+              parentLabel:
+                currentFolderId === null
+                  ? "All Media"
+                  : folders.find((f) => f.id === currentFolderId)?.name,
+            })
+          }
+          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground hover:bg-accent"
           aria-label="New folder"
           title="New folder"
         >
-          <FolderPlus className="h-3.5 w-3.5" />
+          <FolderPlus className="h-3 w-3" />
+          New
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-1 pb-2">
@@ -152,16 +175,18 @@ export function FolderTree() {
         }}
       />
 
-      <RenameDialog
+      <FolderCreateDialog
         open={!!createFor}
-        initialName=""
-        title="New folder"
-        label="Folder name"
+        siblingNames={createFor ? siblingNamesFor(createFor.parentId) : []}
+        parentLabel={createFor?.parentLabel}
         onCancel={() => setCreateFor(null)}
         onSubmit={async (name) => {
-          await createFolder(name, createFor?.parentId ?? null);
+          const parentId = createFor?.parentId ?? null;
+          const rec = await createFolder(name, parentId);
           setCreateFor(null);
           await refreshFolders();
+          await setFolder(rec.id);
+          toast.success(`Folder "${rec.name}" created`);
         }}
       />
 
@@ -187,4 +212,3 @@ export function FolderTree() {
     </div>
   );
 }
-
