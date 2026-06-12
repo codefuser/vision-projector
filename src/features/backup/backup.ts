@@ -1,7 +1,17 @@
 import { zip, unzip, strToU8, strFromU8 } from "fflate";
 import { db, DEFAULT_SETTINGS, type FolderRecord, type MediaRecord, type PlaylistRecord, type SettingsRecord } from "@/db/schema";
+import { useSongsStore } from "@/lib/songs/store";
 
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
+
+interface UserSongRecord {
+  id: number;
+  title: string;
+  content: string;
+  artist?: string;
+  album?: string;
+  scale?: string;
+}
 
 interface Manifest {
   version: number;
@@ -10,6 +20,8 @@ interface Manifest {
   media: Array<MediaRecord & { blobFile?: string; thumbFile?: string }>;
   playlists: PlaylistRecord[];
   settings: SettingsRecord["value"];
+  /** v2+ — user-created songs persisted by the Songs module. */
+  userSongs?: UserSongRecord[];
 }
 
 export async function exportBackup(): Promise<Blob> {
@@ -48,6 +60,7 @@ export async function exportBackup(): Promise<Blob> {
     media: mediaWithRefs,
     playlists,
     settings: settingsRow?.value ?? DEFAULT_SETTINGS,
+    userSongs: useSongsStore.getState().userSongs,
   };
   files["manifest.json"] = strToU8(JSON.stringify(manifest));
 
@@ -93,4 +106,14 @@ export async function importBackup(file: Blob, opts: { mode: "merge" | "replace"
     for (const p of manifest.playlists) await db().playlists.put(p);
     await db().settings.put({ key: "app", value: manifest.settings });
   });
+
+  // User songs live in localStorage via zustand-persist — restore them
+  // outside the Dexie transaction.
+  if (manifest.userSongs && manifest.userSongs.length) {
+    const store = useSongsStore.getState();
+    if (opts.mode === "replace") {
+      for (const u of store.userSongs) store.removeUserSong(u.id);
+    }
+    for (const u of manifest.userSongs) store.upsertUserSong(u);
+  }
 }

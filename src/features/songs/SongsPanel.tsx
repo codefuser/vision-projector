@@ -85,8 +85,6 @@ export function SongsPanel() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [filter, setFilter] = useState<SongFilter>("all");
   const [authorFilter, setAuthorFilter] = useState<string | null>(null);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [titleSuggestions, setTitleSuggestions] = useState<Song[]>([]);
   const projectedRef = useProjection((s) => s.state?.textOverlay?.text ?? null);
   const recent = useSongsRecent((s) => s.items);
   const counts = useSongsRecent((s) => s.counts);
@@ -182,16 +180,8 @@ export function SongsPanel() {
     setActiveIdx(0);
   }, [query, loaded, recent, userSongs, favorites, filter, authorFilter, counts]);
 
-  // Live title suggestions while typing.
-  useEffect(() => {
-    if (!loaded) return;
-    const q = query.trim();
-    if (q.length < 1) { setTitleSuggestions([]); return; }
-    const songs = getSongs();
-    if (!songs) return;
-    const hits = searchSongs(q, songs, 8);
-    setTitleSuggestions(hits.map((h) => h.song));
-  }, [query, loaded]);
+  // (Suggestion dropdown removed — results panel is the single source of truth.)
+
 
   const selectedSong: Song | null = useMemo(() => {
     if (!selectedSongId) return null;
@@ -256,28 +246,11 @@ export function SongsPanel() {
           <Input
             ref={inputRef}
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setSuggestionsOpen(true); }}
-            onFocus={() => setSuggestionsOpen(true)}
-            onBlur={() => setTimeout(() => setSuggestionsOpen(false), 150)}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="yesu · anbu · vaazhvu · இயேசு · title · lyric…"
             className="h-8 pl-7 text-sm"
             autoFocus
           />
-          {suggestionsOpen && query.trim() && titleSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
-              {titleSuggestions.map((s) => (
-                <button
-                  key={s.id}
-                  onMouseDown={(e) => { e.preventDefault(); openSong(s); setQuery(s.title); setSuggestionsOpen(false); }}
-                  className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] hover:bg-accent"
-                >
-                  <Music className="h-3 w-3 shrink-0 text-muted-foreground" />
-                  <span className="truncate font-medium">{s.title}</span>
-                  {s.artist && <span className="ml-auto truncate text-[10px] text-muted-foreground">{s.artist}</span>}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

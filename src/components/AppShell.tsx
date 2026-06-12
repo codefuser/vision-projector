@@ -5,16 +5,17 @@ import { useSettings } from "@/stores/settings.store";
 import { useProjection } from "@/stores/projection.store";
 import { projectionEngine } from "@/projection";
 import { GlobalFavoritesDock } from "@/components/GlobalFavoritesDock";
+import { useShortcutTooltip } from "@/lib/shortcuts/use-shortcut-for";
 import { cn } from "@/lib/utils";
 
 const PRIMARY_NAV = [
-  { to: "/library", label: "Library", icon: FolderTree },
-  { to: "/playlists", label: "Playlists", icon: ListVideo },
-  { to: "/project", label: "Project", icon: MonitorPlay },
-  { to: "/shortcuts", label: "Shortcuts", icon: Keyboard },
+  { to: "/library", label: "Library", icon: FolderTree, shortcutId: "nav.library" },
+  { to: "/playlists", label: "Playlists", icon: ListVideo, shortcutId: "nav.playlists" },
+  { to: "/project", label: "Project", icon: MonitorPlay, shortcutId: "nav.project" },
+  { to: "/shortcuts", label: "Shortcuts", icon: Keyboard, shortcutId: "nav.shortcuts" },
 ] as const;
 
-const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon } as const;
+const SETTINGS_NAV = { to: "/settings", label: "Settings", icon: SettingsIcon, shortcutId: "nav.settings" } as const;
 
 const SIDEBAR_KEY = "church-media-sidebar-collapsed-v2";
 
@@ -47,33 +48,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     void update({ theme: next });
   };
 
-  const renderNavItem = (item: { to: string; label: string; icon: typeof FolderTree }) => {
+  const renderNavItem = (item: { to: string; label: string; icon: typeof FolderTree; shortcutId?: string }) => {
     const active = pathname === item.to || pathname.startsWith(item.to + "/");
     const Icon = item.icon;
-    return (
-      <Link
-        key={item.to}
-        to={item.to}
-        title={item.label}
-        aria-label={item.label}
-        className={cn(
-          "relative flex h-9 cursor-pointer items-center gap-3 overflow-hidden rounded-md px-2.5 text-sm transition-colors duration-150",
-          active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-        )}
-      >
-        <Icon className="h-4 w-4 shrink-0" />
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate whitespace-nowrap transition-[opacity,transform] duration-200 ease-out",
-            collapsed ? "pointer-events-none -translate-x-1 opacity-0" : "translate-x-0 opacity-100",
-          )}
-        >
-          {item.label}
-        </span>
-      </Link>
-    );
+    return <NavItem key={item.to} item={item} active={active} icon={Icon} collapsed={collapsed} />;
   };
 
 
@@ -143,20 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Integrated top bar — projector + theme controls. Compact, anchored, not floating. */}
         <header className="flex h-10 shrink-0 items-center justify-end gap-1 border-b border-border bg-background px-3">
-          <button
-            onClick={projectorOpen ? closeProjector : openProjector}
-            title={projectorOpen ? "Close Projector" : "Open Projector"}
-            aria-label={projectorOpen ? "Close Projector" : "Open Projector"}
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-xs font-medium transition",
-              projectorOpen
-                ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
-                : "bg-primary text-primary-foreground hover:opacity-90",
-            )}
-          >
-            <MonitorPlay className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{projectorOpen ? "Close Projector" : "Open Projector"}</span>
-          </button>
+          <ProjectorToggleButton projectorOpen={projectorOpen} onToggle={projectorOpen ? closeProjector : openProjector} />
           <button
             onClick={cycleTheme}
             className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -170,5 +135,62 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <GlobalFavoritesDock />
     </div>
+  );
+}
+
+function NavItem({
+  item,
+  active,
+  icon: Icon,
+  collapsed,
+}: {
+  item: { to: string; label: string; shortcutId?: string };
+  active: boolean;
+  icon: typeof FolderTree;
+  collapsed: boolean;
+}) {
+  const tooltip = useShortcutTooltip(item.shortcutId ?? "", item.label);
+  return (
+    <Link
+      to={item.to}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "relative flex h-9 cursor-pointer items-center gap-3 overflow-hidden rounded-md px-2.5 text-sm transition-colors duration-150",
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate whitespace-nowrap transition-[opacity,transform] duration-200 ease-out",
+          collapsed ? "pointer-events-none -translate-x-1 opacity-0" : "translate-x-0 opacity-100",
+        )}
+      >
+        {item.label}
+      </span>
+    </Link>
+  );
+}
+
+function ProjectorToggleButton({ projectorOpen, onToggle }: { projectorOpen: boolean; onToggle: () => void }) {
+  const tooltip = useShortcutTooltip("projector.toggle", projectorOpen ? "Close Projector" : "Open Projector");
+  return (
+    <button
+      onClick={onToggle}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 cursor-pointer rounded-md px-2.5 text-xs font-medium transition",
+        projectorOpen
+          ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+          : "bg-primary text-primary-foreground hover:opacity-90",
+      )}
+    >
+      <MonitorPlay className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">{projectorOpen ? "Close Projector" : "Open Projector"}</span>
+    </button>
   );
 }

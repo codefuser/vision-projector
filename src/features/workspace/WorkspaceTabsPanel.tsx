@@ -5,13 +5,14 @@ import { BiblePanel } from "@/features/bible/BiblePanel";
 import { SongsPanel } from "@/features/songs/SongsPanel";
 import { useFocusZone, type FocusZone } from "./focus-manager";
 import { useShortcutScope } from "@/lib/shortcuts/use-shortcut";
+import { useShortcutTooltip } from "@/lib/shortcuts/use-shortcut-for";
 import { cn } from "@/lib/utils";
 
-const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null> }[] = [
-  { id: "media", label: "Media", icon: ImageIcon, focus: "media" },
-  { id: "bible", label: "Bible", icon: BookOpen, focus: "bible" },
-  { id: "songs", label: "Songs", icon: Music, focus: "songs" },
-  { id: "text", label: "Text", icon: Type, focus: "text" },
+const TABS: { id: WorkspaceTab; label: string; icon: React.ComponentType<{ className?: string }>; focus: Exclude<FocusZone, null>; shortcutId: string }[] = [
+  { id: "media", label: "Media", icon: ImageIcon, focus: "media", shortcutId: "tab.media" },
+  { id: "bible", label: "Bible", icon: BookOpen, focus: "bible", shortcutId: "tab.bible" },
+  { id: "songs", label: "Songs", icon: Music, focus: "songs", shortcutId: "tab.songs" },
+  { id: "text", label: "Text", icon: Type, focus: "text", shortcutId: "tab.text" },
 ];
 
 export function WorkspaceTabsPanel() {
@@ -36,29 +37,14 @@ export function WorkspaceTabsPanel() {
         >
           <PanelRightOpen className="h-4 w-4" />
         </button>
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = t.id === activeTab;
-          return (
-            <button
-              key={t.id}
-              onClick={() => {
-                setActiveTab(t.id);
-                toggleCollapsed();
-              }}
-              title={t.label}
-              aria-label={t.label}
-              className={cn(
-                "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md transition",
-                isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-            </button>
-          );
-        })}
+        {TABS.map((t) => (
+          <TabRailButton
+            key={t.id}
+            tab={t}
+            isActive={t.id === activeTab}
+            onClick={() => { setActiveTab(t.id); toggleCollapsed(); }}
+          />
+        ))}
       </div>
     );
   }
@@ -71,30 +57,14 @@ export function WorkspaceTabsPanel() {
       tabIndex={focus.tabIndex}
     >
       <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border bg-muted/30 px-1">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const isActive = t.id === activeTab;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
-                isActive
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-              {t.id === "text" && (
-                <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
-                  Soon
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {TABS.map((t) => (
+          <TabBarButton
+            key={t.id}
+            tab={t}
+            isActive={t.id === activeTab}
+            onClick={() => setActiveTab(t.id)}
+          />
+        ))}
         <button
           onClick={toggleCollapsed}
           title="Collapse workspace"
@@ -149,5 +119,49 @@ function ComingSoon({
         </div>
       </div>
     </div>
+  );
+}
+
+type TabDef = (typeof TABS)[number];
+
+function TabRailButton({ tab, isActive, onClick }: { tab: TabDef; isActive: boolean; onClick: () => void }) {
+  const tooltip = useShortcutTooltip(tab.shortcutId, tab.label);
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md transition",
+        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+}
+
+function TabBarButton({ tab, isActive, onClick }: { tab: TabDef; isActive: boolean; onClick: () => void }) {
+  const tooltip = useShortcutTooltip(tab.shortcutId, tab.label);
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      title={tooltip}
+      aria-label={tooltip}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
+        isActive ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/50 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {tab.label}
+      {tab.id === "text" && (
+        <span className="ml-1 rounded-sm bg-muted px-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
+          Soon
+        </span>
+      )}
+    </button>
   );
 }
