@@ -441,22 +441,43 @@ export function BiblePanel() {
 
   return (
     <div className="@container flex h-full min-h-0 flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      {/* Header — compact toolbar */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-2.5 py-1.5">
         <BookOpen className="h-4 w-4 text-primary" />
         <div className="text-sm font-semibold">Bible</div>
-        <button
-          onClick={toggleSermon}
-          className={cn(
-            "ml-2 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition",
-            sermonMode
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+
+        {/* Sermon / Queue / Collections — icon buttons with counts */}
+        <div className="ml-2 inline-flex items-center gap-0.5 rounded-md border border-border bg-background/60 p-0.5">
+          <ToolIconButton
+            icon={<Mic className="h-3.5 w-3.5" />}
+            active={sermonMode}
+            onClick={toggleSermon}
+            title="Sermon mode (Ctrl+M)"
+          />
+          <ToolIconButton
+            icon={<ListOrdered className="h-3.5 w-3.5" />}
+            active={tab === "queue"}
+            badge={queueItems.length}
+            onClick={() => setTab(tab === "queue" ? "search" : "queue")}
+            title="Verse queue (Ctrl+Q)"
+          />
+          <ToolIconButton
+            icon={<Library className="h-3.5 w-3.5" />}
+            active={tab === "collections"}
+            badge={collections.length}
+            onClick={() => setTab(tab === "collections" ? "search" : "collections")}
+            title="Collections"
+          />
+          {tab !== "search" && (
+            <ToolIconButton
+              icon={<Search className="h-3.5 w-3.5" />}
+              active={false}
+              onClick={() => setTab("search")}
+              title="Back to search"
+            />
           )}
-          title="Toggle Sermon Mode (Ctrl+M)"
-        >
-          <Mic className="h-3 w-3" /> Sermon
-        </button>
+        </div>
+
         <div className="ml-auto inline-flex overflow-hidden rounded-md border border-border bg-background text-[11px]">
           {(["en", "ta", "both"] as DisplayMode[]).map((m) => (
             <button
@@ -480,59 +501,41 @@ export function BiblePanel() {
       {/* Sermon strip */}
       <SermonStatusBar />
 
-      {/* Tabs */}
-      <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-muted/20 px-1.5 py-1 text-[11px]">
-        <TabButton active={tab === "search"} onClick={() => setTab("search")} icon={<Search className="h-3 w-3" />} label="Search" />
-        <TabButton
-          active={tab === "queue"}
-          onClick={() => setTab("queue")}
-          icon={<ListOrdered className="h-3 w-3" />}
-          label="Queue"
-          badge={queueItems.length || undefined}
-        />
-        <TabButton active={tab === "collections"} onClick={() => setTab("collections")} icon={<Library className="h-3 w-3" />} label="Collections" />
-      </div>
-
       {/* Body */}
       {tab === "queue" && <VerseQueuePanel />}
       {tab === "collections" && <CollectionsPanel />}
       {tab === "search" && (
         <>
-          <div className="space-y-2 border-b border-border p-2">
-            <div className="inline-flex w-full overflow-hidden rounded-md border border-border bg-background text-[11px]">
-              <button
-                onClick={() => setSearchMode("reference")}
-                className={cn(
-                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-                  searchMode === "reference" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                )}
-                title="Reference Search (Alt+R)"
-              >
-                <Hash className="h-3 w-3" /> Reference
-              </button>
-              <button
-                onClick={() => setSearchMode("verse")}
-                className={cn(
-                  "flex flex-1 cursor-pointer items-center justify-center gap-1 px-2 py-1 transition",
-                  searchMode === "verse" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
-                )}
-                title="Verse Content Search (Alt+F)"
-              >
-                <Search className="h-3 w-3" /> Verse Text
-              </button>
+          <div className="space-y-1.5 border-b border-border p-2">
+            <div className="flex items-center gap-1.5">
+              <Select value={searchMode} onValueChange={(v) => setSearchMode(v as SearchMode)}>
+                <SelectTrigger className="h-8 w-[140px] shrink-0 text-[11px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reference"><Hash className="mr-2 inline h-3 w-3" /> Reference</SelectItem>
+                  <SelectItem value="verse"><Search className="mr-2 inline h-3 w-3" /> Verse</SelectItem>
+                  <SelectItem value="fuzzy"><Sparkles className="mr-2 inline h-3 w-3" /> Fuzzy</SelectItem>
+                  <SelectItem value="favorites"><Star className="mr-2 inline h-3 w-3" /> Favorites</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={
+                  searchMode === "reference"
+                    ? "John 3:16, யோவான் 3"
+                    : searchMode === "fuzzy"
+                    ? "yesu, anbu, vaazhvu, ஆதியிலே"
+                    : searchMode === "favorites"
+                    ? "Filter favorites…"
+                    : "grace, love, faith"
+                }
+                className="h-8 min-w-0 flex-1 text-sm"
+                autoFocus
+              />
             </div>
-            <Input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                searchMode === "reference"
-                  ? 'Search Genesis 1:1, John 3:16, யோவான் 3'
-                  : 'Search grace, love, faith, ஆதியிலே'
-              }
-              className="h-8 text-sm"
-              autoFocus
-            />
             <div className="flex items-center justify-between px-1 text-[10px] text-muted-foreground">
               <span>
                 {loading
