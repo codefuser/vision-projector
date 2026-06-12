@@ -40,6 +40,9 @@ export function LibraryPage() {
     refreshAll,
     refreshMedia,
   } = useLibrary();
+  const favIds = useMediaFavorites((s) => s.ids);
+  const toggleFav = useMediaFavorites((s) => s.toggle);
+  const favSet = useMemo(() => new Set(favIds), [favIds]);
 
   const [preview, setPreview] = useState<MediaRecord | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistRecord[]>([]);
