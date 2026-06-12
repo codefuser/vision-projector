@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye, PanelLeftClose, FolderTree as FolderTreeIcon } from "lucide-react";
+import { Search, Filter, Trash2, FolderInput, Copy, ListPlus, Pencil, Info, Eye, PanelLeftClose, FolderTree as FolderTreeIcon, Star } from "lucide-react";
 import { FolderTree } from "@/components/FolderTree";
 import { Dropzone } from "@/components/Dropzone";
 import { Thumb } from "@/components/Thumb";
 import { useLibrary, filterMedia, type LibraryFilter } from "@/stores/library.store";
+import { useMediaFavorites } from "@/stores/media-favorites.store";
 import { addMediaToPlaylist, deleteMedia, duplicateMedia, listPlaylists, moveMedia, renameMedia } from "@/db/repo";
 import type { MediaRecord, PlaylistRecord } from "@/db/schema";
 import { formatBytes, formatDuration } from "@/lib/files";
