@@ -15,7 +15,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages,
-  Sparkles, Check,
+  Sparkles, Check, Heading1, Heading2, List, ListOrdered, Quote, Minus,
+  LayoutTemplate, Scissors,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,10 +25,15 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTextItems, splitTextSlides, type TextItem } from "@/stores/text-items.store";
+import { useTextPrefs } from "@/stores/text-prefs.store";
 import { projectTextSlide } from "@/projection/adapters/text.adapter";
 import { useProjection } from "@/stores/projection.store";
 import { convertCompleted, suggestTanglish, type Suggestion } from "@/lib/text/tanglish";
-import { QUICK_INSERT_WORDS } from "@/lib/text/church-dictionary";
+import {
+  QUICK_INSERT, CATEGORY_LABELS, BLOCK_TEMPLATES, useVocab, mostUsed,
+  type QuickCategory, type QuickWord,
+} from "@/lib/text/quick-insert";
+import { splitByRule, SPLIT_LABELS, type SplitRule } from "@/lib/text/split-rules";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -185,17 +191,65 @@ export function TextPanel() {
     });
   };
 
-  /** Insert arbitrary text at caret (quick-insert side panel). */
-  const insertAtCaret = (text: string) => {
+  /** Insert arbitrary text at caret (quick-insert / blocks). */
+  const insertAtCaret = (text: string, opts?: { bumpVocab?: boolean }) => {
     const el = textareaRef.current;
     const value = draftContent;
     const caret = el?.selectionStart ?? value.length;
     const newValue = value.slice(0, caret) + text + value.slice(caret);
     setDraftContent(newValue);
     setSavingPending(true);
+    if (opts?.bumpVocab) useVocab.getState().bump(text);
     requestAnimationFrame(() => {
       if (!el) return;
       const pos = caret + text.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  /** Insert a multi-line block at caret, padding with blank lines so it
+   *  becomes its own slide under the default split rule. */
+  const insertBlock = (snippet: string) => {
+    const el = textareaRef.current;
+    const value = draftContent;
+    const caret = el?.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const after = value.slice(caret);
+    const leading = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+    const trailing = after.length === 0 || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+    const insert = leading + snippet + trailing;
+    const newValue = before + insert + after;
+    setDraftContent(newValue);
+    setSavingPending(true);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const pos = before.length + insert.length;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  /** Toggle a line prefix (# / ## / > / • / 1.) on the current line. */
+  const toggleLinePrefix = (prefix: string) => {
+    const el = textareaRef.current;
+    const value = draftContent;
+    const caret = el?.selectionStart ?? value.length;
+    const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+    const lineEnd = value.indexOf("\n", caret);
+    const endIdx = lineEnd === -1 ? value.length : lineEnd;
+    const line = value.slice(lineStart, endIdx);
+    // Strip any existing supported prefix first.
+    const stripped = line.replace(/^(\s*)(#{1,4}\s|>\s|•\s|\d+\.\s)/, "$1");
+    const already = line !== stripped && line.startsWith(prefix);
+    const newLine = already ? stripped : prefix + stripped;
+    const newValue = value.slice(0, lineStart) + newLine + value.slice(endIdx);
+    setDraftContent(newValue);
+    setSavingPending(true);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      const delta = newLine.length - line.length;
+      const pos = caret + delta;
       el.focus();
       el.setSelectionRange(pos, pos);
     });
@@ -304,7 +358,20 @@ export function TextPanel() {
     return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [items, recents, filter, query]);
 
-  const slides = useMemo(() => splitTextSlides(draftContent), [draftContent]);
+  const splitRule = useTextPrefs((s) => (selectedId ? s.rules[selectedId] : undefined)) ?? { mode: "blank" } as SplitRule;
+  const setSplitRule = useTextPrefs((s) => s.setRule);
+  const vocabCounts = useVocab((s) => s.counts);
+  const vocabRecents = useVocab((s) => s.recents);
+  const bumpVocab = useVocab((s) => s.bump);
+  const [quickTab, setQuickTab] = useState<"most" | "recent" | QuickCategory>("church");
+
+  const slides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
+
+  const quickWords: QuickWord[] = useMemo(() => {
+    if (quickTab === "most") return mostUsed(vocabCounts);
+    if (quickTab === "recent") return vocabRecents.map((t) => ({ tamil: t, label: "" }));
+    return QUICK_INSERT[quickTab];
+  }, [quickTab, vocabCounts, vocabRecents]);
 
   const handleNew = () => {
     const id = create({ title: "Untitled", content: "" });
@@ -612,6 +679,82 @@ export function TextPanel() {
                   </button>
                 </div>
 
+                {/* Formatting toolbar */}
+                <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-background/40 px-2 py-1">
+                  <ToolbarBtn icon={<Heading1 className="h-3.5 w-3.5" />} title="Heading 1" onClick={() => toggleLinePrefix("# ")} />
+                  <ToolbarBtn icon={<Heading2 className="h-3.5 w-3.5" />} title="Heading 2" onClick={() => toggleLinePrefix("## ")} />
+                  <ToolbarBtn icon={<List className="h-3.5 w-3.5" />} title="Bullet line" onClick={() => toggleLinePrefix("• ")} />
+                  <ToolbarBtn icon={<ListOrdered className="h-3.5 w-3.5" />} title="Numbered line" onClick={() => toggleLinePrefix("1. ")} />
+                  <ToolbarBtn icon={<Quote className="h-3.5 w-3.5" />} title="Quote line" onClick={() => toggleLinePrefix("> ")} />
+                  <ToolbarBtn icon={<Minus className="h-3.5 w-3.5" />} title="Slide break (Ctrl+Alt+N)" onClick={insertSlideBreak} />
+                  <div className="mx-1 h-4 w-px bg-border" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        title="Insert content block"
+                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded px-2 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                      >
+                        <LayoutTemplate className="h-3.5 w-3.5" />
+                        Block
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Content blocks
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {BLOCK_TEMPLATES.map((b) => (
+                        <DropdownMenuItem
+                          key={b.kind}
+                          onClick={() => insertBlock(b.snippet)}
+                          className="text-xs"
+                        >
+                          {b.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Scissors className="h-3 w-3" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border px-2 text-[11px] font-medium hover:bg-accent">
+                          Split: {SPLIT_LABELS[splitRule.mode]}
+                          {splitRule.mode === "lines" || splitRule.mode === "chars"
+                            ? ` (${(splitRule as { n: number }).n})`
+                            : ""}
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Slide split rule
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {([
+                          { mode: "blank" },
+                          { mode: "marker", marker: "---" },
+                          { mode: "para" },
+                          { mode: "lines", n: 4 },
+                          { mode: "lines", n: 6 },
+                          { mode: "chars", n: 180 },
+                          { mode: "chars", n: 280 },
+                        ] as SplitRule[]).map((r, i) => (
+                          <DropdownMenuItem
+                            key={i}
+                            onClick={() => selected && setSplitRule(selected.id, r)}
+                            className={cn("text-xs", splitRule.mode === r.mode && "font-semibold text-primary")}
+                          >
+                            {SPLIT_LABELS[r.mode]}
+                            {(r.mode === "lines" || r.mode === "chars") && (
+                              <span className="ml-auto text-[10px] text-muted-foreground">{(r as { n: number }).n}</span>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
                 {/* Editor body + suggestion dropdown */}
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   <Textarea
@@ -677,22 +820,44 @@ export function TextPanel() {
                   )}
                 </div>
 
-                {/* Quick-insert strip */}
+                {/* Quick-insert tabbed strip */}
                 <div className="border-t border-border bg-muted/10 px-2 py-1.5">
-                  <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <Sparkles className="h-3 w-3 text-primary" /> Quick insert
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {QUICK_INSERT_WORDS.map((w) => (
+                  <div className="mb-1 flex flex-wrap items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-primary" />
+                    <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">Quick insert</span>
+                    {(["most", "recent", "church", "worship", "sermon", "announcement"] as const).map((t) => (
                       <button
-                        key={w.tamil}
-                        onClick={() => insertAtCaret(w.tamil)}
-                        title={w.label}
-                        className="inline-flex cursor-pointer items-center rounded-md border border-border bg-card px-2 py-0.5 text-[13px] text-foreground transition hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                        key={t}
+                        onClick={() => setQuickTab(t)}
+                        className={cn(
+                          "cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-medium transition",
+                          quickTab === t
+                            ? "bg-primary/15 text-primary"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
                       >
-                        {w.tamil}
+                        {t === "most" ? "Most used" : t === "recent" ? "Recent" : CATEGORY_LABELS[t]}
                       </button>
                     ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {quickWords.length === 0 ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        {quickTab === "most" ? "Insert words to start building your list." : "No items yet."}
+                      </span>
+                    ) : (
+                      quickWords.map((w) => (
+                        <button
+                          key={w.tamil}
+                          onClick={() => { insertAtCaret(w.tamil); bumpVocab(w.tamil); }}
+                          title={w.label}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-[13px] text-foreground transition hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                        >
+                          {w.tamil}
+                          {w.label && <span className="text-[9px] text-muted-foreground">{w.label}</span>}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -777,5 +942,20 @@ export function TextPanel() {
         </div>
       </div>
     </div>
+  );
+}
+
+function ToolbarBtn({
+  icon, title, onClick,
+}: { icon: React.ReactNode; title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground"
+    >
+      {icon}
+    </button>
   );
 }
