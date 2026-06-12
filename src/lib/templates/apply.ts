@@ -7,6 +7,7 @@
 import { useTextFormat, type StyleGroup } from "@/lib/text-format/store";
 import { useLogo } from "@/stores/logo.store";
 import { useCustomTemplates } from "@/stores/custom-templates.store";
+import { useThemeFavorites } from "@/stores/theme-favorites.store";
 import { TEMPLATE_PRESETS, type TemplatePreset } from "./presets";
 
 export function resolvePreset(id: string): TemplatePreset | null {
