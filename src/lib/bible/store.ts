@@ -82,15 +82,9 @@ export const useBibleStore = create<BibleStore>()(
       addFavorite: (fav) =>
         set((s) => ({
           favorites: [
-            { ...fav, id: `${fav.lang}:${fav.book}:${fav.chapter}:${fav.verse}`, addedAt: Date.now() },
+            { ...fav, id: `${fav.book}:${fav.chapter}:${fav.verse}`, addedAt: Date.now() },
             ...s.favorites.filter(
-              (f) =>
-                !(
-                  f.lang === fav.lang &&
-                  f.book === fav.book &&
-                  f.chapter === fav.chapter &&
-                  f.verse === fav.verse
-                ),
+              (f) => !(f.book === fav.book && f.chapter === fav.chapter && f.verse === fav.verse),
             ),
           ].slice(0, 200),
         })),
@@ -100,7 +94,18 @@ export const useBibleStore = create<BibleStore>()(
       name: "vision-bible-store",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ lang: s.lang, displayMode: s.displayMode, favorites: s.favorites }),
-      version: 2,
+      version: 3,
+      migrate: (persisted) => {
+        const p = persisted as { favorites?: BibleFavorite[] } | undefined;
+        if (p?.favorites) {
+          const seen = new Set<string>();
+          p.favorites = p.favorites
+            .map((f) => ({ ...f, id: `${f.book}:${f.chapter}:${f.verse}` }))
+            .filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)));
+        }
+        return p as never;
+      },
     },
   ),
 );
+
