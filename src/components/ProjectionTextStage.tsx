@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { BackgroundLayer } from "@/components/BackgroundLayer";
 import { LogoLayer } from "@/components/LogoLayer";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
@@ -59,7 +59,7 @@ export function ProjectionTextStage({
   );
 }
 
-function useFittedStage(ref: React.RefObject<HTMLDivElement | null>, aspect: number) {
+function useFittedStage(ref: RefObject<HTMLDivElement | null>, aspect: number) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {

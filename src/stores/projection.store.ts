@@ -75,9 +75,27 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
     if (cur) {
       let next = cur;
       switch (cmd.type) {
+        case "LOAD_TEXT":
+          next = {
+            ...cur,
+            mode: "text",
+            currentMediaId: null,
+            index: 0,
+            total: 0,
+            playing: false,
+            black: false,
+            textOverlay: cmd.overlay,
+            textStyle: cmd.style ?? cur.textStyle,
+            groupedStyles: cmd.styles ?? cur.groupedStyles,
+          };
+          break;
+        case "UPDATE_TEXT_STYLE": next = { ...cur, textStyle: cmd.style }; break;
+        case "UPDATE_STYLES": next = { ...cur, groupedStyles: cmd.styles }; break;
+        case "UPDATE_BACKGROUND": next = { ...cur, groupedStyles: { ...(cur.groupedStyles ?? {}), background: cmd.background } as NonNullable<ProjectionState["groupedStyles"]> }; break;
+        case "UPDATE_LOGO": next = { ...cur, logo: cmd.logo }; break;
         case "PLAY":  next = { ...cur, playing: true }; break;
         case "PAUSE": next = { ...cur, playing: false }; break;
-        case "STOP":  next = { ...cur, playing: false, mode: "idle", currentMediaId: null, index: 0, total: 0 }; break;
+        case "STOP":  next = { ...cur, playing: false, mode: "idle", currentMediaId: null, index: 0, total: 0, textOverlay: null }; break;
         case "BLACK": next = { ...cur, black: cmd.value }; break;
         case "MUTE":  next = { ...cur, muted: cmd.value }; break;
         case "VOLUME":next = { ...cur, volume: cmd.value }; break;
