@@ -182,6 +182,7 @@ export type ProjectionState = {
   textOverlay?: TextOverlay | null;
   textStyle?: TextStyle | null;
   groupedStyles?: GroupedStyles | null;
+  logo?: LogoBroadcast | null;
 };
 
 const CHANNEL = "church-projection";
