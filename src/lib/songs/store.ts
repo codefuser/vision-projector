@@ -93,6 +93,13 @@ export const useSongsStore = create<SongStore>()(
         syncUserSongs(next);
         return id;
       },
+      upsertUserSong: (s) => {
+        const exists = get().userSongs.some((u) => u.id === s.id);
+        const next = exists
+          ? get().userSongs.map((u) => (u.id === s.id ? s : u))
+          : [...get().userSongs, s];
+        set({ userSongs: next });
+        syncUserSongs(next);
       updateUserSong: (id, patch) => {
         const next = get().userSongs.map((u) => (u.id === id ? { ...u, ...patch } : u));
         set({ userSongs: next });
