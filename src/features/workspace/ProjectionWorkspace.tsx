@@ -254,7 +254,7 @@ export function ProjectionWorkspace() {
                 <div
                   data-workspace-right-panel
                   style={rightWidth ? { width: rightWidth, minWidth: rightWidth } : { minWidth: RIGHT_MIN_WIDTH }}
-                  className={cn("min-h-0 min-w-0", rightWidth ? "shrink-0" : "flex-1")}
+                  className={cn("min-h-0 min-w-0 overflow-hidden", rightWidth ? "shrink-0" : "flex-1")}
                 >
                   <WorkspaceTabsPanel />
                 </div>
