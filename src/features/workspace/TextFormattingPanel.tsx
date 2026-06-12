@@ -277,12 +277,13 @@ export function TextFormattingPanel() {
             )}
 
             {groups.background.kind === "media" && (
-              <div className="rounded border border-border bg-background p-2">
-                <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="space-y-2 rounded border border-border bg-background p-2">
+                <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   <span>Library media</span>
                   <span className="flex items-center gap-1">
                     <Toggle label="Cover" active={groups.background.fit === "cover"} onClick={() => setBackground({ fit: "cover" })} />
                     <Toggle label="Contain" active={groups.background.fit === "contain"} onClick={() => setBackground({ fit: "contain" })} />
+                    <Toggle label="Stretch" active={groups.background.fit === "stretch"} onClick={() => setBackground({ fit: "stretch" })} />
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -303,7 +304,36 @@ export function TextFormattingPanel() {
                     </button>
                   )}
                 </div>
-                <div className="mt-1 text-[10px] text-muted-foreground">
+
+                {/* Visual adjustments */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Field label="Opacity">
+                    <NumberInput value={Math.round((groups.background.opacity ?? 1) * 100)} step={1} min={0} max={100} suffix="%"
+                                 onChange={(v) => setBackground({ opacity: v / 100 })} />
+                  </Field>
+                  <Field label="Brightness">
+                    <NumberInput value={Math.round((groups.background.brightness ?? 1) * 100)} step={1} min={0} max={200} suffix="%"
+                                 onChange={(v) => setBackground({ brightness: v / 100 })} />
+                  </Field>
+                  <Field label="Blur">
+                    <NumberInput value={groups.background.blur ?? 0} step={1} min={0} max={60} suffix="px"
+                                 onChange={(v) => setBackground({ blur: v })} />
+                  </Field>
+                  <Field label="Zoom">
+                    <NumberInput value={Math.round((groups.background.zoom ?? 1) * 100)} step={5} min={50} max={300} suffix="%"
+                                 onChange={(v) => setBackground({ zoom: v / 100 })} />
+                  </Field>
+                  <Field label="Position X">
+                    <NumberInput value={groups.background.positionX ?? 50} step={1} min={0} max={100} suffix="%"
+                                 onChange={(v) => setBackground({ positionX: v })} />
+                  </Field>
+                  <Field label="Position Y">
+                    <NumberInput value={groups.background.positionY ?? 50} step={1} min={0} max={100} suffix="%"
+                                 onChange={(v) => setBackground({ positionY: v })} />
+                  </Field>
+                </div>
+
+                <div className="text-[10px] text-muted-foreground">
                   Pulls from your Media Library — images, videos, GIFs supported.
                 </div>
               </div>
