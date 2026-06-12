@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Group, Panel, Separator, type Layout } from "react-resizable-panels";
+import { Group, Panel, Separator, type Layout, type PanelImperativeHandle } from "react-resizable-panels";
 import { ChevronUp, ChevronDown, MonitorPlay, Type as TypeIcon, LayoutGrid } from "lucide-react";
 import { LivePreviewPanel } from "./LivePreviewPanel";
 import { TextFormattingPanel } from "./TextFormattingPanel";
@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
  *   Live Preview while remaining one click from re-expansion.
  */
 const LAYOUT_KEYS = {
-  outer: "church-media-ws-outer-v2",
+  leftWidth: "church-media-ws-left-width-v3",
   left: "church-media-ws-left-v2",
 };
 // Header strip is h-9 (36px). Expressed as a fraction of a typical workspace
@@ -36,12 +36,13 @@ const LAYOUT_KEYS = {
 const TEXT_FORMAT_COLLAPSED_SIZE = 6;
 const TEXT_FORMAT_DEFAULT_SIZE = 40;
 
-// Pixel-based constraints for the left column (Preview + Text Formatting).
-// Operators expect a Visual-Studio-style stable default; the column always
-// opens at 250px on first run and may be dragged anywhere from 200–600px.
-const LEFT_DEFAULT_PX = "250px";
-const LEFT_MIN_PX = "200px";
-const LEFT_MAX_PX = "600px";
+// Pixel-based sizing for the left column (Preview + Text Formatting).
+// The workspace must never auto-balance on load: use the saved operator width
+// or exactly 250px on first run. The right Media workspace consumes the rest.
+const LEFT_DEFAULT_WIDTH = 250;
+const LEFT_MIN_WIDTH = 200;
+const RIGHT_MIN_WIDTH = 320;
+const TABS_COLLAPSED_WIDTH = 48;
 
 function readLayout(key: string): Layout | undefined {
   try {
@@ -61,12 +62,34 @@ function writeLayout(key: string, layout: Layout) {
   }
 }
 
+function readSavedLeftWidth(): number | undefined {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEYS.leftWidth);
+    if (!raw) return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeLeftWidth(width: number) {
+  try {
+    localStorage.setItem(LAYOUT_KEYS.leftWidth, String(Math.round(width)));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 export function ProjectionWorkspace() {
   const { visible, togglePanel, showPanel } = useWorkspace();
   const textFormatCollapsed = useWorkspace((s) => s.textFormatCollapsed);
   const setTextFormatCollapsed = useWorkspace((s) => s.setTextFormatCollapsed);
   const tabsCollapsed = useWorkspace((s) => s.tabsCollapsed);
   const [resetNonce, setResetNonce] = useState(0);
+  const [leftWidthDefault, setLeftWidthDefault] = useState(() => readSavedLeftWidth() ?? LEFT_DEFAULT_WIDTH);
+  const [isDraggingHorizontal, setIsDraggingHorizontal] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
 
   const init = useProjection((s) => s.init);
   const send = useProjection((s) => s.send);
@@ -76,20 +99,19 @@ export function ProjectionWorkspace() {
     send({ type: "PING" });
   }, [init, send]);
 
-  const savedOuter = useMemo(() => readLayout(LAYOUT_KEYS.outer), []);
   const savedLeft = useMemo(() => readLayout(LAYOUT_KEYS.left), []);
 
   const allHidden = !visible.preview && !visible.textFormat && !visible.tabs;
   const leftVisible = visible.preview || visible.textFormat;
 
-  const outerLayout = leftVisible && visible.tabs && !tabsCollapsed ? savedOuter : undefined;
   const leftLayout = visible.preview && visible.textFormat ? savedLeft : undefined;
 
-  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}-${resetNonce}`;
+  const outerKey = `outer-${leftVisible ? 1 : 0}-${visible.tabs ? 1 : 0}-${tabsCollapsed ? "c" : "o"}`;
   const leftKey = `left-${visible.preview ? 1 : 0}-${visible.textFormat ? 1 : 0}-${resetNonce}`;
+  const rightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : undefined;
 
   // Drive the bottom panel size from the persisted collapsed flag.
-  const textFormatPanelRef = useRef<{ collapse: () => void; expand: () => void; isCollapsed: () => boolean } | null>(null);
+  const textFormatPanelRef = useRef<PanelImperativeHandle | null>(null);
   useEffect(() => {
     const p = textFormatPanelRef.current;
     if (!p) return;
@@ -101,12 +123,48 @@ export function ProjectionWorkspace() {
     }
   }, [textFormatCollapsed, visible.textFormat, visible.preview]);
 
+  const startHorizontalDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDraggingHorizontal(true);
+
+    const updateWidth = (clientX: number) => {
+      const workspace = workspaceRef.current;
+      if (!workspace) return;
+      const bounds = workspace.getBoundingClientRect();
+      const reservedRightWidth = visible.tabs && tabsCollapsed ? TABS_COLLAPSED_WIDTH : visible.tabs ? RIGHT_MIN_WIDTH : 0;
+      const maxLeftWidth = Math.max(LEFT_MIN_WIDTH, bounds.width - reservedRightWidth);
+      const nextWidth = Math.min(Math.max(clientX - bounds.left, LEFT_MIN_WIDTH), maxLeftWidth);
+      setLeftWidthDefault(nextWidth);
+      writeLeftWidth(nextWidth);
+    };
+
+    updateWidth(event.clientX);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onPointerMove = (moveEvent: PointerEvent) => updateWidth(moveEvent.clientX);
+    const stopDragging = () => {
+      setIsDraggingHorizontal(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stopDragging, { once: true });
+    window.addEventListener("pointercancel", stopDragging, { once: true });
+  };
+
 
 
 
   const resetLayout = () => {
     try {
-      localStorage.removeItem(LAYOUT_KEYS.outer);
+      localStorage.removeItem(LAYOUT_KEYS.leftWidth);
+      localStorage.removeItem("church-media-ws-outer-v2");
       localStorage.removeItem(LAYOUT_KEYS.left);
     } catch {
       /* ignore */
@@ -116,6 +174,7 @@ export function ProjectionWorkspace() {
       textFormatCollapsed: false,
       tabsCollapsed: false,
     });
+    setLeftWidthDefault(LEFT_DEFAULT_WIDTH);
     // Force remount so panels re-read their pixel-based defaults.
     setResetNonce((n: number) => n + 1);
   };
@@ -144,22 +203,16 @@ export function ProjectionWorkspace() {
           {allHidden ? (
             <EmptyDock onShow={showPanel} visible={visible} />
           ) : (
-            <Group
+            <div
               key={outerKey}
-              orientation="horizontal"
-              className="h-full"
-              defaultLayout={outerLayout}
-              onLayoutChanged={(l) => {
-                if (leftVisible && visible.tabs) writeLayout(LAYOUT_KEYS.outer, l);
-              }}
+              ref={workspaceRef}
+              className="flex h-full min-w-0 overflow-hidden"
             >
               {leftVisible && (
-                <Panel
-                  id="left"
-                  defaultSize={LEFT_DEFAULT_PX}
-                  minSize={LEFT_MIN_PX}
-                  maxSize={LEFT_MAX_PX}
-                  className="min-h-0 min-w-0"
+                <div
+                  data-workspace-left-panel
+                  style={visible.tabs ? { width: leftWidthDefault, minWidth: LEFT_MIN_WIDTH } : { minWidth: LEFT_MIN_WIDTH }}
+                  className={cn("min-h-0 min-w-0", visible.tabs ? "shrink-0" : "flex-1")}
                 >
                   <Group
                     key={leftKey}
@@ -199,22 +252,20 @@ export function ProjectionWorkspace() {
                       </Panel>
                     )}
                   </Group>
-                </Panel>
+                </div>
               )}
-              {leftVisible && visible.tabs && <HHandle />}
+              {leftVisible && visible.tabs && <HHandle onPointerDown={startHorizontalDrag} active={isDraggingHorizontal} />}
               {visible.tabs && (
-                <Panel
-                  id="right"
-                  defaultSize={tabsCollapsed ? 4 : 50}
-                  minSize={tabsCollapsed ? 3 : 6}
-                  maxSize={tabsCollapsed ? 6 : 100}
-                  className="min-h-0 min-w-0"
+                <div
+                  data-workspace-right-panel
+                  style={rightWidth ? { width: rightWidth, minWidth: rightWidth } : { minWidth: RIGHT_MIN_WIDTH }}
+                  className={cn("min-h-0 min-w-0 overflow-hidden", rightWidth ? "shrink-0" : "flex-1")}
                 >
                   <WorkspaceTabsPanel />
-                </Panel>
+                </div>
               )}
 
-            </Group>
+            </div>
           )}
         </div>
       </div>
@@ -251,11 +302,19 @@ function DockButton({
   );
 }
 
-function HHandle() {
+function HHandle({ onPointerDown, active }: { onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void; active: boolean }) {
   return (
-    <Separator className="relative w-1.5 bg-transparent transition data-[separator-state=hover]:bg-primary/40 data-[separator-state=drag]:bg-primary/60 hover:bg-primary/40">
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={onPointerDown}
+      className={cn(
+        "relative w-1.5 shrink-0 cursor-col-resize bg-transparent transition hover:bg-primary/40",
+        active && "bg-primary/60",
+      )}
+    >
       <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-    </Separator>
+    </div>
   );
 }
 function VHandle() {
