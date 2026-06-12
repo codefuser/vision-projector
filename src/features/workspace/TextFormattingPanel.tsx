@@ -79,7 +79,7 @@ export function TextFormattingPanel() {
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <div className="shrink-0 text-[11px] font-semibold uppercase tracking-wide">Text Formatting</div>
           <div className="hidden truncate text-[10px] text-muted-foreground @sm:block">
-            {collapsed ? "Collapsed — click to expand" : "Per-group · Reference / Tamil / English / BG / Logo"}
+            {collapsed ? "Collapsed — click to expand" : songsMode ? "Songs · Tamil + Background" : "Per-group · Reference / Tamil / English / BG / Logo"}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
