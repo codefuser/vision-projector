@@ -461,6 +461,9 @@ export function ProjectionWindow() {
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}
 
+      {/* Logo — global, always on top, never inside the black overlay. */}
+      {!black && <LogoLayer logo={logo} />}
+
       {/* Idle */}
       {!cur && !black && !textOverlay && (
         <div className="flex h-full items-center justify-center text-neutral-700">
