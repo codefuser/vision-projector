@@ -444,6 +444,3 @@ function SortableRow({
     </div>
   );
 }
-
-// Re-export tiny stubs for legacy imports
-export { ArrowUp as _AU, ArrowDown as _AD };
