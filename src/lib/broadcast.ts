@@ -11,6 +11,8 @@ export type ProjectionCommand =
   | { type: "VOLUME"; value: number }
   | { type: "MUTE"; value: boolean }
   | { type: "BLACK"; value: boolean }
+  | { type: "RATE"; value: number }
+  | { type: "LOOP"; value: boolean }
   | { type: "PING" };
 
 export type ProjectionState = {
