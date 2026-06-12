@@ -181,7 +181,7 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
     description: "Crimson shadow on black. Weight of the cross.",
     text: T({ fontFamily: "Georgia", color: "#fecaca", ...shadowDeep }),
     perGroup: { tamil: { fontFamily: "Noto Serif Tamil", color: "#fecaca" } },
-    background: { kind: "color", color: "0a0000", gradient: "radial-gradient(circle at 50% 50%,#450a0a 0%,#0a0000 75%)", animation: "floating-cross" } },
+    background: { kind: "color", color: "#0a0000", gradient: "radial-gradient(circle at 50% 50%,#450a0a 0%,#0a0000 75%)", animation: "floating-cross" } },
 
   // Scripture Focus
   { id: "scripture-pure", name: "Scripture · Pure Focus", category: "Scripture Focus",
