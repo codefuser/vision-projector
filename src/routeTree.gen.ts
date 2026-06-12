@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShortcutsRouteImport } from './routes/shortcuts'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProjectRouteImport } from './routes/project'
 import { Route as PlaylistsRouteImport } from './routes/playlists'
@@ -17,6 +18,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ServiceIdRouteImport } from './routes/service.$id'
 import { Route as PlaylistsIdRouteImport } from './routes/playlists.$id'
 
+const ShortcutsRoute = ShortcutsRouteImport.update({
+  id: '/shortcuts',
+  path: '/shortcuts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/playlists': typeof PlaylistsRouteWithChildren
   '/project': typeof ProjectRoute
   '/settings': typeof SettingsRoute
+  '/shortcuts': typeof ShortcutsRoute
   '/playlists/$id': typeof PlaylistsIdRoute
   '/service/$id': typeof ServiceIdRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/playlists': typeof PlaylistsRouteWithChildren
   '/project': typeof ProjectRoute
   '/settings': typeof SettingsRoute
+  '/shortcuts': typeof ShortcutsRoute
   '/playlists/$id': typeof PlaylistsIdRoute
   '/service/$id': typeof ServiceIdRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/playlists': typeof PlaylistsRouteWithChildren
   '/project': typeof ProjectRoute
   '/settings': typeof SettingsRoute
+  '/shortcuts': typeof ShortcutsRoute
   '/playlists/$id': typeof PlaylistsIdRoute
   '/service/$id': typeof ServiceIdRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/playlists'
     | '/project'
     | '/settings'
+    | '/shortcuts'
     | '/playlists/$id'
     | '/service/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/playlists'
     | '/project'
     | '/settings'
+    | '/shortcuts'
     | '/playlists/$id'
     | '/service/$id'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/playlists'
     | '/project'
     | '/settings'
+    | '/shortcuts'
     | '/playlists/$id'
     | '/service/$id'
   fileRoutesById: FileRoutesById
@@ -117,11 +129,19 @@ export interface RootRouteChildren {
   PlaylistsRoute: typeof PlaylistsRouteWithChildren
   ProjectRoute: typeof ProjectRoute
   SettingsRoute: typeof SettingsRoute
+  ShortcutsRoute: typeof ShortcutsRoute
   ServiceIdRoute: typeof ServiceIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/shortcuts': {
+      id: '/shortcuts'
+      path: '/shortcuts'
+      fullPath: '/shortcuts'
+      preLoaderRoute: typeof ShortcutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -192,6 +212,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlaylistsRoute: PlaylistsRouteWithChildren,
   ProjectRoute: ProjectRoute,
   SettingsRoute: SettingsRoute,
+  ShortcutsRoute: ShortcutsRoute,
   ServiceIdRoute: ServiceIdRoute,
 }
 export const routeTree = rootRouteImport

@@ -231,31 +231,40 @@ export function TextFormattingPanel() {
             </Group>
           </div>
 
-          {/* Background engine — global, sits at the bottom */}
+          {/* Background engine — global, sits at the bottom. Only relevant
+              controls render per selected kind. */}
           <div className="mt-4 rounded-md border border-primary/30 bg-primary/5 p-3">
             <div className="mb-2 flex items-center gap-2">
               <ImageIcon className="h-3.5 w-3.5 text-primary" />
               <div className="text-[11px] font-semibold uppercase tracking-wide text-primary">Projection Background</div>
-              <div className="ml-auto text-[10px] text-muted-foreground">Color · Image · Video · GIF</div>
+              <div className="ml-auto text-[10px] text-muted-foreground">None · Color · Media</div>
             </div>
-            <div className="grid grid-cols-1 gap-2 @md:grid-cols-3">
+
+            <div className="mb-2 flex items-center gap-1 rounded-md border border-border bg-background p-0.5">
+              {(["none", "color", "media"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setBackground({ kind: k })}
+                  className={cn(
+                    "flex-1 cursor-pointer rounded px-2 py-1 text-[11px] font-medium transition",
+                    groups.background.kind === k
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  {k[0].toUpperCase() + k.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {groups.background.kind === "color" && (
               <div className="rounded border border-border bg-background p-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Kind</div>
-                <div className="flex gap-1">
-                  {(["none", "color", "media"] as const).map((k) => (
-                    <Toggle
-                      key={k}
-                      label={k[0].toUpperCase() + k.slice(1)}
-                      active={groups.background.kind === k}
-                      onClick={() => setBackground({ kind: k })}
-                    />
-                  ))}
-                </div>
+                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Background color</div>
+                <ColorInput value={groups.background.color} onChange={(v) => setBackground({ color: v })} />
               </div>
-              <div className="rounded border border-border bg-background p-2">
-                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Color</div>
-                <ColorInput value={groups.background.color} onChange={(v) => setBackground({ color: v, kind: groups.background.kind === "none" ? "color" : groups.background.kind })} />
-              </div>
+            )}
+
+            {groups.background.kind === "media" && (
               <div className="rounded border border-border bg-background p-2">
                 <div className="mb-1 flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   <span>Library media</span>
@@ -274,7 +283,7 @@ export function TextFormattingPanel() {
                   </button>
                   {groups.background.mediaId && (
                     <button
-                      onClick={() => { setBackground({ mediaId: null, kind: "color" }); setBgName(null); }}
+                      onClick={() => { setBackground({ mediaId: null }); setBgName(null); }}
                       title="Clear background media"
                       className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded border border-border bg-background text-muted-foreground hover:bg-accent"
                     >
@@ -282,8 +291,17 @@ export function TextFormattingPanel() {
                     </button>
                   )}
                 </div>
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  Pulls from your Media Library — images, videos, GIFs supported.
+                </div>
               </div>
-            </div>
+            )}
+
+            {groups.background.kind === "none" && (
+              <div className="rounded border border-dashed border-border bg-background/40 p-2 text-[10px] text-muted-foreground">
+                No background. The projector stage will be transparent (black) behind text.
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -26,7 +26,8 @@ import type { MediaRecord } from "@/db/schema";
 import { acquireUrl, releaseUrl } from "@/lib/blob-url";
 import { useFocusZone } from "./focus-manager";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
-import { DEFAULT_TEXT_STYLE } from "@/lib/broadcast";
+import { BackgroundLayer } from "@/components/BackgroundLayer";
+import { DEFAULT_TEXT_STYLE, DEFAULT_GROUPED_STYLES } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
 
 
@@ -231,12 +232,15 @@ export function LivePreviewPanel() {
           />
         )}
         {!media && !black && state?.textOverlay && (
-          <TextOverlayRenderer
-            overlay={state.textOverlay}
-            style={state.textStyle ?? DEFAULT_TEXT_STYLE}
-            styles={state.groupedStyles ?? undefined}
-            withBackground
-          />
+          <>
+            <BackgroundLayer background={(state.groupedStyles ?? DEFAULT_GROUPED_STYLES).background} />
+            <TextOverlayRenderer
+              overlay={state.textOverlay}
+              style={state.textStyle ?? DEFAULT_TEXT_STYLE}
+              styles={state.groupedStyles ?? undefined}
+              withBackground={false}
+            />
+          </>
         )}
 
         {black && <div className="absolute inset-0 bg-black" />}
