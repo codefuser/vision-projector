@@ -25,12 +25,15 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SongEditorDialog } from "./SongEditorDialog";
 
-type SongFilter = "all" | "favorites" | "recent" | "mine";
+type SongFilter = "all" | "favorites" | "recent" | "added" | "most" | "mine" | "author";
 const FILTER_LABELS: Record<SongFilter, string> = {
   all: "All Songs",
   favorites: "Favorites",
   recent: "Recently Used",
+  added: "Recently Added",
+  most: "Most Used",
   mine: "My Songs",
+  author: "Author",
 };
 
 export function SongsPanel() {
