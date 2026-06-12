@@ -218,6 +218,14 @@ export function TextPanel() {
         acceptSuggestion(suggestions[activeSuggestion]);
         return;
       }
+      if (e.altKey && /^[1-9]$/.test(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        if (idx < suggestions.length) {
+          e.preventDefault();
+          acceptSuggestion(suggestions[idx]);
+          return;
+        }
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         setSuggestions([]);
@@ -631,7 +639,7 @@ export function TextPanel() {
                         <code className="rounded bg-muted px-1 font-mono text-[10px] text-foreground/80">
                           {currentWord?.text}
                         </code>
-                        <span className="ml-auto opacity-60">Tab / ↵ to accept · Esc to dismiss</span>
+                        <span className="ml-auto opacity-60">Tab / ↵ accept · Alt+1–6 · Esc dismiss</span>
                       </div>
                       <ul className="flex flex-col">
                         {suggestions.map((s, i) => (
@@ -644,19 +652,23 @@ export function TextPanel() {
                                 i === activeSuggestion ? "bg-primary/15" : "hover:bg-accent",
                               )}
                             >
+                              <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-muted text-[9px] font-mono text-muted-foreground">
+                                {i + 1}
+                              </span>
                               <span className="text-[15px] font-medium text-foreground">{s.tamil}</span>
                               <span className="text-[10px] text-muted-foreground">{s.key}</span>
-                              {s.score === 0 && (
-                                <span className="ml-auto inline-flex items-center gap-0.5 text-[10px] text-primary">
-                                  <Check className="h-3 w-3" /> exact
-                                </span>
-                              )}
-                              {s.score > 0 && s.score <= 1 && (
-                                <span className="ml-auto text-[10px] text-muted-foreground">prefix</span>
-                              )}
-                              {s.score > 1 && (
-                                <span className="ml-auto text-[10px] text-amber-500">fuzzy</span>
-                              )}
+                              <span
+                                className={cn(
+                                  "ml-auto inline-flex items-center gap-1 rounded px-1 text-[9px] font-medium",
+                                  s.source === "church" && "bg-primary/10 text-primary",
+                                  s.source === "corpus" && "bg-emerald-500/10 text-emerald-600",
+                                  s.source === "phonetic" && "bg-amber-500/10 text-amber-600",
+                                )}
+                                title={`${s.source} · score ${s.score.toFixed(1)}`}
+                              >
+                                {s.source === "church" ? "📖" : s.source === "corpus" ? "🔤" : "♪"}
+                                {s.score === 0 ? "exact" : s.score <= 1.2 ? "prefix" : "fuzzy"}
+                              </span>
                             </button>
                           </li>
                         ))}

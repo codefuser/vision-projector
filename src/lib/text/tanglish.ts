@@ -2,22 +2,25 @@
  * Tanglish → Tamil conversion.
  *
  * Strategy:
- *   1. Dictionary lookup (worship / church / common Tamil) — highest quality,
- *      handles irregular spellings like "yesu" → "யேசு".
- *   2. Fuzzy dictionary match for misspellings ("karthr" → "கர்த்தர்").
+ *   1. Combined dictionary lookup (church + general Tamil corpus) — highest
+ *      quality; handles irregular spellings (`yesu` → `யேசு`) and arbitrary
+ *      everyday words (`eppadi`, `nalla`, `vivekam`).
+ *   2. Fuzzy dictionary match for misspellings (`karthr` → `கர்த்தர்`,
+ *      `irukinga` → `இருக்கீங்க`).
  *   3. Phonetic syllabic fallback for unknown words.
  *
- * The converter is word-aware: input is split on whitespace/punctuation and
- * each token converted independently. Punctuation, numbers and pre-converted
- * Tamil characters pass through unchanged.
+ * Sentence-aware: input is tokenised on Roman letters; each token converts
+ * independently. Punctuation, numbers, whitespace, and already-Tamil
+ * characters pass through unchanged. This makes
+ * `"indru naam kartharai thuthippom"` → `"இன்று நாம் கர்த்தரை துதிப்போம்"`.
  *
- * `suggest()` exposes the ranked candidate list used by the live dropdown.
+ * `suggestTanglish()` exposes the ranked candidate list used by the live
+ * dropdown.
  */
-import { CHURCH_DICTIONARY, suggest as dictSuggest, type Suggestion } from "./church-dictionary";
+import { CHURCH_DICTIONARY } from "./church-dictionary";
+import { lookup, suggest as indexSuggest, type Suggestion } from "./dictionary-index";
 
-// Re-export the dictionary as the legacy name so callers that import
-// `TANGLISH_DICTIONARY` keep working (each value collapses to the primary
-// candidate).
+// Legacy alias kept for callers that import `TANGLISH_DICTIONARY`.
 export const TANGLISH_DICTIONARY: Record<string, string> = Object.fromEntries(
   Object.entries(CHURCH_DICTIONARY).map(([k, v]) => [k, v[0]]),
 );
@@ -97,19 +100,17 @@ export function phoneticToTamil(word: string): string {
 const ASCII_WORD = /^[a-zA-Z][a-zA-Z']*$/;
 
 /**
- * Convert a single Tanglish word to Tamil. Uses (1) exact dict, then
- * (2) the top-ranked fuzzy/prefix suggestion when the word looks like a
- * misspelling of a known entry, else (3) phonetic fallback.
+ * Convert a single Tanglish word to Tamil:
+ *   exact dict → fuzzy dict (top-ranked, score ≤ 3) → phonetic fallback.
  */
 export function convertWord(word: string): string {
   if (!word) return word;
   if (!ASCII_WORD.test(word)) return word;
   const lower = word.toLowerCase();
-  const exact = CHURCH_DICTIONARY[lower];
+  const exact = lookup(lower);
   if (exact && exact[0]) return exact[0];
-  // Cheap fuzzy: only accept when the *only* hit is a confident match.
-  if (lower.length >= 4) {
-    const ranked = dictSuggest(lower, 1);
+  if (lower.length >= 3) {
+    const ranked = indexSuggest(lower, 1);
     if (ranked.length && ranked[0].score <= 3) return ranked[0].tamil;
   }
   return phoneticToTamil(lower);
@@ -135,9 +136,9 @@ export function convertCompleted(text: string): { converted: string; trailing: s
   return { converted: convertText(head), trailing: tail };
 }
 
-/** Live suggestion API — re-exported from the dictionary module. */
+/** Live suggestion API — re-exported from the unified index. */
 export function suggestTanglish(prefix: string, limit = 6): Suggestion[] {
-  return dictSuggest(prefix, limit);
+  return indexSuggest(prefix, limit);
 }
 
 export type { Suggestion };

@@ -1,45 +1,80 @@
-# Text Workspace Major Upgrade — Build Plan
+# Text Workspace — Intelligent Writing Engine
 
-Scope is large (15 sections). To keep quality production-grade and avoid placeholders, I will ship it in **3 phases**, each independently usable. Existing Media / Bible / Songs / Preview / Projector / Theme Gallery remain untouched.
-
----
-
-## Phase A — Smart Typing + Editor Core (this turn)
-
-1. **Tanglish engine v2** (`src/lib/text/tanglish.ts` rewrite + `src/lib/text/church-dictionary.ts`)
-   - Expanded church / worship dictionary (~600 curated headwords + inflections → effectively 2000+ surface forms; structured so we can grow toward 5000 without code changes).
-   - Fuzzy matcher (Levenshtein ≤ 2, length-bucketed) for typos like `karthr`, `yesuu`, `jebamm`.
-   - Priority chain: exact dict → fuzzy dict → church-only dict → transliteration fallback.
-   - `suggest(prefix)` returns ranked Tamil candidates (e.g. `yes` → யேசு / இயேசு / யேசுவே).
-2. **Suggestion dropdown** in `TextPanel` editor — appears under caret while typing Tanglish, arrow-key navigation, Enter/Tab to accept, Esc to dismiss. Non-blocking (debounced 80 ms, web-worker-free but `requestIdleCallback`).
-3. **Quick Word Insert side panel** — common church words, click to insert at caret.
-4. **Autosave indicator** — already autosaving via Zustand persist; surface "Saved · 2s ago" badge with 2 s debounce.
-5. **Project shortcuts**: `Ctrl+Enter`, `Ctrl+Shift+Enter`, `Ctrl+D`, `Ctrl+Alt+N` wired via existing `useShortcut`.
-
-## Phase B — Rich Editor + Blocks + Announcements (next turn)
-
-6. Tiptap integration with full toolbar (bold/italic/underline/strike, color, highlight, font family/size, line height, letter spacing, align, lists, indent, case, clear, divider, quote, scripture block, announcement block).
-7. Structured content blocks (Title / Subtitle / Body / Scripture / Quote / Announcement / Footer) as Tiptap node extensions.
-8. Announcement Builder mode — numbered list input auto-expands to progressive slides (slide N reveals points 1..N).
-9. Auto slide generator settings (blank line / char count / line count / paragraph / manual `---` marker).
-
-## Phase C — Reveal + Templates + Search (final turn)
-
-10. Reveal animation mode (None / Point / Line / Paragraph / Section) — drives projector via `LOAD_TEXT` payload `revealIndex`.
-11. Text Workspace templates (13 categories) — separate registry from song/bible presets, applies font/size/align/spacing/color/background/theme via existing `applyTemplate`.
-12. Enhanced search (Tamil / Tanglish / fuzzy / title+content / recent).
-13. Final QA pass against existing preview + projector pipeline.
+Layout stays the same. No changes to Bible, Songs, Media, Preview, Projector, Theme Gallery.
 
 ---
 
-## Technical Notes
+## Phase 1 — Smart Suggestion Engine (this turn)
 
-- **No package additions** in Phase A. Tiptap (`@tiptap/react`, `@tiptap/starter-kit`, color/highlight/underline/textstyle/textalign extensions) added in Phase B.
-- Dictionary stored as plain TS module (tree-shakable, lazy-loaded on first Tanglish keystroke via dynamic `import()`).
-- Suggestion dropdown is a portal-positioned `Popover` anchored to a hidden mirror div that tracks caret coords — no contentEditable change yet.
-- All projection still flows through `projectTextSlide` → `LOAD_TEXT` → existing renderer. No projector changes.
-- 3-column layout preserved.
+Make Tanglish work for **any sentence**, not just church words.
+
+### Dictionary
+- New `src/lib/text/tamil-corpus.ts` — ~2,000 high-frequency Tamil words (common + church + worship + sermon + colloquial spoken forms like `irukeenga → இருக்கீங்க`, `nalla → நல்ல`, `vivekam → விவேகம்`). Stored as `{ roman[]: tamil[] }` so one Tanglish key maps to several Tamil candidates ranked by frequency.
+- Extend `church-dictionary.ts` to merge with corpus through a shared loader (`getCombinedDictionary()`), built once and indexed by 2-char prefix bucket for O(1) prefix lookup.
+
+### Fuzzy + phonetic chain
+- Normalize input (collapse `rr→r`, `aa→a` for matching only, strip trailing `h`).
+- Match priority: **exact → normalized exact → prefix (≤6 candidates) → fuzzy Levenshtein ≤ 2 → phonetic fallback**.
+- Multi-word sentence conversion: tokenise on spaces, convert each word, preserve punctuation/spacing. `indru naam kartharai thuthippom` → `இன்று நாம் கர்த்தரை துதிப்போம்`.
+
+### Dropdown UX
+- Existing suggestion popover (already in `TextPanel.tsx`) gets:
+  - Up to 6 ranked candidates per prefix
+  - `↑/↓` navigate, `Tab/Enter` accept, `Esc` dismiss, `1–6` quick pick
+  - Shows source badge (📖 dict / 🔤 phonetic) so user knows confidence
+- Debounced 60 ms, runs in `requestIdleCallback`.
+
+### Online assist (optional, behind toggle)
+- New `src/lib/text/online-suggest.ts` calls Lovable AI Gateway (`google/gemini-3-flash-preview`) via a `createServerFn` returning `{ candidates: string[] }`. Cached in `localStorage` keyed by lowercased prefix. Silently no-ops if request fails → offline never breaks.
+- Off by default; toggle in editor header (`🌐 Online suggestions`).
 
 ---
 
-**Confirm Phase A and I'll ship it now.** If you want a different split (e.g. Tiptap first), tell me and I'll re-plan.
+## Phase 2 — Rich Editor + Blocks + Toolbar (next turn)
+
+Replace the plain `<textarea>` with **Tiptap** (`@tiptap/react`, `@tiptap/starter-kit`, color/highlight/underline/text-style/text-align/task-list/typography extensions).
+
+### Toolbar
+Full Google-Docs-style toolbar above editor: Undo/Redo, B/I/U/S, color, highlight, font family, font size, line height, letter spacing, align (L/C/R/J), bullets/numbered/checklist, indent/outdent, quote, code block, divider, H1–H4, super/subscript, clear formatting.
+
+### Content blocks (Tiptap nodes)
+Heading, Subheading, Paragraph, Bullet, Numbered, Quote, **Scripture**, **Announcement**, **Prayer**, **Testimony**, **Custom** — each rendered with distinct semantic styling and serialised to slides cleanly.
+
+### Quick-Insert panel expansion
+Tabbed groups: Most Used · Recent · Church · Sermon · Worship · Announcement. Usage counted in a new `text-vocab.store.ts` so "Most Used" learns over time.
+
+### Slide split rules
+Configurable: blank line / `---` marker / paragraph / char count / line count.
+
+---
+
+## Phase 3 — Reveal · AI Assist · Search (final turn)
+
+### Reveal system
+Announcement block auto-expands to progressive slides (Title → +Point 1 → +Point 2…). Driven via existing `LOAD_TEXT` projection with `revealIndex` payload.
+
+### AI Writing Assistant
+`createServerFn` `rewriteText({ mode, text })` with modes: Expand, Shorten, Formal, Simple, Sermon, Announcement, Prayer, Worship, Youth, Bible Study. Result diff-previewed before applying.
+
+### Search upgrade
+Title + content + Tamil + Tanglish + fuzzy + recent + saved. Index built lazily on first search.
+
+### Performance pass
+- Dictionary lazy-imported on first Tanglish keystroke
+- Prefix index pre-built once, memoised
+- Suggestion compute in `requestIdleCallback` with 60 ms debounce
+- Tiptap configured without history limit issues; `onUpdate` debounced 150 ms before autosave
+
+---
+
+## Technical notes
+
+- **Phase 1 adds no packages.** Phase 2 adds Tiptap + extensions. Phase 3 reuses existing AI gateway helper.
+- **Lovable AI** is already wired; online suggestions and rewrite use `google/gemini-3-flash-preview` via `createServerFn` so `LOVABLE_API_KEY` stays server-side.
+- **Projector pipeline unchanged** — all output still flows through `projectTextSlide` → `LOAD_TEXT`.
+- **No layout changes.** 3-column workspace preserved.
+- **Existing files touched in Phase 1:** `src/lib/text/tanglish.ts`, `src/lib/text/church-dictionary.ts`, `src/features/text/TextPanel.tsx`. **New:** `src/lib/text/tamil-corpus.ts`, `src/lib/text/dictionary-index.ts`, `src/lib/text/online-suggest.functions.ts`.
+
+---
+
+**Confirm and I'll ship Phase 1 now.** If you'd rather start with the Tiptap toolbar (Phase 2) first, say so and I'll re-plan.
