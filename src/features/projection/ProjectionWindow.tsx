@@ -2,8 +2,19 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "@/db/schema";
 import type { MediaRecord, PlaylistItem, PlaylistRecord, TransitionType } from "@/db/schema";
 import { getMedia, getPlaylist, getSettings, touchMedia } from "@/db/repo";
-import { getChannel, DEFAULT_TEXT_STYLE, type ProjectionCommand, type ProjectionState, type TextOverlay, type TextStyle } from "@/lib/broadcast";
+import {
+  getChannel,
+  DEFAULT_TEXT_STYLE,
+  DEFAULT_GROUPED_STYLES,
+  type GroupedStyles,
+  type ProjectionCommand,
+  type ProjectionState,
+  type TextOverlay,
+  type TextStyle,
+} from "@/lib/broadcast";
 import { TextOverlayRenderer } from "@/components/TextOverlayRenderer";
+import { BackgroundLayer } from "@/components/BackgroundLayer";
+
 
 type Mode = "idle" | "single" | "slideshow" | "text";
 
@@ -31,6 +42,8 @@ export function ProjectionWindow() {
   const [transitioning, setTransitioning] = useState(false);
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [textStyle, setTextStyle] = useState<TextStyle>(DEFAULT_TEXT_STYLE);
+  const [groupedStyles, setGroupedStyles] = useState<GroupedStyles>(DEFAULT_GROUPED_STYLES);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<number | null>(null);
   const urlsRef = useRef<string[]>([]);
@@ -88,9 +101,11 @@ export function ProjectionWindow() {
         v && cur?.media.type === "video" && isFinite(v.duration) ? v.duration * 1000 : undefined,
       textOverlay,
       textStyle,
+      groupedStyles,
     };
     channelRef.current?.postMessage(state);
-  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle]);
+  }, [mode, items, index, playing, black, muted, volume, playbackRate, loop, videoReady, textOverlay, textStyle, groupedStyles]);
+
 
   useEffect(() => {
     broadcastState();
@@ -256,10 +271,18 @@ export function ProjectionWindow() {
           setBlack(false);
           setTextOverlay(cmd.overlay);
           if (cmd.style) setTextStyle(cmd.style);
+          if (cmd.styles) setGroupedStyles(cmd.styles);
           break;
         case "UPDATE_TEXT_STYLE":
           setTextStyle(cmd.style);
           break;
+        case "UPDATE_STYLES":
+          setGroupedStyles(cmd.styles);
+          break;
+        case "UPDATE_BACKGROUND":
+          setGroupedStyles((g) => ({ ...g, background: cmd.background }));
+          break;
+
         case "PLAY":
           setPlaying(true);
           if (videoRef.current) void videoRef.current.play();
@@ -412,10 +435,21 @@ export function ProjectionWindow() {
       )}
 
 
+      {/* Background layer (text overlay only) — sits beneath the verse text. */}
+      {textOverlay && !black && !cur && (
+        <BackgroundLayer background={groupedStyles.background} />
+      )}
+
       {/* Text overlay (Bible / Songs / Text) — unified auto-fit renderer */}
       {textOverlay && !black && !cur && (
-        <TextOverlayRenderer overlay={textOverlay} style={textStyle} withBackground />
+        <TextOverlayRenderer
+          overlay={textOverlay}
+          style={textStyle}
+          styles={groupedStyles}
+          withBackground={false}
+        />
       )}
+
 
       {/* Black */}
       {black && <div className="absolute inset-0 bg-black" />}

@@ -234,9 +234,11 @@ export function LivePreviewPanel() {
           <TextOverlayRenderer
             overlay={state.textOverlay}
             style={state.textStyle ?? DEFAULT_TEXT_STYLE}
+            styles={state.groupedStyles ?? undefined}
             withBackground
           />
         )}
+
         {black && <div className="absolute inset-0 bg-black" />}
 
         <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur">

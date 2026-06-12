@@ -169,28 +169,28 @@ export function BiblePanel() {
     const h = dh.hit;
     const pair = dh.pair;
     const primaryLabel = displayMode === "ta" || (displayMode === "both" && lang === "ta") ? "தமிழ்" : "KJV";
-    // Build a unified reference matching the active display mode.
     const metaPrimary = BIBLE_BOOKS[h.book];
     const refPrimary = `${h.bookNameLocal} ${h.chapter}:${h.verse}`;
-    const refSecondary = pair
-      ? `${pair.bookNameLocal} ${pair.chapter}:${pair.verse}`
-      : null;
-    const reference = displayMode === "both" && refSecondary
-      ? `${refPrimary} | ${refSecondary}`
-      : refPrimary;
+    const refSecondary = pair ? `${pair.bookNameLocal} ${pair.chapter}:${pair.verse}` : null;
+    const reference = displayMode === "both" && refSecondary ? `${refPrimary} | ${refSecondary}` : refPrimary;
+    const refEn = `${metaPrimary.name} ${h.chapter}:${h.verse}`;
+    const refTa = `${metaPrimary.nameTa} ${h.chapter}:${h.verse}`;
+    const primary: BibleLang = displayMode === "ta" ? "ta" : "en";
+    const enTxt = primary === "en" ? h.text : (pair?.text ?? "");
+    const taTxt = primary === "ta" ? h.text : (pair?.text ?? "");
     projectVerse({
-      reference,
-      text: h.text,
-      translation: primaryLabel,
+      reference, text: h.text, translation: primaryLabel,
       subtext: pair?.text,
       subtranslation: pair ? (primaryLabel === "KJV" ? "தமிழ்" : "KJV") : undefined,
-      book: h.book,
-      chapter: h.chapter,
-      verse: h.verse,
+      referenceEn: refEn, referenceTa: refTa,
+      textEn: enTxt, textTa: taTxt,
+      mode: displayMode === "both" ? "both" : (primary === "ta" ? "ta" : "en"),
+      book: h.book, chapter: h.chapter, verse: h.verse,
     });
     selectedKeyRef.current = favKey(h.book, h.chapter, h.verse);
     toast.success(`Projecting ${metaPrimary.name} ${h.chapter}:${h.verse}`);
   };
+
 
   const projectAt = (i: number) => {
     const dh = results[i];

@@ -1,7 +1,7 @@
 /**
  * Bible Adapter — projects bible verses (single or bilingual) through the
  * shared text-overlay wire command. Always includes the current formatting
- * style so the projector renders identically on first frame.
+ * styles so the projector renders identically on first frame.
  */
 import { useProjection } from "@/stores/projection.store";
 import { projectionEvents } from "../event-bus";
@@ -19,6 +19,12 @@ export interface ProjectVerseInput {
   book?: number;
   chapter?: number;
   verse?: number;
+  // Bilingual extension
+  referenceEn?: string;
+  referenceTa?: string;
+  textEn?: string;
+  textTa?: string;
+  mode?: "en" | "ta" | "both";
 }
 
 export function projectVerse(input: ProjectVerseInput): ProjectionContent<BibleVerseBody> {
@@ -28,12 +34,19 @@ export function projectVerse(input: ProjectVerseInput): ProjectionContent<BibleV
     translation: input.translation,
     subtext: input.subtext,
     subtranslation: input.subtranslation,
+    referenceEn: input.referenceEn,
+    referenceTa: input.referenceTa,
+    textEn: input.textEn,
+    textTa: input.textTa,
+    mode: input.mode,
     kind: "bible_verse",
   };
+  const groups = useTextFormat.getState().groups;
   const style = useTextFormat.getState().style;
   const store = useProjection.getState();
   if (!store.projectorOpen) store.openProjector();
-  const send = () => useProjection.getState().send({ type: "LOAD_TEXT", overlay, style });
+  const send = () =>
+    useProjection.getState().send({ type: "LOAD_TEXT", overlay, style, styles: groups });
   if (store.projectorOpen) send();
   else setTimeout(send, 400);
 
