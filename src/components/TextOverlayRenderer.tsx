@@ -104,7 +104,7 @@ function ReferenceBlock({ lines, style }: { lines: string[]; style: SectionStyle
       {lines.map((l, i) => (
         <div
           key={i}
-          style={textCss(style)}
+          style={{ ...textCss(style), fontSize: `${style.fontSizeVw}vw` }}
         >
           {l}
         </div>
