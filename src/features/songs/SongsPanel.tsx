@@ -19,11 +19,44 @@ import { useSongsStore } from "@/lib/songs/store";
 import { useSongsRecent } from "@/stores/songs-recent.store";
 import { getSongs, type Song } from "@/lib/songs/loader";
 import { searchSongs, type SongHit } from "@/lib/songs/search";
+import { songStem } from "@/lib/songs/normalize";
 import { projectSongSlide } from "@/projection/adapters/song.adapter";
 import { useProjection } from "@/stores/projection.store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SongEditorDialog } from "./SongEditorDialog";
+
+/** First non-empty lyric line — shown on every result card. */
+function firstLineOf(song: Song): string {
+  const src = song.slides[0] ?? song.content ?? "";
+  for (const line of src.split("\n")) {
+    const t = line.trim();
+    if (t) return t;
+  }
+  return song.title;
+}
+
+/** Find a lyric line that actually contains the query — for "Search Match" preview. */
+function matchedLineOf(song: Song, query: string): string | null {
+  const q = query.trim();
+  if (!q) return null;
+  const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+  const qStem = songStem(q);
+  const lines = (song.content ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const titleLine = song.title.trim();
+  for (const line of lines) {
+    if (line === titleLine) continue;
+    const lower = line.toLowerCase();
+    if (tokens.some((t) => t && lower.includes(t))) return line;
+  }
+  if (qStem.length >= 2) {
+    for (const line of lines) {
+      if (line === titleLine) continue;
+      if (songStem(line).includes(qStem)) return line;
+    }
+  }
+  return null;
+}
 
 type SongFilter = "all" | "favorites" | "recent" | "added" | "most" | "mine" | "author";
 const FILTER_LABELS: Record<SongFilter, string> = {
