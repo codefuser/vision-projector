@@ -1,22 +1,17 @@
 /**
- * Text Panel — three-pane workspace:
- *   Left:   list of saved text items (favorites, recents, all)
- *   Center: title + editor with Tanglish smart typing + suggestion dropdown
- *   Right:  live slide preview generated from blank-line splitting
+ * Text Panel — minimal projection workspace.
  *
- * Phase A upgrade adds: church-dictionary suggestion dropdown while typing
- * Tanglish, a quick-insert side strip of common worship words, an autosave
- * indicator, and project shortcuts (Ctrl+Enter / Ctrl+Shift+Enter / Ctrl+D /
- * Ctrl+Alt+N).
+ *   Left:   search + list of saved text items
+ *   Center: title + plain editor (English / Tamil / Tanglish auto-convert)
+ *   Right:  slide preview (blank-line split) with Project buttons
  *
- * Uses the same projection pipeline as Bible/Songs so theming, fonts,
- * background and animation render identically on the projector.
+ * Intentionally minimal: no rich-text toolbar, no quick-insert chips,
+ * no suggestion panels. Tanglish toggle still converts completed Roman
+ * words to Tamil on word boundary using the church dictionary.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages,
-  Sparkles, Check, Heading1, Heading2, List, ListOrdered, Quote, Minus,
-  LayoutTemplate, Scissors, Eye,
+  Type, Plus, Star, Trash2, Copy, Send, Search, FileText, Filter, Languages, Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,16 +20,9 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useTextItems, splitTextSlides, type TextItem } from "@/stores/text-items.store";
-import { useTextPrefs } from "@/stores/text-prefs.store";
 import { projectTextSlide } from "@/projection/adapters/text.adapter";
 import { useProjection } from "@/stores/projection.store";
-import { convertCompleted, suggestTanglish, type Suggestion } from "@/lib/text/tanglish";
-import {
-  QUICK_INSERT, CATEGORY_LABELS, BLOCK_TEMPLATES, useVocab, mostUsed,
-  type QuickCategory, type QuickWord,
-} from "@/lib/text/quick-insert";
-import { splitByRule, SPLIT_LABELS, type SplitRule } from "@/lib/text/split-rules";
-import { expandSlides } from "@/lib/text/reveal";
+import { convertCompleted } from "@/lib/text/tanglish";
 import { searchTextItems } from "@/lib/text/search";
 import { useShortcut } from "@/lib/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
@@ -61,17 +49,6 @@ const MODE_SHORT: Record<TypingMode, string> = {
 
 const BOUNDARY_RE = /[\s.,;:!?()[\]{}"'\u0964\u0965/\\-]/;
 
-function readingTime(words: number): string {
-  if (words === 0) return "0 sec";
-  const sec = Math.round((words / 150) * 60);
-  if (sec < 60) return `${sec} sec`;
-  const min = Math.round(sec / 60);
-  return `${min} min`;
-}
-function countWords(text: string): number {
-  const matches = text.match(/[A-Za-z\u0B80-\u0BFF']+/g);
-  return matches ? matches.length : 0;
-}
 function formatAgo(ts: number): string {
   const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
   if (s < 5) return "just now";
@@ -107,35 +84,8 @@ export function TextPanel() {
   const [typingMode, setTypingMode] = useState<TypingMode>("english");
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [savingPending, setSavingPending] = useState(false);
-  const [, forceTick] = useState(0); // re-render for "saved 5s ago"
+  const [, forceTick] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // ── Suggestion state ───────────────────────────────────────────────
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [activeSuggestion, setActiveSuggestion] = useState(0);
-  const [currentWord, setCurrentWord] = useState<{ start: number; end: number; text: string } | null>(null);
-
-  /** Find the in-flight Roman word at the caret (no trailing boundary char). */
-  const updateSuggestionsFor = (value: string, caret: number) => {
-    if (typingMode !== "tanglish") {
-      setSuggestions([]);
-      setCurrentWord(null);
-      return;
-    }
-    // Walk backwards from caret to find the start of the word.
-    let start = caret;
-    while (start > 0 && /[A-Za-z']/.test(value.charAt(start - 1))) start--;
-    const wordText = value.slice(start, caret);
-    if (wordText.length < 2 || !/^[A-Za-z]/.test(wordText)) {
-      setSuggestions([]);
-      setCurrentWord(null);
-      return;
-    }
-    const sugg = suggestTanglish(wordText, 6);
-    setSuggestions(sugg);
-    setActiveSuggestion(0);
-    setCurrentWord({ start, end: caret, text: wordText });
-  };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = e.target.value;
@@ -152,19 +102,14 @@ export function TextPanel() {
       next.length >= draftContent.length;
     if (!justTypedBoundary) {
       setDraftContent(next);
-      // Defer suggestion compute to next frame so the textarea is updated.
-      requestAnimationFrame(() => updateSuggestionsFor(next, caret));
       return;
     }
-    // Convert completed word behind caret.
     const head = next.slice(0, caret);
     const tail = next.slice(caret);
     const { converted, trailing } = convertCompleted(head);
     const newHead = converted + trailing;
     const newValue = newHead + tail;
     setDraftContent(newValue);
-    setSuggestions([]);
-    setCurrentWord(null);
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (!el) return;
@@ -173,139 +118,11 @@ export function TextPanel() {
     });
   };
 
-  /** Replace the current in-flight word with a Tamil candidate. */
-  const acceptSuggestion = (s: Suggestion) => {
-    if (!currentWord) return;
-    const el = textareaRef.current;
-    const value = draftContent;
-    const before = value.slice(0, currentWord.start);
-    const after = value.slice(currentWord.end);
-    const newValue = before + s.tamil + after;
-    setDraftContent(newValue);
-    setSuggestions([]);
-    setCurrentWord(null);
-    setSavingPending(true);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      const pos = (before + s.tamil).length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
-
-  /** Insert arbitrary text at caret (quick-insert / blocks). */
-  const insertAtCaret = (text: string, opts?: { bumpVocab?: boolean }) => {
-    const el = textareaRef.current;
-    const value = draftContent;
-    const caret = el?.selectionStart ?? value.length;
-    const newValue = value.slice(0, caret) + text + value.slice(caret);
-    setDraftContent(newValue);
-    setSavingPending(true);
-    if (opts?.bumpVocab) useVocab.getState().bump(text);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      const pos = caret + text.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
-
-  /** Insert a multi-line block at caret, padding with blank lines so it
-   *  becomes its own slide under the default split rule. */
-  const insertBlock = (snippet: string) => {
-    const el = textareaRef.current;
-    const value = draftContent;
-    const caret = el?.selectionStart ?? value.length;
-    const before = value.slice(0, caret);
-    const after = value.slice(caret);
-    const leading = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
-    const trailing = after.length === 0 || after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
-    const insert = leading + snippet + trailing;
-    const newValue = before + insert + after;
-    setDraftContent(newValue);
-    setSavingPending(true);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      const pos = before.length + insert.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
-
-  /** Toggle a line prefix (# / ## / > / • / 1.) on the current line. */
-  const toggleLinePrefix = (prefix: string) => {
-    const el = textareaRef.current;
-    const value = draftContent;
-    const caret = el?.selectionStart ?? value.length;
-    const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
-    const lineEnd = value.indexOf("\n", caret);
-    const endIdx = lineEnd === -1 ? value.length : lineEnd;
-    const line = value.slice(lineStart, endIdx);
-    // Strip any existing supported prefix first.
-    const stripped = line.replace(/^(\s*)(#{1,4}\s|>\s|•\s|\d+\.\s)/, "$1");
-    const already = line !== stripped && line.startsWith(prefix);
-    const newLine = already ? stripped : prefix + stripped;
-    const newValue = value.slice(0, lineStart) + newLine + value.slice(endIdx);
-    setDraftContent(newValue);
-    setSavingPending(true);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      const delta = newLine.length - line.length;
-      const pos = caret + delta;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (suggestions.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setActiveSuggestion((i) => (i + 1) % suggestions.length);
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setActiveSuggestion((i) => (i - 1 + suggestions.length) % suggestions.length);
-        return;
-      }
-      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey)) {
-        e.preventDefault();
-        acceptSuggestion(suggestions[activeSuggestion]);
-        return;
-      }
-      if (e.altKey && /^[1-9]$/.test(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        if (idx < suggestions.length) {
-          e.preventDefault();
-          acceptSuggestion(suggestions[idx]);
-          return;
-        }
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setSuggestions([]);
-        setCurrentWord(null);
-        return;
-      }
-    }
-  };
-
-  // Live counters
-  const counters = useMemo(() => {
-    const text = draftContent;
-    const chars = text.length;
-    const words = countWords(text);
-    const lines = text === "" ? 0 : text.split("\n").length;
-    return { chars, words, lines, reading: readingTime(words) };
-  }, [draftContent]);
-
   const selected = useMemo(
     () => items.find((it) => it.id === selectedId) ?? null,
     [items, selectedId],
   );
 
-  // Sync editor drafts when selection changes.
   useEffect(() => {
     if (selected) {
       setDraftTitle(selected.title);
@@ -313,8 +130,6 @@ export function TextPanel() {
       setActiveSlide(0);
       setSavedAt(selected.updatedAt);
       setSavingPending(false);
-      setSuggestions([]);
-      setCurrentWord(null);
     } else {
       setDraftTitle("");
       setDraftContent("");
@@ -324,7 +139,7 @@ export function TextPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  // Debounced autosave (2 s idle per spec).
+  // Debounced autosave (2s idle).
   useEffect(() => {
     if (!selected) return;
     if (draftTitle === selected.title && draftContent === selected.content) {
@@ -339,7 +154,6 @@ export function TextPanel() {
     return () => clearTimeout(t);
   }, [draftTitle, draftContent, selected, update]);
 
-  // Refresh "saved Ns ago" label every 15s.
   useEffect(() => {
     const t = setInterval(() => forceTick((n) => n + 1), 15000);
     return () => clearInterval(t);
@@ -353,23 +167,7 @@ export function TextPanel() {
     return searchTextItems(pool, query, recentIds).map((h) => h.item);
   }, [items, recents, filter, query]);
 
-  const splitRule = useTextPrefs((s) => (selectedId ? s.rules[selectedId] : undefined)) ?? { mode: "blank" } as SplitRule;
-  const setSplitRule = useTextPrefs((s) => s.setRule);
-  const revealOn = useTextPrefs((s) => (selectedId ? !!s.reveal[selectedId] : false));
-  const setReveal = useTextPrefs((s) => s.setReveal);
-  const vocabCounts = useVocab((s) => s.counts);
-  const vocabRecents = useVocab((s) => s.recents);
-  const bumpVocab = useVocab((s) => s.bump);
-  const [quickTab, setQuickTab] = useState<"most" | "recent" | QuickCategory>("church");
-
-  const baseSlides = useMemo(() => splitByRule(draftContent, splitRule), [draftContent, splitRule]);
-  const slides = useMemo(() => expandSlides(baseSlides, revealOn), [baseSlides, revealOn]);
-
-  const quickWords: QuickWord[] = useMemo(() => {
-    if (quickTab === "most") return mostUsed(vocabCounts);
-    if (quickTab === "recent") return vocabRecents.map((t) => ({ tamil: t, label: "" }));
-    return QUICK_INSERT[quickTab];
-  }, [quickTab, vocabCounts, vocabRecents]);
+  const slides = useMemo(() => splitTextSlides(draftContent), [draftContent]);
 
   const handleNew = () => {
     const id = create({ title: "Untitled", content: "" });
@@ -408,33 +206,11 @@ export function TextPanel() {
     if (!selected || slides.length === 0) return;
     for (let i = 0; i < slides.length; i++) {
       project(i);
-      // Brief delay so each LOAD_TEXT settles in the projector channel.
       await new Promise((r) => setTimeout(r, 80));
     }
     toast.success(`Queued ${slides.length} slides`);
   };
-  const insertSlideBreak = () => {
-    const el = textareaRef.current;
-    const value = draftContent;
-    const caret = el?.selectionStart ?? value.length;
-    const before = value.slice(0, caret);
-    const after = value.slice(caret);
-    // Ensure surrounding blank line.
-    const sep =
-      (before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n") +
-      (after.startsWith("\n") ? "" : "\n");
-    const newValue = before + sep + after;
-    setDraftContent(newValue);
-    setSavingPending(true);
-    requestAnimationFrame(() => {
-      if (!el) return;
-      const pos = before.length + sep.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  };
 
-  // ── Shortcuts ────────────────────────────────────────────────────────
   useShortcut({
     id: "text.project-current",
     label: "Project current text slide",
@@ -461,15 +237,6 @@ export function TextPanel() {
     scope: "workspace",
     allowInInput: true,
     handler: () => { if (selected) handleDuplicate(); },
-  });
-  useShortcut({
-    id: "text.new-slide-break",
-    label: "Insert new slide break at caret",
-    category: "text",
-    keys: ["Ctrl+Alt+N", "Meta+Alt+N"],
-    scope: "workspace",
-    allowInInput: true,
-    handler: () => { if (selected) insertSlideBreak(); },
   });
 
   const saveLabel = !selected
@@ -647,7 +414,7 @@ export function TextPanel() {
                       {(["english", "tamil", "tanglish"] as TypingMode[]).map((m) => (
                         <DropdownMenuItem
                           key={m}
-                          onClick={() => { setTypingMode(m); setSuggestions([]); }}
+                          onClick={() => setTypingMode(m)}
                           className={cn("text-xs", typingMode === m && "bg-accent font-semibold text-primary")}
                         >
                           {MODE_LABELS[m]}
@@ -666,6 +433,13 @@ export function TextPanel() {
                     <Copy className="h-3.5 w-3.5" />
                   </button>
                   <button
+                    onClick={() => handleDelete(selected)}
+                    title="Delete"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
                     onClick={() => toggleFavorite(selected.id)}
                     title={selected.favorite ? "Unfavorite" : "Favorite"}
                     className={cn(
@@ -677,106 +451,15 @@ export function TextPanel() {
                   </button>
                 </div>
 
-                {/* Formatting toolbar */}
-                <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-background/40 px-2 py-1">
-                  <ToolbarBtn icon={<Heading1 className="h-3.5 w-3.5" />} title="Heading 1" onClick={() => toggleLinePrefix("# ")} />
-                  <ToolbarBtn icon={<Heading2 className="h-3.5 w-3.5" />} title="Heading 2" onClick={() => toggleLinePrefix("## ")} />
-                  <ToolbarBtn icon={<List className="h-3.5 w-3.5" />} title="Bullet line" onClick={() => toggleLinePrefix("• ")} />
-                  <ToolbarBtn icon={<ListOrdered className="h-3.5 w-3.5" />} title="Numbered line" onClick={() => toggleLinePrefix("1. ")} />
-                  <ToolbarBtn icon={<Quote className="h-3.5 w-3.5" />} title="Quote line" onClick={() => toggleLinePrefix("> ")} />
-                  <ToolbarBtn icon={<Minus className="h-3.5 w-3.5" />} title="Slide break (Ctrl+Alt+N)" onClick={insertSlideBreak} />
-                  <div className="mx-1 h-4 w-px bg-border" />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        title="Insert content block"
-                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded px-2 text-[11px] font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                      >
-                        <LayoutTemplate className="h-3.5 w-3.5" />
-                        Block
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-56">
-                      <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        Content blocks
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {BLOCK_TEMPLATES.map((b) => (
-                        <DropdownMenuItem
-                          key={b.kind}
-                          onClick={() => insertBlock(b.snippet)}
-                          className="text-xs"
-                        >
-                          {b.label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <button
-                      onClick={() => selected && setReveal(selected.id, !revealOn)}
-                      title="Reveal: progressive slides from bulleted/numbered lists"
-                      className={cn(
-                        "inline-flex h-7 cursor-pointer items-center gap-1 rounded border px-2 text-[11px] font-medium transition",
-                        revealOn
-                          ? "border-primary/60 bg-primary/10 text-primary"
-                          : "border-border hover:bg-accent",
-                      )}
-                    >
-                      <Eye className="h-3 w-3" />
-                      Reveal {revealOn ? "on" : "off"}
-                    </button>
-                    <Scissors className="h-3 w-3" />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="inline-flex h-7 cursor-pointer items-center gap-1 rounded border border-border px-2 text-[11px] font-medium hover:bg-accent">
-                          Split: {SPLIT_LABELS[splitRule.mode]}
-                          {splitRule.mode === "lines" || splitRule.mode === "chars"
-                            ? ` (${(splitRule as { n: number }).n})`
-                            : ""}
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-52">
-                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                          Slide split rule
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {([
-                          { mode: "blank" },
-                          { mode: "marker", marker: "---" },
-                          { mode: "para" },
-                          { mode: "lines", n: 4 },
-                          { mode: "lines", n: 6 },
-                          { mode: "chars", n: 180 },
-                          { mode: "chars", n: 280 },
-                        ] as SplitRule[]).map((r, i) => (
-                          <DropdownMenuItem
-                            key={i}
-                            onClick={() => selected && setSplitRule(selected.id, r)}
-                            className={cn("text-xs", splitRule.mode === r.mode && "font-semibold text-primary")}
-                          >
-                            {SPLIT_LABELS[r.mode]}
-                            {(r.mode === "lines" || r.mode === "chars") && (
-                              <span className="ml-auto text-[10px] text-muted-foreground">{(r as { n: number }).n}</span>
-                            )}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                {/* Editor body + suggestion dropdown */}
+                {/* Editor body */}
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   <Textarea
                     ref={textareaRef}
                     value={draftContent}
                     onChange={handleContentChange}
-                    onKeyDown={handleKeyDown}
-                    onBlur={() => setTimeout(() => setSuggestions([]), 120)}
                     placeholder={
                       typingMode === "tanglish"
-                        ? "Type Tanglish — e.g. yesu, karthar, jebam.\nSuggestions appear; press Tab/Enter to accept.\n\nBlank line = new slide."
+                        ? "Type Tanglish — e.g. yesu, karthar, jebam.\nWords auto-convert to Tamil on space.\n\nBlank line = new slide."
                         : "Type or paste content…\n\nSeparate slides with a blank line."
                     }
                     className={cn(
@@ -785,99 +468,10 @@ export function TextPanel() {
                     )}
                     lang={typingMode === "english" ? "en" : "ta"}
                   />
-                  {suggestions.length > 0 && (
-                    <div className="absolute bottom-2 left-2 right-2 z-20 max-h-[200px] overflow-y-auto rounded-lg border border-border bg-popover/95 p-1 shadow-xl backdrop-blur">
-                      <div className="mb-1 flex items-center gap-1.5 px-2 pt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        Suggestions for
-                        <code className="rounded bg-muted px-1 font-mono text-[10px] text-foreground/80">
-                          {currentWord?.text}
-                        </code>
-                        <span className="ml-auto opacity-60">Tab / ↵ accept · Alt+1–6 · Esc dismiss</span>
-                      </div>
-                      <ul className="flex flex-col">
-                        {suggestions.map((s, i) => (
-                          <li key={`${s.tamil}-${i}`}>
-                            <button
-                              onMouseDown={(e) => { e.preventDefault(); acceptSuggestion(s); }}
-                              onMouseEnter={() => setActiveSuggestion(i)}
-                              className={cn(
-                                "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition",
-                                i === activeSuggestion ? "bg-primary/15" : "hover:bg-accent",
-                              )}
-                            >
-                              <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-muted text-[9px] font-mono text-muted-foreground">
-                                {i + 1}
-                              </span>
-                              <span className="text-[15px] font-medium text-foreground">{s.tamil}</span>
-                              <span className="text-[10px] text-muted-foreground">{s.key}</span>
-                              <span
-                                className={cn(
-                                  "ml-auto inline-flex items-center gap-1 rounded px-1 text-[9px] font-medium",
-                                  s.source === "church" && "bg-primary/10 text-primary",
-                                  s.source === "corpus" && "bg-emerald-500/10 text-emerald-600",
-                                  s.source === "phonetic" && "bg-amber-500/10 text-amber-600",
-                                )}
-                                title={`${s.source} · score ${s.score.toFixed(1)}`}
-                              >
-                                {s.source === "church" ? "📖" : s.source === "corpus" ? "🔤" : "♪"}
-                                {s.score === 0 ? "exact" : s.score <= 1.2 ? "prefix" : "fuzzy"}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
 
-                {/* Quick-insert tabbed strip */}
-                <div className="border-t border-border bg-muted/10 px-2 py-1.5">
-                  <div className="mb-1 flex flex-wrap items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-primary" />
-                    <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">Quick insert</span>
-                    {(["most", "recent", "church", "worship", "sermon", "announcement"] as const).map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => setQuickTab(t)}
-                        className={cn(
-                          "cursor-pointer rounded px-1.5 py-0.5 text-[10px] font-medium transition",
-                          quickTab === t
-                            ? "bg-primary/15 text-primary"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                        )}
-                      >
-                        {t === "most" ? "Most used" : t === "recent" ? "Recent" : CATEGORY_LABELS[t]}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {quickWords.length === 0 ? (
-                      <span className="text-[10px] text-muted-foreground">
-                        {quickTab === "most" ? "Insert words to start building your list." : "No items yet."}
-                      </span>
-                    ) : (
-                      quickWords.map((w) => (
-                        <button
-                          key={w.tamil}
-                          onClick={() => { insertAtCaret(w.tamil); bumpVocab(w.tamil); }}
-                          title={w.label}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-[13px] text-foreground transition hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
-                        >
-                          {w.tamil}
-                          {w.label && <span className="text-[9px] text-muted-foreground">{w.label}</span>}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
-                  <span><b className="text-foreground/80">{counters.chars}</b> chars</span>
-                  <span><b className="text-foreground/80">{counters.words}</b> words</span>
-                  <span><b className="text-foreground/80">{counters.lines}</b> lines</span>
+                <div className="flex items-center gap-x-3 border-t border-border bg-muted/10 px-2 py-1 text-[10px] text-muted-foreground">
                   <span><b className="text-foreground/80">{slides.length}</b> slide{slides.length === 1 ? "" : "s"}</span>
-                  <span>~{counters.reading} read</span>
                   {saveLabel && (
                     <span className={cn(
                       "ml-auto inline-flex items-center gap-1 rounded px-1.5 py-px",
@@ -953,20 +547,5 @@ export function TextPanel() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ToolbarBtn({
-  icon, title, onClick,
-}: { icon: React.ReactNode; title: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted-foreground transition hover:bg-accent hover:text-foreground"
-    >
-      {icon}
-    </button>
   );
 }
