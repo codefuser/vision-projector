@@ -1,13 +1,33 @@
 import { create } from "zustand";
 import { DEFAULT_GROUPED_STYLES, getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
+import {
+  buildPopupFeatures,
+  getDisplayDiagnostics,
+  moveWindowToScreen,
+  pickProjectorScreen,
+  requestScreenDetails,
+  type ScreenInfo,
+} from "@/lib/display/screen-manager";
+import { logger } from "@/lib/logger";
+
+const PREFERRED_SCREEN_KEY = "projector.preferredScreenId";
+
+export interface OpenProjectorResult {
+  ok: boolean;
+  window: Window | null;
+  screen: ScreenInfo | null;
+  reason?: "popup-blocked" | "no-screens" | "permission-denied" | "unsupported" | "already-open";
+  message?: string;
+}
 
 interface ProjectionStore {
   projectorOpen: boolean;
   windowRef: Window | null;
   channel: BroadcastChannel | null;
   state: ProjectionState | null;
+  lastScreen: ScreenInfo | null;
   init: () => void;
-  openProjector: () => void;
+  openProjector: (preferredScreenId?: string | null) => Promise<OpenProjectorResult>;
   closeProjector: () => void;
   send: (cmd: ProjectionCommand) => void;
 }
