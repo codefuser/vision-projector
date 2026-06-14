@@ -188,7 +188,7 @@ export function LivePreviewPanel() {
         subtitle={projectorOpen ? "Mirroring projector" : "Projector not open"}
       >
         <button
-          onClick={projectorOpen ? closeProjector : openProjector}
+          onClick={() => (projectorOpen ? closeProjector() : void openProjector())}
           className={cn(
             "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition",
             projectorOpen

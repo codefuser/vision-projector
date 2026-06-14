@@ -72,7 +72,7 @@ export function GlobalShortcuts() {
     label: "Open / Close Projector",
     category: "projector",
     keys: ["F9"],
-    handler: () => (projectorOpen ? closeProjector() : openProjector()),
+    handler: () => { if (projectorOpen) closeProjector(); else void openProjector(); },
   });
   useShortcut({
     id: "projector.stop",

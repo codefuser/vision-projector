@@ -1,13 +1,33 @@
 import { create } from "zustand";
 import { DEFAULT_GROUPED_STYLES, getChannel, type ProjectionCommand, type ProjectionState } from "@/lib/broadcast";
+import {
+  buildPopupFeatures,
+  getDisplayDiagnostics,
+  moveWindowToScreen,
+  pickProjectorScreen,
+  requestScreenDetails,
+  type ScreenInfo,
+} from "@/lib/display/screen-manager";
+import { logger } from "@/lib/logger";
+
+const PREFERRED_SCREEN_KEY = "projector.preferredScreenId";
+
+export interface OpenProjectorResult {
+  ok: boolean;
+  window: Window | null;
+  screen: ScreenInfo | null;
+  reason?: "popup-blocked" | "no-screens" | "permission-denied" | "unsupported" | "already-open";
+  message?: string;
+}
 
 interface ProjectionStore {
   projectorOpen: boolean;
   windowRef: Window | null;
   channel: BroadcastChannel | null;
   state: ProjectionState | null;
+  lastScreen: ScreenInfo | null;
   init: () => void;
-  openProjector: () => void;
+  openProjector: (preferredScreenId?: string | null) => Promise<OpenProjectorResult>;
   closeProjector: () => void;
   send: (cmd: ProjectionCommand) => void;
 }
@@ -17,6 +37,7 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
   windowRef: null,
   channel: null,
   state: null,
+  lastScreen: null,
   init: () => {
     if (get().channel) return;
     const ch = getChannel();
@@ -28,39 +49,71 @@ export const useProjection = create<ProjectionStore>((set, get) => ({
     };
     set({ channel: ch });
   },
-  openProjector: () => {
+  openProjector: async (preferredScreenId?: string | null): Promise<OpenProjectorResult> => {
     const existing = get().windowRef;
     if (existing && !existing.closed) {
       existing.focus();
-      return;
+      return { ok: true, window: existing, screen: get().lastScreen, reason: "already-open" };
     }
-    // Try multi-screen API for second monitor
-    let features = "popup,width=1280,height=720";
+
+    // 1. Request Window Management permission (must be inside the user gesture
+    //    that triggered openProjector). This populates screen details so we
+    //    can place the popup directly on the external display.
+    const preferred = preferredScreenId ?? (typeof localStorage !== "undefined" ? localStorage.getItem(PREFERRED_SCREEN_KEY) : null);
+    let targetScreen: ScreenInfo | null = null;
     try {
-      const screenDetails = (window as unknown as { getScreenDetails?: () => Promise<{ screens: { left: number; top: number; availWidth: number; availHeight: number; isPrimary: boolean }[] }> }).getScreenDetails;
-      if (screenDetails) {
-        screenDetails().then((details) => {
-          const ext = details.screens.find((s) => !s.isPrimary);
-          if (ext && get().windowRef) {
-            get().windowRef?.moveTo(ext.left, ext.top);
-            get().windowRef?.resizeTo(ext.availWidth, ext.availHeight);
-          }
-        }).catch(() => undefined);
-      }
-    } catch {
-      /* ignore */
+      await requestScreenDetails();
+    } catch (e) {
+      logger.warn("requestScreenDetails threw", e);
     }
+    const diag = await getDisplayDiagnostics();
+    logger.info("openProjector: display diagnostics", {
+      supported: diag.supported,
+      permission: diag.permission,
+      screens: diag.screenCount,
+      warnings: diag.warnings,
+    });
+    targetScreen = pickProjectorScreen(diag, preferred);
+
+    // 2. Open the popup with placement hints. Browsers without
+    //    window-management permission will ignore left/top across screens
+    //    but still honor width/height — the user can drag the window over.
+    const features = buildPopupFeatures(targetScreen);
     const w = window.open("/project", "church-projector", features);
-    if (w) {
-      set({ windowRef: w, projectorOpen: true });
-      // poll close
-      const timer = setInterval(() => {
-        if (w.closed) {
-          clearInterval(timer);
-          set({ projectorOpen: false, windowRef: null, state: null });
-        }
-      }, 500);
+    if (!w) {
+      logger.error("Projector popup blocked by browser");
+      return {
+        ok: false,
+        window: null,
+        screen: targetScreen,
+        reason: "popup-blocked",
+        message: "Popup blocked. Allow popups for this site and try again.",
+      };
     }
+
+    set({ windowRef: w, projectorOpen: true, lastScreen: targetScreen });
+    logger.info("Projector opened", {
+      screen: targetScreen?.label,
+      isPrimary: targetScreen?.isPrimary,
+      size: targetScreen ? `${targetScreen.availWidth}x${targetScreen.availHeight}` : "default",
+    });
+
+    // 3. Belt-and-braces: re-position after a tick in case the popup landed
+    //    on the wrong monitor (some browsers ignore initial coords).
+    if (targetScreen && !targetScreen.isPrimary) {
+      setTimeout(() => moveWindowToScreen(w, targetScreen), 250);
+    }
+
+    // 4. Poll for close.
+    const timer = setInterval(() => {
+      if (w.closed) {
+        clearInterval(timer);
+        set({ projectorOpen: false, windowRef: null, state: null });
+        logger.info("Projector window closed");
+      }
+    }, 500);
+
+    return { ok: true, window: w, screen: targetScreen };
   },
   closeProjector: () => {
     get().windowRef?.close();
